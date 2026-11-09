@@ -537,6 +537,57 @@ FEATURES = {
 }
 
 
+# --- áætlaður viðgerðarkostnaður: gallaður hlutur í lýsingu -> gróft verðbil (kr., varahlutir + vinna m. VSK) ---
+# Áætlanir fyrir dæmigerðan fólksbíl á íslensku verkstæði 2026. Fáar opinberar verðskrár eru til; uppfærið eftir þörfum.
+REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
+    ("timareim", "Tímareim + vatnsdæla", 90000, 220000, r"tímareim"),
+    ("timakedja", "Tímakeðja", 250000, 600000, r"tímakeðj"),
+    ("kupling", "Kúpling", 150000, 400000, r"kúpling|kupling"),
+    ("skipting", "Sjálfskipting / gírkassi", 400000, 1500000, r"sjálfskipting|skipting\w*|gírkass|gírkass|gírar"),
+    ("turbina", "Túrbína", 250000, 600000, r"túrbín|turbo"),
+    ("dpf", "Sótagnasía (DPF)", 100000, 450000, r"sótagn|dpf|partikkel"),
+    ("egr", "EGR-ventill", 80000, 250000, r"\begr"),
+    ("spissar", "Spíssar", 150000, 500000, r"spíss"),
+    ("rafgeymir", "Rafgeymir", 25000, 60000, r"rafgeym"),
+    ("bremsur", "Bremsur (klossar og diskar)", 50000, 140000, r"bremsu|bremsur|klossar|bremsudisk"),
+    ("dekk", "Dekk (sett)", 80000, 250000, r"\bdekk"),
+    ("ac", "Loftkæling", 25000, 200000, r"loftkæling|\bac\b|miðstöð"),
+    ("vatnsdaela", "Vatnsdæla", 60000, 150000, r"vatnsdæl"),
+    ("fjodrun", "Fjöðrun / demparar", 60000, 250000, r"dempar|fjöðrun|gormar|spyrn"),
+    ("legur", "Hjólalegur", 40000, 100000, r"hjólaleg|\blegur|\blega\b"),
+    ("startari", "Startari / alternator", 80000, 200000, r"startar|alternator|altenator|hleðslutæki vélar"),
+    ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð|sílsa|sílsum"),
+    ("rudan", "Framrúða", 80000, 250000, r"framrúð|rúðan|sprunga í rúðu"),
+    ("hv", "Drifrafhlaða (tvinn/rafbíll)", 500000, 2500000, r"drifrafhl|rafhlaða|rafhlöðu|batterí"),
+    ("olia", "Olíuleki / pakkningar", 40000, 250000, r"olíulek|leki|lekur|pakkning"),
+    ("velarljos", "Vélarljós (óljóst, þarf greiningu)", 20000, 400000, r"vélarljós|check engine|ljós í mælaborði"),
+    ("vel", "Vél (mikil viðgerð eða skipti)", 600000, 2000000, r"\bvélin\b|\bvél\b|mótor"),
+    ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn"),
+]
+DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma"
+DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b"
+
+
+def repairs(d, title=""):
+    """Gallaðir hlutir í lýsingu -> [[kóði, heiti, lægst, hæst], ...]. Setning þarf að nefna hlutinn OG galla, ekki að búið sé að laga."""
+    text = (d.get("d", "") + ". " + title).lower()
+    out, seen = [], set()
+    for sent in re.split(r"[.!?\n]+", text):
+        if not re.search(DEFECT, sent) or re.search(r"(engin|ekkert|ekki)\W+(\w+\W+){0,2}(gall|bilu|vandam|ryð|leki)", sent):
+            continue
+        for code, name, lo, hi, pat in REPAIRS:
+            if code in seen:
+                continue
+            m = re.search(pat, sent)
+            if m and not re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25]):
+                seen.add(code)
+                out.append([code, name, lo, hi])
+    # „vél“ er of almennt ef annar vélarhlutur fannst í sömu lýsingu
+    if "vel" in seen and len(seen) > 1:
+        out = [r for r in out if r[0] != "vel"]
+    return out[:4]
+
+
 def tags(d):
     t = (" ".join(d.get("e", [])) + " " + d.get("d", "")).lower()
     fl, ft = [], []
@@ -590,6 +641,9 @@ def update_details(cars):
         if d.get("r"):
             c["rng"] = d["r"]
         fl, ft = tags(d)
+        rp = repairs(d, c.get("title", ""))
+        if rp:
+            c["rep"] = rp
         if fl:
             c["fl"] = fl
         if ft:

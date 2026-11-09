@@ -314,6 +314,13 @@
     if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa', unsure: true };
     if (c.enginePeers != null && c.enginePeers < 2 && Math.abs(c.dev) >= 0.12) return { cls: 'mid', txt: 'Fáir með sömu vél', unsure: true };
     if (c.km == null && c.age > 3) return { cls: 'mid', txt: 'Akstur óþekktur', unsure: true };
+    // þekktur viðgerðarkostnaður: er bíllinn enn ódýr þegar viðgerðin er lögð við?
+    var rc = repairCost(c);
+    if (rc && c.est) {
+      var after = (c.price + rc.mid) / c.est - 1;
+      if (after <= -0.12) return { cls: 'good', txt: 'Gott verð þrátt fyrir viðgerð ' + pct(after) };
+      if (c.dev <= -0.12) return { cls: 'warn', txt: 'Ódýr en þarf viðgerð', unsure: true };
+    }
     // matið miðast við gallalausan bíl: ódýr bíll sem lýsingin segir gallaðan er ekki „gott verð“
     if (c.dev <= -0.12 && c.fl && c.fl.some(function (f) { return f === 'tjon' || f === 'laga' || f === 'ryd'; })) return { cls: 'warn', txt: 'Ódýr en nefnir galla ' + pct(c.dev) };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
@@ -552,15 +559,26 @@
     var fl = (c.fl || []).slice().sort(function (a, b) { return (BAD_FLAGS[b] ? 1 : 0) - (BAD_FLAGS[a] ? 1 : 0); });
     if (c.relist) fl.unshift('relist');
     if (c.kmBack) fl.unshift('kmback');
+    if (c.rep && c.rep.length) fl.unshift('rep');
     if (c.vis) fl.unshift('vis');
     return fl.slice(0, max || 99).map(function (f) {
       if (f === 'relist') return '<span class="flag relist">🔁 Endurskráður</span>';
       if (f === 'kmback') return '<span class="flag bad">⚠️ Akstur lækkaði</span>';
+      if (f === 'rep') { var rc = repairCost(c); return '<span class="flag bad" title="' + esc(rc.names.join(', ')) + '">🔧 Viðgerð ~' + kRange(rc.lo, rc.hi) + '</span>'; }
       if (f === 'vis') return '<span class="flag bad" title="Sjálfvirkt mat út frá fyrstu mynd (' + Math.round(c.vis[1] * 100) + '% líkur). Getur skjátlast.">📷 ' +
         ({ tjon: 'Mynd: tjón?', keppni: 'Mynd: keppnisbíll?', verkefni: 'Mynd: í viðgerð?', ryd: 'Mynd: ryð?' }[c.vis[0]] || c.vis[0]) + '</span>';
       return '<span class="flag ' + (BAD_FLAGS[f] ? 'bad' : 'plus') + '">' + esc(FLAG_TXT[f] || f) + '</span>';
     }).join('');
   }
+
+  // áætlaður viðgerðarkostnaður úr lýsingu (scrape.py repairs): [[kóði, heiti, lægst, hæst], ...]
+  function repairCost(c) {
+    if (!c.rep || !c.rep.length) return null;
+    var lo = 0, hi = 0;
+    c.rep.forEach(function (r) { lo += r[2]; hi += r[3]; });
+    return { lo: lo, hi: hi, mid: (lo + hi) / 2, names: c.rep.map(function (r) { return r[1]; }) };
+  }
+  function kRange(lo, hi) { return thous(lo) + '–' + thous(hi); }
 
   // ---------- birting ----------
   function img(c) { return c.img && c.img.indexOf('/__thumb') < 0 ? c.img : ''; }
@@ -726,6 +744,8 @@
     if (c.drop) out.push({ ic: 'trending-down', t: 'Lækkaði nýlega um ' + thous(c.drop) });
     if (c.perf.t) out.push({ ic: 'zap', t: c.perf.label + ': borinn saman með tilliti til útgáfu' });
     if (c.fl && c.fl.some(function (f) { return BAD_FLAGS[f]; })) out.push({ ic: 'triangle-alert', t: 'Lýsingin nefnir galla: ' + c.fl.filter(function (f) { return BAD_FLAGS[f]; }).map(function (f) { return FLAG_TXT[f].replace('⚠️ ', ''); }).join(', '), warn: true });
+    var rcx = repairCost(c);
+    if (rcx) out.push({ ic: 'triangle-alert', t: 'Viðgerð ~' + kRange(rcx.lo, rcx.hi) + ' (' + rcx.names.join(', ').toLowerCase() + ')', warn: true });
     if (c.vis) out.push({ ic: 'triangle-alert', t: 'Myndin bendir til ' + ({ tjon: 'tjóns', keppni: 'keppnisbíls', verkefni: 'viðgerðar', ryd: 'ryðs' }[c.vis[0]] || c.vis[0]), warn: true });
     return out;
   }
@@ -736,6 +756,16 @@
         (p == null ? '' : '<div class="tc-meter"><i style="left:' + (p * 100).toFixed(1) + '%"></i></div><div class="tc-scale"><span>Ódýrt</span><span>Dýrt</span></div>') : '') +
       '<ul class="tc-list">' + reasons(c).map(function (r) { return '<li' + (r.warn ? ' class="w"' : '') + '>' + ic(r.ic) + '<span>' + esc(r.t) + '</span></li>'; }).join('') + '</ul>' +
       (c.peers >= 2 && !c.special ? '<div class="tc-foot">Borið saman við ' + c.peers + ' ' + esc(cap(c.make) + ' ' + cap(c.base)) + ' á skrá, leiðrétt fyrir aldri, akstri og eldsneyti.</div>' : '') + '</div>';
+  }
+  function repairHtml(c) {
+    var rc = repairCost(c); if (!rc) return '';
+    var lo = c.price + rc.lo, hi = c.price + rc.hi;
+    return '<h4>Áætlaður viðgerðarkostnaður</h4><div class="repair"><ul>' + c.rep.map(function (r) {
+      return '<li>' + ic('cog') + '<span>' + esc(r[1]) + '</span><b>' + kRange(r[2], r[3]) + '</b></li>';
+    }).join('') + '</ul>' +
+      '<div class="rp-sum"><div><span>Verð + viðgerð</span><b>' + mkrShort(lo) + '–' + mkrShort(hi) + ' m.kr.</b></div><div><span>Mat (gallalaus)</span><b>' + mkrShort(c.est) + ' m.kr.</b></div>' +
+      '<div class="' + (hi < c.est ? 'g' : lo > c.est ? 'b' : '') + '"><span>Niðurstaða</span><b>' + (hi < c.est ? 'Borgar sig líklega' : lo > c.est ? 'Borgar sig ekki' : 'Tæpt') + '</b></div></div>' +
+      '<p class="note">Greint úr lýsingu seljanda. Gróf verðbil fyrir dæmigerðan fólksbíl á íslensku verkstæði (varahlutir + vinna); raunverð fer eftir tegund og ástandi. Fáðu tilboð frá verkstæði áður en þú kaupir.</p></div>';
   }
   function spec(icon, label, val) { return val ? '<div class="spec">' + ic(icon) + '<span>' + label + '</span><b>' + val + '</b></div>' : ''; }
 
@@ -806,6 +836,7 @@
         'Fyrir bíl á þessum aldri og akstri lækkar verð að jafnaði um ~' + Math.max(0, kmEff).toFixed(1) + '% fyrir hverja 10.000 km og ~' + Math.max(0, yrEff).toFixed(0) + '% á ári.</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +
         rows + '</tbody></table></div>' : '') +
+      repairHtml(c) +
       '<div id="carOffer"></div><div id="carAlt"></div>' +
       '</section>' +
       '<section data-cpanel="cost" hidden><div id="carExtras"></div>' +
@@ -1428,7 +1459,7 @@
     esc: esc, kr: kr, kmFmt: kmFmt, cap: cap, img: img, fold: fold, pct: pct, mkrShort: mkrShort, monoHtml: monoHtml,
     prep: prep, baseModel: baseModel, model: function () { return model; }, ageSlope: ageSlope, kmSlope: kmSlope, similar: similar, adjusted: adjusted, verdict: verdict,
     catalogBases: catalogBases, loadHistory: loadHistory, hist: function () { return HIST; }, dayFmt: dayFmt, daysBetween: daysBetween,
-    pastRow: pastRow, dateIs: dateIs, details: loadDetails, makes: function () { return uniq(cars.map(function (c) { return c.make; })).sort(); },
+    pastRow: pastRow, dateIs: dateIs, details: loadDetails, repairCost: repairCost, makes: function () { return uniq(cars.map(function (c) { return c.make; })).sort(); },
     setView: function (v) { $('fView').value = v; render(); }
   };
   bind();

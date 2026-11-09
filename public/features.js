@@ -193,7 +193,10 @@
       if (c.fl && c.fl.some(function (f) { return /tjon|ryd|laga|skodun/.test(f); })) { room += 0.03; why.push('Lýsingin nefnir galla: nefndu þá'); }
       room = Math.max(0.01, Math.min(0.15, room));
       var r10 = function (x) { return Math.round(x / 1e4) * 1e4; };
-      var likely = r10(c.price * (1 - room)), start = r10(c.price * (1 - room * 1.8)), max = r10(Math.min(c.price, Math.max(c.est * 1.03, likely)));
+      var rc = A.repairCost(c), fix = rc ? rc.mid : 0;
+      if (rc) why.push('Áætluð viðgerð ~' + A.kr(fix) + ': dregin frá hámarkinu');
+      var likely = r10(c.price * (1 - room)), start = r10(c.price * (1 - room * 1.8)), max = r10(Math.min(c.price, Math.max(c.est * 1.03 - fix, likely - fix)));
+      if (rc) { likely = r10(Math.min(likely, max)); start = r10(Math.min(start, max * 0.92)); }
       el.innerHTML = '<h4>Hvað á ég að bjóða?</h4><div class="offer"><div><span>Byrjunartilboð</span><b>' + A.kr(start) + '</b></div>' +
         '<div class="mid"><span>Líklegt kaupverð</span><b>' + A.kr(likely) + '</b></div><div><span>Ekki borga meira en</span><b>' + A.kr(max) + '</b></div></div>' +
         '<ul class="tc-list offer-why">' + why.map(function (t) { return '<li>' + ic('check') + '<span>' + A.esc(t) + '</span></li>'; }).join('') + '</ul>' +
