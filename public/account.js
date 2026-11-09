@@ -164,7 +164,7 @@
     document.querySelectorAll('[data-similar]').forEach(function (x) {
       var on = !!similarOf(x.getAttribute('data-similar'));
       x.classList.toggle('on', on);
-      x.innerHTML = ic(on ? 'check' : 'sparkles') + (on ? 'Vakta svipaða bíla · smelltu til að hætta' : 'Láttu mig vita af svipuðum ódýrari');
+      x.innerHTML = ic(on ? 'check' : 'badge-percent') + (on ? 'Vakta svipaða bíla · smelltu til að hætta' : 'Láttu mig vita af svipuðum ódýrari');
     });
     document.querySelectorAll('[data-watch]').forEach(function (x) {
       var w = doc && doc.watch[x.getAttribute('data-watch')];

@@ -792,9 +792,9 @@
       '<div class="actions">' +
       '<button type="button" class="sec' + (inCmp ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + ic('git-compare-arrows') + (inCmp ? 'Í samanburði' : 'Bera saman') + '</button>' +
       '<button type="button" class="sec" data-watch="' + esc(c.id) + '">' + ic('bell') + 'Verðvakt</button>' +
-      '<button type="button" class="sec" data-similar="' + esc(c.id) + '">' + ic('sparkles') + 'Láttu mig vita af svipuðum ódýrari</button>' +
+      '<button type="button" class="sec" data-similar="' + esc(c.id) + '">' + ic('badge-percent') + 'Láttu mig vita af svipuðum ódýrari</button>' +
       '<button type="button" class="sec" data-share="' + esc(c.id) + '">' + ic('share-2') + 'Deila</button>' +
-      '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">' + ic('sparkles') + 'Spyrja Claude</a></div>' +
+      '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">' + ic('message-circle') + 'Spyrja Claude</a></div>' +
       '</section>' +
       '<section data-cpanel="price" hidden>' +
       '<div class="est"><div class="est-top"><div><span class="note">Áætlað markaðsverð</span><div class="big">' + kr(c.est) + '</div></div>' +
