@@ -587,6 +587,7 @@
     var list = filtered();
     $('fbLink').href = fbLink(readFilters());
     syncUrl();
+    if (window.Nice) Nice.refresh();
     var view = $('fView').value, loc = $('fLoc').value;
     $('locPill').hidden = !loc; $('locPill').textContent = '📍 ' + loc + ' ✕';
     document.querySelectorAll('#views [data-view]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-view') === view); });
@@ -615,6 +616,7 @@
     $('modalBody').innerHTML = html;
     var d = $('modal');
     d.className = cls || '';
+    if (window.Nice) setTimeout(function () { Nice.enhance($('modalBody')); }, 0);
     if (d.showModal) { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
     d.scrollTop = 0;
   }

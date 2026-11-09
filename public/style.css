@@ -640,3 +640,33 @@ button.mt-lab { background: none; border: 0; padding: 0; cursor: help; font-fami
 .tc-list .ic { width: 15px; height: 15px; margin-top: 1px; color: var(--accent); }
 .tc-list li.w .ic { color: var(--warn); }
 .tc-foot { margin-top: 10px; padding: 9px 14px 11px; border-top: 1px solid var(--line); background: var(--mid-soft); font-size: 11.5px; color: var(--muted); }
+
+/* ---------- sérhannaðir fellilistar ---------- */
+.ns { position: relative; width: 100%; }
+.ns-native { position: absolute !important; opacity: 0; pointer-events: none; width: 1px !important; height: 1px !important; padding: 0 !important; border: 0 !important; }
+.ns-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg2); color: var(--text); font-size: 15px; font-weight: 500; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; text-transform: none; letter-spacing: 0; }
+.ns-btn:hover { border-color: var(--line2); }
+.ns.open .ns-btn, .ns-btn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ns-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ns-chev { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
+.ns.open .ns-chev { transform: rotate(180deg); }
+.ns-pop { position: absolute; z-index: 70; left: 0; top: calc(100% + 6px); min-width: 100%; width: max-content; max-width: min(340px, 90vw);
+  background: var(--card); border: 1px solid var(--line2); border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.45); padding: 6px; animation: nsin .14s ease-out; text-transform: none; letter-spacing: 0; }
+.ns.up .ns-pop { top: auto; bottom: calc(100% + 6px); }
+@keyframes nsin { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.ns-pop ul { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; scrollbar-width: thin; }
+.ns-pop li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 11px; border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; }
+.ns-pop li:hover, .ns-pop li.hl { background: var(--mid-soft); }
+.ns-pop li.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.ns-pop li .ic { width: 16px; height: 16px; }
+.ns-search { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.ns-search .ic { width: 16px; height: 16px; color: var(--muted); }
+.ns-search input { flex: 1; border: 0; background: transparent; color: var(--text); font-size: 14px; outline: none; padding: 4px 0; }
+.sort .ns { width: auto; }
+.sort .ns-btn { background: var(--card); border-color: var(--line2); font-weight: 600; padding: 10px 14px; }
+.sort .ns-pop { right: 0; left: auto; }
+.val-form .ns-btn { padding: 10px 12px; }
+/* talnareitir án kerfispíla */
+input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
