@@ -53,6 +53,9 @@
   }
 
   function prep(c) {
+    // Brimborg skráir stundum afl með aukastaf án kommu („1836“ = 183,6 hö); undir 40 hö er villa (t.d. kWh)
+    if (c.hp > 1000) c.hp = Math.round(c.hp / 10);
+    if (c.hp && (c.hp < 40 || c.hp > 1000)) c.hp = null;
     c.base = baseModel(c.model, c.make);
     c.key = c.make + '|' + c.base;
     c.fcat = fuelCat(c);

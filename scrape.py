@@ -432,6 +432,13 @@ def after(parts, label, n=1):
     return ""
 
 
+def clean_hp(hp):
+    """Brimborg skráir stundum afl með aukastaf án kommu („1836“ = 183,6 hö); undir 40 hö er villa (t.d. kWh)."""
+    if hp and hp > 1000:
+        hp = round(hp / 10)
+    return hp if hp and 40 <= hp <= 1000 else None
+
+
 def parse_details(c, h):
     parts, d = flat(h), {}
     src = c.get("src")
@@ -461,7 +468,7 @@ def parse_details(c, h):
     else:
         hp = None
     if hp:
-        d["hp"] = int(hp.group(1))
+        d["hp"] = clean_hp(int(hp.group(1)))
     if d.get("d"):
         d["d"] = d["d"][:2500]
     rng = re.search(r"[Dd]rægni(?: allt að)?(?: \(km\))? (\d{2,3})(?: km)?", " ".join(parts))
@@ -644,7 +651,7 @@ def update_details(cars):
         if not d:
             continue
         if d.get("hp"):
-            c["hp"] = d["hp"]; hp += 1
+            c["hp"] = clean_hp(d["hp"]); hp += 1
         if d.get("r"):
             c["rng"] = d["r"]
         fl, ft = tags(d)
