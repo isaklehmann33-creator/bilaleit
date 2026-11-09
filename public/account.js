@@ -95,6 +95,8 @@
   function openWatch(id, btn) {
     if (!user) return showLogin('Skráðu þig inn til að fá tilkynningu þegar verðið lækkar.');
     var c = A.byId(id), w = doc.watch[id];
+    if (w) { delete doc.watch[id]; persist(); refreshButtons(); return toast('Hætt að vakta verðið á ' + w.title + '.'); }
+    if (btn.parentNode.parentNode.querySelector('.watch-box')) return;
     var box = document.createElement('div');
     box.className = 'watch-box';
     box.innerHTML = '<label>Láttu mig vita ef verðið fer niður í<span class="inp-s"><input id="wTarget" type="number" inputmode="numeric" step="50000" value="' +
@@ -108,7 +110,8 @@
       doc.watch[id] = { target: target, title: A.cap(c.make) + ' ' + A.cap(c.model), price: c.price, t: now(), hit: c.price <= target };
       if (!doc.saved[id]) doc.saved[id] = snap(c);
       persist(); renderHeader(); A.refreshSaved();
-      box.innerHTML = '<p class="note">✓ Þú færð tilkynningu ef verðið fer niður í ' + A.kr(target) + ' eða lægra. Bíllinn er líka vistaður.</p>';
+      box.innerHTML = '<p class="note">✓ Þú færð tilkynningu ef verðið fer niður í ' + A.kr(target) + ' eða lægra. Bíllinn er líka vistaður. Smelltu aftur á takkann til að hætta.</p>';
+      btn.disabled = false; refreshButtons();
     });
     if ($('wDel')) $('wDel').addEventListener('click', function () { delete doc.watch[id]; persist(); box.innerHTML = '<p class="note">Verðvakt fjarlægð.</p>'; });
   }
@@ -135,17 +138,50 @@
   function saveSearch() {
     if (!user) return showLogin('Skráðu þig inn til að vista leitir og fá tilkynningar um nýja bíla.');
     var f = A.readFilters(), key = JSON.stringify(f);
-    if (doc.searches.some(function (s) { return JSON.stringify(s.f) === key; })) return toast('Þessi leit er þegar vistuð.');
+    var had = doc.searches.filter(function (s) { return JSON.stringify(s.f) === key; })[0];
+    if (had) {  // smellt aftur: hætta að vakta
+      doc.searches = doc.searches.filter(function (s) { return s !== had; });
+      persist(); renderHeader(); refreshButtons();
+      return toast('Hætt að vakta þessa leit.');
+    }
     if (doc.searches.length >= MAX_SEARCHES) return toast('Hámark ' + MAX_SEARCHES + ' vistaðar leitir. Eyddu einni fyrst.');
     var ids = A.filtered(f).map(function (c) { return c.id; });
     doc.searches.unshift({ id: 's' + now(), name: A.query().trim() || describeF(f), f: f, q: A.query(), seen: ids.slice(0, MAX_SEEN), created: now() });
     persist(); renderHeader();
-    toast('Leit vistuð. Þú færð tilkynningu þegar nýr bíll bætist við (' + ids.length + ' bílar núna).');
+    refreshButtons();
+    toast('Leit vöktuð. Þú færð tilkynningu þegar nýr bíll bætist við (' + ids.length + ' bílar núna). Smelltu aftur til að hætta.');
+  }
+  // takkar sem sýna hvort eitthvað er vaktað (og smellur hættir við)
+  function similarOf(id) { return doc ? doc.searches.filter(function (s) { return s.fromCar === id; })[0] : null; }
+  function refreshButtons() {
+    var b = $('saveSearch');
+    if (b) {
+      var on = !!(doc && doc.searches.some(function (s) { return JSON.stringify(s.f) === JSON.stringify(A.readFilters()); }));
+      b.classList.toggle('on', on);
+      b.querySelector('b').textContent = on ? '✓ Leitin er vöktuð' : 'Vakta leitina';
+      b.querySelector('small').textContent = on ? 'Smelltu til að hætta að vakta' : 'Tilkynning um nýja bíla';
+    }
+    document.querySelectorAll('[data-similar]').forEach(function (x) {
+      var on = !!similarOf(x.getAttribute('data-similar'));
+      x.classList.toggle('on', on);
+      x.innerHTML = ic(on ? 'check' : 'sparkles') + (on ? 'Vakta svipaða bíla · smelltu til að hætta' : 'Láttu mig vita af svipuðum ódýrari');
+    });
+    document.querySelectorAll('[data-watch]').forEach(function (x) {
+      var w = doc && doc.watch[x.getAttribute('data-watch')];
+      x.classList.toggle('on', !!w);
+      x.innerHTML = ic(w ? 'check' : 'bell') + (w ? 'Vaktað undir ' + A.kr(w.target) + ' · hætta' : 'Verðvakt');
+    });
   }
   // „Láttu mig vita af svipuðum ódýrari“: vöktuð leit búin til út frá bílnum
   function saveSimilar(id, btn) {
     if (!user) return showLogin('Skráðu þig inn til að fá tilkynningu um svipaða bíla.');
     var c = A.byId(id); if (!c) return;
+    var had = similarOf(id);
+    if (had) {
+      doc.searches = doc.searches.filter(function (s) { return s !== had; });
+      persist(); renderHeader(); refreshButtons();
+      return toast('Hætt að vakta svipaða bíla.');
+    }
     var f = A.readFilters(); for (var k in f) f[k] = /awd|deal|clean/.test(k) ? false : (k === 'sort' ? 'deal' : (typeof f[k] === 'number' ? null : ''));
     f.make = c.make; f.model = c.base; f.yearMin = c.year ? c.year - 2 : null; f.yearMax = c.year ? c.year + 2 : null;
     f.priceMax = +(c.price * 0.97 / 1e6).toFixed(2); f.fuel = c.fcat;
@@ -153,9 +189,8 @@
     if (doc.searches.length >= MAX_SEARCHES) return toast('Hámark ' + MAX_SEARCHES + ' vistaðar leitir. Eyddu einni fyrst.');
     var ids = A.filtered(f).map(function (x) { return x.id; });
     var name = 'Svipaðir og ' + A.cap(c.make) + ' ' + A.cap(c.base) + ' ' + (c.year || '') + ', undir ' + f.priceMax.toString().replace('.', ',') + ' m.kr.';
-    doc.searches.unshift({ id: 's' + now(), name: name, f: f, q: '', seen: ids.slice(0, MAX_SEEN), created: now() });
-    persist(); renderHeader();
-    if (btn) { btn.disabled = true; btn.innerHTML = '✓ Vakta svipaða bíla'; }
+    doc.searches.unshift({ id: 's' + now(), name: name, f: f, q: '', seen: ids.slice(0, MAX_SEEN), created: now(), fromCar: id });
+    persist(); renderHeader(); refreshButtons();
     toast('Þú færð tilkynningu þegar svipaður ' + A.cap(c.base) + ' kemur á skrá á lægra verði.');
   }
   function openSearch(s) {
@@ -368,7 +403,7 @@
       if (s) openSearch(s); else toast('Þessari leit hefur verið eytt.');
     } else if (a === 'del-search') {
       doc.searches = doc.searches.filter(function (x) { return x.id !== sid; });
-      persist(); renderHeader(); showSaved('searches');
+      persist(); renderHeader(); refreshButtons(); showSaved('searches');
     } else if (a === 'force-reload') {
       if (t.getAttribute('data-armed') !== '1') { t.setAttribute('data-armed', '1'); t.textContent = 'Smelltu aftur til að endurhlaða allar opnar síður'; return; }
       db.collection('config').doc('app').set({ reloadAt: now() }).then(function () {
@@ -390,7 +425,7 @@
 
   // ---------- ræsing ----------
   window.Acct = {
-    isSaved: isSaved, toggleSave: toggleSave, openWatch: openWatch, saveSimilar: saveSimilar,
+    isSaved: isSaved, toggleSave: toggleSave, openWatch: openWatch, saveSimilar: saveSimilar, refreshButtons: function () { if (doc) refreshButtons(); },
     dataReady: function () { dataLoaded = true; checkUpdates(); }
   };
   renderHeader();
@@ -430,7 +465,7 @@
       doc = d.exists ? d.data() : empty();
       doc.saved = doc.saved || {}; doc.searches = doc.searches || []; doc.notes = doc.notes || []; doc.watch = doc.watch || {};
       if (!doc.created) { doc.created = now(); persist(); }
-      renderHeader(); A.refreshSaved(); checkUpdates();
+      renderHeader(); A.refreshSaved(); checkUpdates(); refreshButtons();
     }).catch(function (e) { console.error(e); toast('Gat ekki sótt vistuð gögn: ' + e.message); });
   });
 })();

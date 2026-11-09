@@ -701,3 +701,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .wk-x { font-style: normal; font-weight: 700; font-size: 13px; white-space: nowrap; color: var(--muted); }
 .wk-x.good { color: var(--good); }
 @media (max-width: 760px) { .offer { grid-template-columns: 1fr; } }
+
+/* tákn alltaf í miðjunni */
+.ic { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+button, .actions a, .cb-go, .pill-btn, .ghost { align-items: center; }
+.actions button, .actions a, .ghost, .pill-btn, .cb-go, .btn-cta, .views button, .flag, .perf, .chip, .tray button, .search button { display: inline-flex; align-items: center; justify-content: center; }
+.icon-btn, .ph-act button, .cb-save, .x, .gal-btn, .qa-ic, .avatar { display: inline-grid; place-items: center; }
+.icon-btn .ic, .ph-act .ic, .cb-save .ic, .x .ic, .gal-btn .ic { margin: 0; }
+.qa.on { border-color: var(--accent); background: var(--accent-soft); }
+.actions .sec.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }

@@ -606,6 +606,7 @@
     $('fbLink').href = fbLink(readFilters());
     syncUrl();
     if (window.Nice) Nice.refresh();
+    if (window.Acct && Acct.refreshButtons) Acct.refreshButtons();
     var view = $('fView').value, loc = $('fLoc').value;
     $('locPill').hidden = !loc; $('locPill').textContent = '📍 ' + loc + ' ✕';
     document.querySelectorAll('#views [data-view]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-view') === view); });
@@ -821,6 +822,7 @@
     });
     if (window.Features) Features.carExtras(c);
     if (window.Registry) Registry.renderCar(c);
+    if (window.Acct && Acct.refreshButtons) Acct.refreshButtons();
     // lýsing seljanda, búnaður og myndir (sótt eftir þörfum, eitt brot af 64)
     loadDetails(c.id).then(function (d) {
       var el = $('carDetails'); if (!el) return;
