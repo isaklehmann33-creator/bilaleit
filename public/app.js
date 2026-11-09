@@ -440,7 +440,7 @@
       (sim.length ? '\n\nSambærilegir bílar til sölu núna:\n' + sim.map(function (o) { return '- ' + describe(o); }).join('\n') : '') +
       '\n\nEr þetta gott verð miðað við akstur og aldur? Hvað ætti ég að skoða sérstaklega á þessari tegund/árgerð (algengir gallar, viðhald), ' +
       'og hvaða spurningar ætti ég að spyrja seljandann? Svaraðu á íslensku.';
-    openModal('<div class="m"><div class="m-head"><h2>' + esc(cap(c.make) + ' ' + cap(c.model)) + '</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+    openModal('<div class="m"><div class="m-head"><h2 class="with-logo">' + monoHtml(c.make, true) + esc(cap(c.make) + ' ' + cap(c.model)) + '</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       '<div class="m-top"><div>' + (img(c) ? '<img src="' + esc(img(c)) + '" alt="">' : '') + '</div><div>' +
       '<dl class="facts"><dt>Verð</dt><dd><b>' + kr(c.price) + '</b>' + (c.oldPrice && c.oldPrice > c.price ? ' <span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</dd>' +
       '<dt>Árgerð</dt><dd>' + (c.year || '–') + '</dd><dt>Ekinn</dt><dd>' + kmFmt(c.km) + (c.age > 0 && c.km ? ' (≈' + Math.round(c.km / c.age).toLocaleString('de-DE') + ' km/ári)' : '') + '</dd>' +
@@ -505,7 +505,9 @@
     var w = cap(make).split(/[\s-]+/);
     return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
   }
+  var LOGOS = {};  // tegund -> logos/<slug>.png (logos/index.json), annars upphafsstafir
   function monoHtml(make, big) {
+    if (LOGOS[make]) return '<span class="logo' + (big ? ' big' : '') + '"><img src="' + esc(LOGOS[make]) + '" alt="" loading="lazy"></span>';
     return '<span class="mono' + (big ? ' big' : '') + '" style="--h:' + hue(make) + '">' + esc(mono(make)) + '</span>';
   }
   function mkrShort(n) { return (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: n < 1e7 ? 1 : 0 }); }
@@ -525,7 +527,7 @@
   function renderPickers() {
     var mk = $('fMake').value, md = $('fModel').value;
     $('pickMakeText').textContent = mk ? cap(mk) : 'Allar tegundir';
-    $('pickMakeMono').outerHTML = mk ? monoHtml(mk).replace('class="mono"', 'class="mono pb-mono" id="pickMakeMono"') : '<span class="pb-mono" id="pickMakeMono">∗</span>';
+    $('pickMakeMono').outerHTML = mk ? monoHtml(mk).replace(/^<span class="(mono|logo)/, '<span id="pickMakeMono" class="pb-mono $1') : '<span class="pb-mono" id="pickMakeMono">∗</span>';
     $('pickModelText').textContent = md ? cap(md) : (mk ? 'Allar gerðir' : 'Veldu tegund fyrst');
     $('pickMake').classList.toggle('set', !!mk);
     $('pickModel').classList.toggle('set', !!md);
@@ -674,6 +676,7 @@
   function load() {
     // Nýjustu gögnin koma af GitHub (uppfærð á hverri nóttu); afritið á síðunni sjálfri er varaleið.
     function get(url) { return fetch(url).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).catch(function () { return null; }); }
+    get('logos/index.json').then(function (l) { if (l) { LOGOS = l; if (cars.length) render(true); } });
     Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now())]).then(function (res) {
       var d = res[0] && (!res[1] || res[0].updated >= res[1].updated) ? res[0] : res[1];
       if (!d) throw new Error('engin gögn');

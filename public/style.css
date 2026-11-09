@@ -171,7 +171,7 @@ tr.click:hover td { background: var(--bg); }
 .picker-btn.set { border-color: var(--accent); background: var(--accent-soft); }
 .pb-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pb-caret { color: var(--muted); font-size: 12px; }
-.pb-mono:not(.mono) { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--mid-soft); color: var(--muted); font-size: 14px; flex: none; }
+.pb-mono:not(.mono):not(.logo) { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--mid-soft); color: var(--muted); font-size: 14px; flex: none; }
 .mono { --h: 160; width: 26px; height: 26px; flex: none; border-radius: 8px; display: inline-grid; place-items: center; font-size: 11px; font-weight: 800; letter-spacing: .02em; color: #fff;
   background: linear-gradient(135deg, hsl(var(--h) 62% 48%), hsl(calc(var(--h) + 40) 62% 36%)); box-shadow: inset 0 -2px 0 rgba(0,0,0,.15); }
 .mono.big { width: 44px; height: 44px; border-radius: 13px; font-size: 16px; }
@@ -230,3 +230,12 @@ dialog.sheet { width: min(860px, calc(100% - 24px)); }
   .model-chips { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
 }
 .layout > section, .layout > aside { min-width: 0; }
+
+/* merki bílaframleiðenda á hvítri plötu, svo þau sjáist líka í dökku útliti */
+.logo { width: 34px; height: 26px; flex: none; display: inline-grid; place-items: center; background: #fff; border-radius: 7px; padding: 2px 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.logo.big { width: 64px; height: 44px; border-radius: 12px; padding: 4px 6px; }
+.chip .logo { width: 30px; height: 22px; border-radius: 6px; margin-left: -6px; padding: 2px; }
+.pb-mono.logo { width: 34px; height: 26px; }
+.pk-row .logo { width: 38px; height: 26px; }
+.with-logo { display: flex; align-items: center; gap: 12px; }
