@@ -300,7 +300,7 @@
     if (c.km == null && c.age > 3) return { cls: 'mid', txt: 'Akstur óþekktur', unsure: true };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
     if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
-    return { cls: 'mid', txt: 'Eðlilegt verð' };
+    return { cls: 'mid', txt: 'Eðlilegt verð ' + pct(c.dev) };
   }
   function adjusted(other, target) {
     // verð hins bílsins ef hann væri jafn gamall og jafn mikið ekinn og target
@@ -633,7 +633,7 @@
     if (v.unsure) p = null;  // óvisst mat: enginn punktur á mælinum
     return '<div class="meter' + (big ? ' big' : '') + '" title="' + esc(v.txt + (c.est ? ' · mat ' + kr(c.est) : '')) + '">' +
       '<div class="mt-track">' + (p == null ? '' : '<i style="left:' + (p * 100).toFixed(1) + '%"></i>') + '</div>' +
-      '<button type="button" class="mt-lab ' + v.cls + '" data-legend title="' + esc(LEGEND_TXT[v.cls] || '') + ' · smelltu til að sjá meira">' + esc(v.txt) + '</button></div>';
+      '<span class="mt-lab ' + v.cls + '" data-tip="' + esc(tipHtml(c, v)) + '">' + esc(v.txt) + '</span></div>';
   }
   // stutt skýring á matinu: miðað við sambærilega bíla (leiðrétt fyrir aldri og akstri)
   function thous(n) { n = Math.abs(n); return n >= 1e6 ? mkrShort(n) + ' m.kr.' : Math.round(n / 1e4) * 10 + ' þús.'; }
@@ -677,6 +677,11 @@
       '<div><span class="mt-lab mid">Fáir sambærilegir / Sjaldgæf útgáfa</span><span>of fáir sambærilegir bílar til að meta vel</span></div>' +
       '<div><span class="mt-lab warn">Sérútbúinn / verkefni</span><span>rallý-, keppnis-, tjóna- eða varahlutabíll: ekki borinn saman</span></div></div>' +
       '<p class="note">Mælirinn sýnir hvar verðið lendir: grænt = ódýrara en sambærilegir, rautt = dýrara. Matið er vísbending, ekki ástandsskoðun: ástand, búnaður og þjónustusaga skipta líka máli.</p></div>');
+  }
+  // sveimtexti á verðmerkinu: ástæða fyrir þennan tiltekna bíl
+  function tipHtml(c, v) {
+    return '<b>' + esc(v.txt) + '</b>' + (c.est && !c.special ? ' · mat ' + esc(kr(c.est)) : '') + '<br>' + esc(why(c, true)) +
+      '<br><span class="tip-note">' + esc(LEGEND_TXT[v.cls] || '') + '</span>';
   }
   function spec(icon, label, val) { return val ? '<div class="spec">' + ic(icon) + '<span>' + label + '</span><b>' + val + '</b></div>' : ''; }
 
@@ -1120,6 +1125,7 @@
     });
     $('more').addEventListener('click', function () { shown += PAGE; render(true); });
     document.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('.mt-lab[data-tip]')) { e.stopPropagation(); return; }
       var t = e.target.closest ? e.target.closest('[data-legend],[data-share],[data-watch],[data-save],[data-cmp],[data-open],[data-close],.car') : null;
       if (!t) return;
       if (t.hasAttribute('data-legend')) { e.stopPropagation(); showLegend(); return; }

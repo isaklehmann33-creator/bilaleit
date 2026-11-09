@@ -616,3 +616,6 @@ button.mt-lab { background: none; border: 0; padding: 0; cursor: help; font-fami
 .legend div { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: baseline; font-size: 14px; }
 .legend span:last-child { color: var(--muted); }
 .legend .mt-lab { white-space: normal; }
+.mt-lab[data-tip] { cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
+.chart-tip { max-width: 300px; font-size: 12.5px; line-height: 1.45; padding: 9px 11px; border-radius: 10px; }
+.chart-tip .tip-note { opacity: .7; font-size: 11.5px; }

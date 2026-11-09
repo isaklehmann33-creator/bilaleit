@@ -198,7 +198,7 @@
     if (!t) { t = document.createElement('div'); t.id = 'chartTip'; t.className = 'chart-tip'; document.body.appendChild(t); }
     if (!m) { t.hidden = true; return; }
     t.innerHTML = m.getAttribute('data-tip'); t.hidden = false;
-    var x = Math.min(e.clientX + 14, window.innerWidth - t.offsetWidth - 8), y = e.clientY - t.offsetHeight - 10;
+    var x = Math.max(8, Math.min(e.clientX + 14, window.innerWidth - t.offsetWidth - 8)), y = e.clientY - t.offsetHeight - 10;
     t.style.left = x + 'px'; t.style.top = (y < 8 ? e.clientY + 16 : y) + 'px';
   }
   document.addEventListener('mousemove', tip);
