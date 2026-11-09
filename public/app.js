@@ -554,6 +554,13 @@
     var cur = $('fMake').value;
     var popular = makes.slice().sort(function (a, b) { return b.n - a.n; }).slice(0, 12);
     var all = makes.slice().sort(function (a, b) { return a.key < b.key ? -1 : 1; });
+    // sjaldgæfar tegundir án merkis (oft hjólhýsi, bátar eða innsláttarvillur) fara í samanbrjótanlegan lista
+    function major(x) { return LOGOS[x.key] || x.n >= 3; }
+    var minor = all.filter(function (x) { return !major(x); });
+    function row(x) {
+      return '<button type="button" class="pk-row' + (x.key === cur ? ' on' : '') + '" data-pick-make="' + esc(x.key) + '"' + then + ' data-name="' + esc(fold(x.key)) + '">' +
+        monoHtml(x.key) + '<span class="pr-name">' + esc(cap(x.key)) + '</span><b>' + x.n + '</b></button>';
+    }
     function tile(x) {
       return '<button type="button" class="pk-tile' + (x.key === cur ? ' on' : '') + '" data-pick-make="' + esc(x.key) + '"' + then + ' data-name="' + esc(fold(x.key)) + '">' +
         monoHtml(x.key, true) + '<span class="pk-name">' + esc(cap(x.key)) + '</span>' +
@@ -563,10 +570,9 @@
       '<input id="pickSearch" class="pk-search" type="search" placeholder="Leita að tegund…" autocomplete="off">' +
       '<button type="button" class="pk-all' + (cur ? '' : ' on') + '" data-pick-make=""' + ' data-name="allar">Allar tegundir <b>' + makes.reduce(function (s, x) { return s + x.n; }, 0).toLocaleString('de-DE') + '</b></button>' +
       '<div class="pk-section"><h4>Vinsælastar</h4><div class="pk-grid">' + popular.map(tile).join('') + '</div></div>' +
-      '<div class="pk-section"><h4>Allar tegundir A–Ö</h4><div class="pk-list">' + all.map(function (x) {
-        return '<button type="button" class="pk-row' + (x.key === cur ? ' on' : '') + '" data-pick-make="' + esc(x.key) + '"' + then + ' data-name="' + esc(fold(x.key)) + '">' +
-          monoHtml(x.key) + '<span>' + esc(cap(x.key)) + '</span><b>' + x.n + '</b></button>';
-      }).join('') + '</div></div></div>', 'sheet');
+      '<div class="pk-section"><h4>Allar tegundir A–Ö</h4><div class="pk-list">' + all.filter(major).map(row).join('') + '</div>' +
+      (minor.length ? '<details class="pk-more"><summary>Aðrar tegundir og tæki (' + minor.length + ')</summary><div class="pk-list">' + minor.map(row).join('') + '</div></details>' : '') +
+      '</div></div>', 'sheet');
   }
 
   function openModelPicker() {

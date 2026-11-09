@@ -11,4 +11,4 @@ window.FIREBASE_CONFIG = {
 window.ADMIN_UID = "bbalHMP0dtRWhU1dGsKQXUN8h2k2";
 
 // Útgáfa síðunnar (deploy.sh uppfærir)
-window.APP_VERSION = '1794237089';
+window.APP_VERSION = '1794237217';
