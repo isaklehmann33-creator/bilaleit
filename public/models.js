@@ -125,7 +125,9 @@
       Object.keys(ms[u]).forEach(function (c) { var x = by[c] = by[c] || [0, 0]; x[0] += ms[u][c][0]; x[1] += ms[u][c][1]; });
     });
     var own = Math.min(2010, S.c.filter(function (c) { return c <= (year || 2010); }).pop() || S.c[0]);
-    var order = [own].concat(S.c.filter(function (c) { return c !== own && c <= 2010; }).sort(function (a, b) { return Math.abs(a - own) - Math.abs(b - own); }));
+    var yc = Math.floor((year || 2010) / 5) * 5;  // vísbending bara úr árgerðum innan 10 ára (nýr Defender ≠ gamall)
+    var order = [own].concat(S.c.filter(function (c) { return c !== own && c <= 2010 && Math.abs(c - yc) <= 10; })
+      .sort(function (a, b) { return Math.abs(a - own) - Math.abs(b - own); })).filter(function (c) { return Math.abs(c - yc) <= 10; });
     for (var i = 0; i < order.length; i++) {
       var x = by[order[i]], avg = S.avg[order[i]];
       if (!x || x[0] + x[1] < 40 || !avg) continue;
