@@ -266,7 +266,6 @@ dialog.car-dlg { width: min(980px, calc(100% - 24px)); overflow: auto; }
 .me-list .dot { margin-left: auto; font-style: normal; font-size: 12px; padding: 1px 8px; border-radius: 99px; }
 
 /* ---------- aðgangur ---------- */
-.bell { font-size: 19px; padding: 8px 16px; }
 .m.narrow { max-width: 440px; margin: 0 auto; }
 .form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
