@@ -491,8 +491,14 @@
 -18.12428
 ],
 "v2:Blikavöllum 3, 230 Reykjanesbær": null,
-"v2:Bugðufljóti 11, 270 Mosfellsbær": null,
-"v2:Bugðufljóti 7, 270 Mosfellsbær": null,
+"v2:Bugðufljóti 11, 270 Mosfellsbær": [
+64.18784,
+-21.67986
+],
+"v2:Bugðufljóti 7, 270 Mosfellsbær": [
+64.18702,
+-21.68301
+],
 "v2:Bíldshöfða 10, 110 Reykjavík": [
 64.12467,
 -21.8216
@@ -501,7 +507,10 @@
 64.12498,
 -21.83205
 ],
-"v2:Bíldshöfða 6-8, 110 Reykjavík": null,
+"v2:Bíldshöfða 6-8, 110 Reykjavík": [
+64.12464,
+-21.82529
+],
 "v2:Eldshöfða 18, 110 Reykjavík": [
 64.13113,
 -21.8251
@@ -510,12 +519,18 @@
 64.12209,
 -21.7979
 ],
-"v2:Fosshálsi 27 (Dragháls megin), 110 Reykjavík": null,
+"v2:Fosshálsi 27 (Dragháls megin), 110 Reykjavík": [
+64.12207,
+-21.80563
+],
 "v2:Fossnesi 14, 800 Selfoss": [
 63.94808,
 -21.01531
 ],
-"v2:Fossnesi A, 800 Selfoss": null,
+"v2:Fossnesi A, 800 Selfoss": [
+63.94486,
+-21.01126
+],
 "v2:Freyjunesi 2, 603 Akureyri": [
 65.69693,
 -18.12035
@@ -622,23 +637,38 @@
 63.97255,
 -22.53938
 ],
-"v2:Núpalind 1 (Lindum, Kópavogi), 201 Kópavogur": null,
+"v2:Núpalind 1 (Lindum, Kópavogi), 201 Kópavogur": [
+64.10074,
+-21.87055
+],
 "v2:Selhellu 5, 221 Hafnarfjörður": [
 64.04725,
 -21.98721
 ],
-"v2:Skeifunni 17, 108 Reykjavík": null,
+"v2:Skeifunni 17, 108 Reykjavík": [
+64.12979,
+-21.87115
+],
 "v2:Skógarhlíð 10, 105 Reykjavík": [
 64.13394,
 -21.92078
 ],
-"v2:Skútuvogi 4, 104 Reykjavík": null,
+"v2:Skútuvogi 4, 104 Reykjavík": [
+64.13942,
+-21.84859
+],
 "v2:Smiðjuvegi 44e, 200 Kópavogur": [
 64.11103,
 -21.85328
 ],
-"v2:Smiðjuvöllum 17, 300 Akranes": null,
-"v2:Smiðshöfða 17 (Stórhöfðamegin), 110 Reykjavík": null,
+"v2:Smiðjuvöllum 17, 300 Akranes": [
+64.32713,
+-22.05748
+],
+"v2:Smiðshöfða 17 (Stórhöfðamegin), 110 Reykjavík": [
+64.12869,
+-21.81383
+],
 "v2:Stekkjarbakka 4, 109 Reykjavík": [
 64.11223,
 -21.84228
@@ -667,10 +697,22 @@
 64.11876,
 -21.78642
 ],
-"v2:Tónahvarfi 6L, 203 Kópavogur": null,
-"v2:Vatnagörðum 24, 104 Reykjavík": null,
-"v2:Víkurhvarfi 6, 203 Kópavogur": null,
-"v2:Völuteigi 4, 270 Mosfellsbær": null,
+"v2:Tónahvarfi 6L, 203 Kópavogur": [
+64.09492,
+-21.816
+],
+"v2:Vatnagörðum 24, 104 Reykjavík": [
+64.14475,
+-21.8545
+],
+"v2:Víkurhvarfi 6, 203 Kópavogur": [
+64.09601,
+-21.81006
+],
+"v2:Völuteigi 4, 270 Mosfellsbær": [
+64.16178,
+-21.67933
+],
 "v2:Álhellu 7, 221 Hafnarfjörður": [
 64.04141,
 -22.02027
@@ -683,7 +725,10 @@
 64.1681,
 -21.69838
 ],
-"v2:Þórsstíg 2, 600 Akureyri": null,
+"v2:Þórsstíg 2, 600 Akureyri": [
+65.6905,
+-18.09699
+],
 "Álhellu 7, 221 Hafnarfjörður": null,
 "Þorraholti 2, 210 Garðabær": null,
 "Þverholti 6, 270 Mosfellsbær": null,

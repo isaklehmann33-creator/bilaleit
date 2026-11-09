@@ -252,10 +252,12 @@
   }
   function loadPlaces() {
     if (places) return Promise.resolve(places);
+    function get(u) { return fetch(u).then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return null; }); }
     var gh = 'https://raw.githubusercontent.com/isaklehmann33-creator/bilaleit/main/public/data/places.json';
-    return fetch(gh).then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () {
-      return fetch('data/places.json').then(function (r) { return r.json(); });
-    }).then(function (p) { places = p; return p; });
+    return Promise.all([get(gh), get('data/places.json?t=' + Date.now())]).then(function (r) {
+      places = r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];  // nýrra afritið
+      return places;
+    });
   }
   function dist(a, b) {
     var R = 6371, dLat = (b[0] - a[0]) * Math.PI / 180, dLon = (b[1] - a[1]) * Math.PI / 180;
@@ -264,7 +266,7 @@
   }
   function openMap() {
     A.openModal('<div class="m map-m"><div class="m-head"><h2>🗺️ Bílasölur á korti</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
-      '<p class="note">Stærð hrings = fjöldi bíla sem passa við síurnar þínar. Smelltu á stað til að sjá bílana þar.</p>' +
+      '<p class="note">Talan = fjöldi bíla sem passa við síurnar þínar. <span class="lg d">Bílasölur</span> <span class="lg t">Einstaklingar (bland.is)</span> Staðir nálægt hver öðrum sameinast; smelltu til að sjá þá.</p>' +
       '<div class="actions" style="margin:0 0 10px"><button type="button" class="sec" id="nearMe">📍 Sýna næst mér</button></div>' +
       '<div id="mapBox" class="map-box"><p class="note" style="padding:16px">Hleð korti…</p></div><div id="nearList"></div></div>', 'sheet');
     Promise.all([loadLeaflet(), loadPlaces()]).then(function (r) {
@@ -277,6 +279,7 @@
         else byDealer[c.dealer] = (byDealer[c.dealer] || 0) + 1;
       });
       var map = L.map(box, { scrollWheelZoom: true }).setView([64.6, -19.0], 6);
+      setTimeout(function () { map.invalidateSize(); }, 300);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
       var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#0f6b5c';
       var pts = [];
@@ -289,16 +292,48 @@
         var p = P.towns[t]; if (!p) return;
         pts.push({ name: 'Einstaklingar · ' + t, ll: p, addr: 'bland.is', n: byTown[t], kind: 'town', loc: t });
       });
-      // nokkrar bílasölur deila lóð (t.d. Krókhálsi 7): dreifa þeim aðeins svo hringirnir skarist ekki
-      var seenLL = {};
-      pts.forEach(function (p) {
-        var k = p.ll.join(','), n = seenLL[k] = (seenLL[k] || 0) + 1;
-        if (n > 1) { var a = n * 2.4; p.ll = [p.ll[0] + Math.sin(a) * 0.0012 * Math.sqrt(n), p.ll[1] + Math.cos(a) * 0.0025 * Math.sqrt(n)]; }
-      });
-      pts.forEach(function (p) {
-        var m = L.circleMarker(p.ll, { radius: 5 + Math.sqrt(p.n) * 1.6, color: '#fff', weight: 2, fillColor: p.kind === 'town' ? '#7a5af8' : accent, fillOpacity: .85 }).addTo(map);
-        m.bindPopup('<b>' + esc(p.name) + '</b><br>' + esc(p.addr) + '<br>' + p.n + ' bílar<br><button type="button" class="map-go" data-map-' + (p.kind === 'town' ? 'loc' : 'dealer') + '="' + esc(p.kind === 'town' ? p.loc : p.name) + '">Sýna bílana</button>');
-      });
+      // Merki með fjölda bíla. Staðir sem eru nær hvor öðrum en ~40 px sameinast í eitt merki (smelltu til að þysja inn),
+      // svo margar bílasölur á sömu lóð (t.d. Krókhálsi 7) breytist ekki í hrúgu af hringjum.
+      var layer = L.layerGroup().addTo(map);
+      function popupHtml(p) {
+        return '<b>' + esc(p.name) + '</b><br>' + esc(p.addr) + '<br>' + p.n + ' bílar<br><button type="button" class="map-go" data-map-' +
+          (p.kind === 'town' ? 'loc' : 'dealer') + '="' + esc(p.kind === 'town' ? p.loc : p.name) + '">Sýna bílana</button>';
+      }
+      function icon(n, kind, many) {
+        var label = n >= 1000 ? (n / 1000).toFixed(1).replace('.', ',') + 'þ' : n;
+        return L.divIcon({ className: '', html: '<div class="mk ' + kind + (many ? ' many' : '') + '">' + label + '</div>', iconSize: null });
+      }
+      function draw() {
+        layer.clearLayers();
+        var groups = [];
+        pts.slice().sort(function (a, b) { return b.n - a.n; }).forEach(function (p) {
+          var px = map.latLngToLayerPoint(p.ll), g = null;
+          for (var i = 0; i < groups.length; i++) if (groups[i].px.distanceTo(px) < 40) { g = groups[i]; break; }
+          if (g) g.items.push(p); else groups.push({ px: px, items: [p] });
+        });
+        groups.forEach(function (g) {
+          var top = g.items[0], n = g.items.reduce(function (s, p) { return s + p.n; }, 0);
+          var kind = g.items.every(function (p) { return p.kind === 'town'; }) ? 'town' : 'dealer';
+          var m = L.marker(top.ll, { icon: icon(n, kind, g.items.length > 1), riseOnHover: true }).addTo(layer);
+          if (g.items.length === 1) m.bindPopup(popupHtml(top));
+          else {
+            var b = L.latLngBounds(g.items.map(function (p) { return p.ll; }));
+            m.bindPopup('<b>' + g.items.length + ' staðir · ' + n + ' bílar</b><div class="map-list">' + g.items.slice(0, 12).map(function (p) {
+              return '<div><span>' + esc(p.name) + '</span> <button type="button" class="map-link" data-map-' + (p.kind === 'town' ? 'loc' : 'dealer') + '="' +
+                esc(p.kind === 'town' ? p.loc : p.name) + '">' + p.n + ' →</button></div>';
+            }).join('') + '</div>' + (map.getZoom() < 16 ? '<button type="button" class="map-zoom">Þysja inn</button>' : ''));
+            m.on('popupopen', function (e) {
+              var z = e.popup.getElement().querySelector('.map-zoom');
+              if (z) z.addEventListener('click', function () { map.fitBounds(b.pad(0.4), { maxZoom: 16 }); });
+            });
+          }
+        });
+      }
+      map.on('zoomend', draw);
+      // sýna allt sem passar, og endurreikna stærð þegar glugginn hefur náð endanlegri stærð (t.d. á síma)
+      if (pts.length) map.fitBounds(L.latLngBounds(pts.map(function (p) { return p.ll; })).pad(0.1), { maxZoom: 12 });
+      draw();
+      if (window.ResizeObserver) new ResizeObserver(function () { map.invalidateSize(); }).observe(box);
       setTimeout(function () { map.invalidateSize(); }, 50);
       $('nearMe').addEventListener('click', function () {
         if (!navigator.geolocation) return;

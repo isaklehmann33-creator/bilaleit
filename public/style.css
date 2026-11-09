@@ -338,3 +338,12 @@ dialog.sheet { width: min(860px, calc(100% - 24px)); }
 .desc { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.55; white-space: normal; max-height: 260px; overflow: auto; }
 .equip { display: flex; flex-wrap: wrap; gap: 6px; }
 .equip span { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: var(--mid-soft); color: var(--text); }
+.mk { transform: translate(-50%, -50%); min-width: 30px; height: 30px; padding: 0 8px; border-radius: 99px; display: grid; place-items: center; background: #0f6b5c; color: #fff; font: 700 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); white-space: nowrap; cursor: pointer; }
+.mk.town { background: #6d4fd8; }
+.mk.many { box-shadow: 0 0 0 4px rgba(15,107,92,.3), 0 2px 8px rgba(0,0,0,.3); }
+.mk.town.many { box-shadow: 0 0 0 4px rgba(109,79,216,.3), 0 2px 8px rgba(0,0,0,.3); }
+.map-list { margin: 6px 0; max-height: 200px; overflow: auto; }
+.map-list div { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.map-link { background: none; border: 0; color: #0f6b5c; font-weight: 700; cursor: pointer; padding: 0; }
+.map-zoom { background: #eef2f0; border: 0; border-radius: 8px; padding: 5px 9px; cursor: pointer; font-weight: 600; }
+.lg { display: inline-flex; align-items: center; gap: 5px; margin-right: 10px; } .lg::before { content: ""; width: 10px; height: 10px; border-radius: 99px; background: #0f6b5c; } .lg.t::before { background: #6d4fd8; }

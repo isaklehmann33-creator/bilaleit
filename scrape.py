@@ -504,21 +504,29 @@ def _nominatim(q):
     return r[0] if r else None
 
 
+DATIVE = (("hálsi", "háls"), ("bakka", "bakki"), ("hrauni", "hraun"), ("vegi", "vegur"), ("götu", "gata"), ("túni", "tún"),
+          ("firði", "fjörður"), ("holti", "holt"), ("höfða", "höfði"), ("ási", "ás"), ("smára", "smári"), ("nesi", "nes"),
+          ("hellu", "hella"), ("garði", "garður"), ("teigi", "teigur"), ("völlum", "vellir"), ("vogi", "vogur"),
+          ("görðum", "garðar"), ("fljóti", "fljót"), ("stíg", "stígur"), ("hvarfi", "hvarf"), ("skeifunni", "skeifan"),
+          ("lind", "lind"), ("braut", "braut"), ("bakka", "bakki"), ("mýri", "mýri"), ("hlíð", "hlíð"), ("ströndu", "strönd"))
+
+
 def street_variants(addr):
     """Heimilisföng eru oft í þágufalli („Krókhálsi 7“) en OpenStreetMap þekkir nefnifallið („Krókháls 7“)."""
-    m = re.match(r"\s*(.+?)\s+(\d+[a-zA-Z]?)\s*,\s*(.*)", addr)
+    addr = re.sub(r"\([^)]*\)", "", addr)                       # „(Dragháls megin)“
+    addr = re.sub(r"(\d+)\s*-\s*\d+", r"\1", addr)                # „6-8“ -> „6“
+    m = re.match(r"\s*(.+?)\s+(\d+[a-zA-Z]?|[A-Z])?\s*,\s*(.*)", addr)
     if not m:
         return [addr]
     street, no, town = m.groups()
-    cands = [street]
-    for a, b in (("hálsi", "háls"), ("bakka", "bakki"), ("hrauni", "hraun"), ("vegi", "vegur"), ("götu", "gata"), ("braut", "braut"),
-                 ("túni", "tún"), ("firði", "fjörður"), ("holti", "holt"), ("höfða", "höfði"), ("ási", "ás"), ("smára", "smári"),
-                 ("lind", "lind"), ("nesi", "nes"), ("hellu", "hella"), ("stræti", "stræti"), ("mýri", "mýri"), ("garði", "garður")):
-        if street.endswith(a):
-            cands.append(street[: -len(a)] + b)
+    no = no or ""
+    low = street.lower()
+    cands = [street] + [street[: len(street) - len(a)] + b for a, b in DATIVE if low.endswith(a) and a != b]
     out, bare = [], re.sub(r"^\d+\s*", "", town)
     for st in cands:
-        out += [f"{st} {no}, {town}", f"{st} {no}, {bare}"]
+        out += [f"{st} {no}, {bare}".replace("  ", " "), f"{st} {no}, {town}".replace("  ", " ")]
+    for st in cands:                                                # síðasta úrræði: gatan án húsnúmers
+        out.append(f"{st}, {bare}")
     return out
 
 
@@ -548,7 +556,9 @@ def build_places(cars):
     dealers, towns = {}, {}
     for name in sorted({c["dealer"] for c in cars if c.get("src") != "bland.is"}):
         # Hekla/Askja/Brimborg eru líka á bilasolur.is, svo heimilisfangið finnst eftir nafni
-        addr = by_name.get(name) or by_name.get(name.split(",")[0])
+        addr = by_name.get(name) or by_name.get(name.split(",")[0]) or by_name.get(name + ", notaðir bílar")
+        if not addr:  # t.d. „Hekla“ á eigin síðu = „Hekla, notaðir bílar“ á bilasolur.is
+            addr = next((a for n, a in by_name.items() if n.split(",")[0].split(" ")[0] == name), None)
         if addr:
             ll = geocode(addr, cache, street=True) or geocode(addr.split(",")[-1].strip(), cache)
             if ll:
@@ -558,7 +568,7 @@ def build_places(cars):
         if ll:
             towns[loc] = ll
     GEO_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=0, sort_keys=True), "utf-8")
-    PLACES.write_text(json.dumps({"dealers": dealers, "towns": towns}, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    PLACES.write_text(json.dumps({"updated": datetime.now(timezone.utc).isoformat(timespec="minutes"), "dealers": dealers, "towns": towns}, ensure_ascii=False, separators=(",", ":")), "utf-8")
     print(f"Kort: {len(dealers)} bílasölur, {len(towns)} staðir")
 
 
