@@ -94,18 +94,84 @@
     c.auto = /sjalf/.test(fold(c.trans)) ? true : /bein/.test(fold(c.trans)) ? false : (c.fcat === 'Rafmagn' ? true : null);
     c.age = Math.max(0, NOW - (c.year || NOW));
     c.ftitle = fold(c.make + ' ' + c.model);
+    c.perf = perfTier(c);
+    c.pwRaw = powerHint(c);
     c.priv = c.src === 'bland.is';  // einkasala (bland.is); allt annað er bílasala
     return c;
   }
 
+  // ---------- kraftútgáfur og vélarstærð ----------
+  // tier 1 = sportútgáfa (AMG 43, M340i, S4, GTI …), tier 2 = toppútgáfa (AMG 45/63, M3, RS6, Golf R, Turbo S …).
+  // „AMG Line“ / „AMG pakki“ / „S line“ / „M sport“ eru bara útlitspakkar og telja ekki.
+  function perfTier(c) {
+    var t = ' ' + String(c.model || '').toUpperCase().replace(/[-_]/g, ' ') + ' ', mk = c.make, m;
+    // útlitspakkar sem líkjast kraftútgáfum: R-Line, GT-Line, ST-Line, N Line, S line, AMG Line/pakki, M Sport, R-Design, S tronic
+    t = t.replace(/ (R|GT|ST|N|S|M|AMG|RS) ?LINE/g, ' ').replace(/ AMG ?(PAKKI|PACK\w*|ÚTLIT\w*|STYLING|EDITION|SPORT)/g, ' ')
+      .replace(/ M ?(SPORT|PAKKI|PACK\w*)/g, ' ').replace(/ R ?DESIGN/g, ' ').replace(/ S ?TRONIC/g, ' ');
+    function r(tier, label) { return { t: tier, label: label }; }
+    if (mk === 'MERCEDES-BENZ') {
+      if (/ AMG GT /.test(t) || / (63|65) /.test(t) || / (45|63) S /.test(t) || / SL 6\d/.test(t)) return r(2, 'AMG');
+      if (/ 45 /.test(t)) return r(2, 'AMG 45');
+      if ((m = t.match(/ (35|43|53|55) /))) return r(1, 'AMG ' + m[1]);
+    }
+    if (mk === 'BMW') {
+      if (/ (M[2-8]|X[3-7] M|XM) /.test(t) || / M COMPETITION /.test(t)) return r(2, 'M');
+      if (/ M\d{2,3}[IDE]? /.test(t) || / M50[ID]? /.test(t) || / M60I? /.test(t)) return r(1, 'M Performance');
+    }
+    if (mk === 'AUDI') {
+      if (/ RS ?Q?\d /.test(t) || / RS E ?TRON/.test(t) || / R8 /.test(t)) return r(2, 'RS');
+      if (/ S\d /.test(t) || / SQ\d /.test(t)) return r(1, 'S');
+    }
+    if (mk === 'VOLKSWAGEN') {
+      if (/ (GOLF|TIGUAN|ARTEON|TOUAREG|T ROC) R /.test(t) || / R 20 /.test(t)) return r(2, 'R');
+      if (/ (GTI|GTX|GTS) /.test(t)) return r(1, 'GTI/GTX');
+    }
+    if (mk === 'PORSCHE') {
+      if (/ (TURBO S|GT2|GT3|GT4|TURBO GT) /.test(t)) return r(2, 'Turbo S/GT');
+      if (/ (TURBO|GTS) /.test(t)) return r(1, 'Turbo/GTS');
+    }
+    if (mk === 'TESLA') {
+      if (/ PLAID /.test(t)) return r(2, 'Plaid');
+      if (/ PERFORMANCE /.test(t)) return r(1, 'Performance');
+    }
+    if (mk === 'FORD') {
+      if (/ (RAPTOR|SHELBY|GT500|GT 500|RS) /.test(t)) return r(2, 'Raptor/Shelby/RS');
+      if (/ (ST|MACH 1|GT) /.test(t)) return r(1, 'ST/GT');
+    }
+    if (mk === 'LAND ROVER') {
+      if (/ (SVR|SV|SVAUTOBIOGRAPHY|SV AUTOBIOGRAPHY|V8 SUPERCHARGED) /.test(t)) return r(2, 'SVR/SV');
+      if (/ (P530|P510E|P550E|V8|P575|D350|P400E) /.test(t)) return r(1, 'V8/öflug vél');
+    }
+    if ((mk === 'JEEP' || mk === 'DODGE' || mk === 'CHRYSLER') && (/ (SRT|HELLCAT|TRX|392) /.test(t) || / GRAND CHEROKEE TRACKHAWK /.test(t))) return r(2, 'SRT');
+    if (mk === 'HONDA' && / TYPE R /.test(t)) return r(2, 'Type R');
+    if (mk === 'TOYOTA' && / (GR|GR86|GRMN) /.test(t) && !/ GR SPORT /.test(t)) return r(2, 'GR');
+    if ((mk === 'HYUNDAI' || mk === 'KIA') && / (N|GT) /.test(t)) return r(1, mk === 'KIA' ? 'GT' : 'N');
+    if (mk === 'VOLVO' && / POLESTAR /.test(t)) return r(1, 'Polestar Engineered');
+    if (mk === 'CUPRA' && / VZ\d?/.test(t)) return r(1, 'VZ');
+    if (/ V12 /.test(t)) return r(2, 'V12');
+    if (/ V8 /.test(t)) return r(1, 'V8');
+    return r(0, '');
+  }
+  // Talan í heitinu sem vísbending um vélarafl, á svipuðum kvarða milli tegunda (~1–6)
+  function powerHint(c) {
+    var t = ' ' + String(c.model || '').toUpperCase().replace(/-/g, ' ') + ' ', m;
+    if (c.perf.t) return null;
+    if (c.make === 'MERCEDES-BENZ' && (m = t.match(/ [A-Z]{0,3} ?([1-6]\d0)( ?[DECH]|CDI|CGI| BLUETEC)? /))) return +m[1] / 100;
+    if (c.make === 'BMW' && ((m = t.match(/ [1-8](\d0)[IDE]? /)) || (m = t.match(/ (?:X?DRIVE|SDRIVE) ?(\d0)[IDE]? /)))) return +m[1] / 10;
+    if (c.make === 'AUDI' && (m = t.match(/ ([3-6]\d) (TFSI|TDI|E TRON|TFSIE|QUATTRO)/))) return +m[1] / 10;
+    if (c.make === 'VOLVO' && (m = t.match(/ [TDB]([2-8]) /))) return +m[1];
+    return null;
+  }
+
   // ---------- verðmatslíkan ----------
-  // log(verð) = fasti gerðar + b·aldur + c·akstur + eldsneytisáhrif.
+  // log(verð) = fasti gerðar + b·aldur + c·akstur + eldsneytisáhrif + kraftútgáfa + vélarafl.
   // Hallatölur eru metnar *innan* hverrar gerðar (sami bíll, mismikið ekinn), svo dýrar tegundir rugla þær ekki.
   var FUELS = ['Rafmagn', 'Tengiltvinn', 'Tvinn', 'Dísel'];
   function feats(c) {
     var km = c.km != null ? c.km : 15000 * c.age; // vantar akstur: gerum ráð fyrir meðalakstri
     var x = [c.age, km / 1e4];
     for (var i = 0; i < FUELS.length; i++) x.push(c.fcat === FUELS[i] ? 1 : 0);
+    x.push(c.perf.t === 1 ? 1 : 0, c.perf.t === 2 ? 1 : 0, c.pw, c.perf.t ? c.age : 0);  // síðasta: sportbílar falla hægar í verði
     return x;
   }
   function solve(A, b) {
@@ -126,6 +192,12 @@
   function fit(list) {
     var groups = {};
     list.forEach(function (c) { (groups[c.key] = groups[c.key] || []).push(c); });
+    // vantar vélarafl: notum meðaltal gerðarinnar, svo það hafi engin áhrif innan hennar
+    Object.keys(groups).forEach(function (k) {
+      var known = groups[k].filter(function (c) { return c.pwRaw != null; });
+      var mean = known.length ? known.reduce(function (s, c) { return s + c.pwRaw; }, 0) / known.length : 0;
+      groups[k].forEach(function (c) { c.pw = c.pwRaw != null ? c.pwRaw : mean; });
+    });
     var d = feats(list[0]).length, XtX = [], Xty = [], i, j;
     for (i = 0; i < d; i++) { XtX.push(new Array(d).fill(0)); Xty.push(0); }
     Object.keys(groups).forEach(function (k) {
@@ -146,12 +218,13 @@
     var beta = solve(XtX, Xty);
     function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
 
-    var tot = 0, makes = {}, grp = {};
+    var tot = 0, makes = {}, grp = {}, grpT = {};
     list.forEach(function (c) {
       c._r = Math.log(c.price) - lin(c);
       tot += c._r;
       var m = makes[c.make] = makes[c.make] || { s: 0, n: 0 }; m.s += c._r; m.n++;
       var g = grp[c.key] = grp[c.key] || { s: 0, n: 0 }; g.s += c._r; g.n++;
+      var gt = grpT[c.key + '|' + c.perf.t] = grpT[c.key + '|' + c.perf.t] || { s: 0, n: 0 }; gt.s += c._r; gt.n++;
     });
     var glob = tot / list.length;
     // Mat fyrir hvern bíl án hans sjálfs (leave-one-out), svo bíllinn hafi ekki áhrif á eigið mat
@@ -159,8 +232,11 @@
       var m = makes[c.make], g = grp[c.key];
       var mk = (m.s - c._r + 3 * glob) / (m.n - 1 + 3);
       var gi = (g.s - c._r + 1.5 * mk) / (g.n - 1 + 1.5);
+      // kraftútgáfur: miðum fyrst við aðra í sömu útgáfu (Golf R við Golf R); almenna álagið gildir bara ef enginn er til
+      if (c.perf.t) { var gt = grpT[c.key + '|' + c.perf.t]; gi = (gt.s - c._r + 1 * gi) / (gt.n - 1 + 1); }
       c.est = Math.round(Math.exp(gi + lin(c)) / 1e4) * 1e4;
       c.peers = g.n - 1;
+      c.tierPeers = groups[c.key].filter(function (o) { return o !== c && o.perf.t === c.perf.t; }).length;
       c.dev = c.price / c.est - 1;
     });
     return { beta: beta, lin: lin, groups: groups };
@@ -169,6 +245,8 @@
     if (c.peers < 2) return { cls: 'mid', txt: 'Fáir sambærilegir' };
     // meira en helmingi undir mati: oftast innsláttarvilla, varahlutabíll, tjónabíll eða svindl
     if (c.dev <= -0.5) return { cls: 'warn', txt: 'Athugaðu verðið' };
+    // kraftútgáfa sem enginn annar sambærilegur er til af: matið byggir á almennu álagi, svo við fullyrðum ekki
+    if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa ' + pct(c.dev) };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
     if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
     return { cls: 'mid', txt: 'Eðlilegt verð' };
@@ -180,7 +258,7 @@
   function similar(c, n) {
     var g = model.groups[c.key] || [];
     return g.filter(function (o) { return o !== c; }).sort(function (a, b) {
-      function d(o) { return Math.abs(o.age - c.age) + Math.abs((o.km || 0) - (c.km || 0)) / 30000 + (o.fcat === c.fcat ? 0 : 2); }
+      function d(o) { return Math.abs(o.age - c.age) + Math.abs((o.km || 0) - (c.km || 0)) / 30000 + (o.fcat === c.fcat ? 0 : 2) + 4 * Math.abs(o.perf.t - c.perf.t) + Math.abs(o.pw - c.pw); }
       return d(a) - d(b);
     }).slice(0, n || 8);
   }
@@ -375,7 +453,7 @@
       '<button type="button" class="cmp' + (on ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + (on ? '✓ Í samanburði' : '+ Bera saman') + '</button>' +
       saveBtn(c.id) + '</div>' +
       '<div class="body"><h3>' + esc(cap(c.make) + ' ' + cap(c.model)) + '</h3>' +
-      '<div class="meta">' + (c.year || '–') + ' · ' + kmFmt(c.km) + ' · ' + esc(c.fcat) + (c.auto === true ? ' · ssk.' : c.auto === false ? ' · bsk.' : '') + '</div>' +
+      '<div class="meta">' + (c.perf.t ? '<span class="perf">' + (c.perf.t === 2 ? '🏁 ' : '⚡ ') + esc(c.perf.label) + '</span> ' : '') + (c.year || '–') + ' · ' + kmFmt(c.km) + ' · ' + esc(c.fcat) + (c.auto === true ? ' · ssk.' : c.auto === false ? ' · bsk.' : '') + '</div>' +
       '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span>' +
       '<span class="badge ' + v.cls + '">' + v.txt + '</span></div></div></article>';
   }
@@ -452,6 +530,7 @@
       '<div class="m-top"><div>' + (img(c) ? '<img src="' + esc(img(c)) + '" alt="">' : '') + '</div><div>' +
       '<dl class="facts"><dt>Verð</dt><dd><b>' + kr(c.price) + '</b>' + (c.oldPrice && c.oldPrice > c.price ? ' <span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</dd>' +
       '<dt>Árgerð</dt><dd>' + (c.year || '–') + '</dd><dt>Ekinn</dt><dd>' + kmFmt(c.km) + (c.age > 0 && c.km ? ' (≈' + Math.round(c.km / c.age).toLocaleString('de-DE') + ' km/ári)' : '') + '</dd>' +
+      (c.perf.t ? '<dt>Útgáfa</dt><dd><span class="perf">' + (c.perf.t === 2 ? '🏁 ' : '⚡ ') + esc(c.perf.label) + '</span></dd>' : '') +
       '<dt>Eldsneyti</dt><dd>' + esc(c.fcat) + '</dd><dt>Skipting</dt><dd>' + (c.auto === true ? 'Sjálfskipting' : c.auto === false ? 'Beinskipting' : 'Óþekkt') + '</dd>' +
       (c.awd ? '<dt>Drif</dt><dd>Fjórhjóladrif</dd>' : '') + (c.color ? '<dt>Litur</dt><dd>' + esc(c.color) + '</dd>' : '') +
       '<dt>Bílasala</dt><dd>' + esc(c.dealer) + '</dd></dl>' +
@@ -459,7 +538,11 @@
       '<div><span class="badge ' + v.cls + '">' + v.txt + '</span> ' +
       (c.peers >= 2 && c.dev <= -0.5 ? '<b>Verðið er meira en helmingi undir sambærilegum bílum.</b> Það getur verið innsláttarvilla, tjónabíll, bíll til niðurrifs eða jafnvel svindl. Lestu auglýsinguna vel og borgaðu aldrei fyrirfram. ' : '') +
       (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
-        'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri og eldsneyti.') + '</div></div>' +
+        'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ', útgáfu' : '') + (c.pwRaw != null ? ', vélarstærð' : '') + '.') +
+      (c.perf.t ? ' <br><span class="note">' + esc(c.perf.label) + ' er ' + (c.perf.t === 2 ? 'toppútgáfa' : 'sportútgáfa') + ': á markaðnum kosta slíkar útgáfur að jafnaði ~' +
+        Math.round((Math.exp(model.beta[c.perf.t === 2 ? 7 : 6]) - 1) * 100) + '% meira en venjulega útgáfan. ' +
+        (c.tierPeers ? c.tierPeers + ' aðrir ' + esc(cap(c.base)) + ' í sömu útgáfu eru á skrá.' : 'Enginn annar ' + esc(cap(c.base)) + ' í sömu útgáfu er á skrá, svo matið er óvissara.') + '</span>' : '') +
+      '</div></div>' +
       '<div class="actions"><a class="primary" href="' + esc(c.url) + '" target="_blank" rel="noopener">Opna auglýsingu hjá ' + esc(c.dealer) + '</a>' +
       '<button type="button" class="sec" data-cmp="' + esc(c.id) + '">' + (compare.indexOf(c.id) >= 0 ? '✓ Í samanburði' : '+ Bera saman') + '</button>' +
       '<button type="button" class="sec" data-save="' + esc(c.id) + '">' + (isSaved(c.id) ? '♥ Vistaður' : '♡ Vista bíl') + '</button>' +
