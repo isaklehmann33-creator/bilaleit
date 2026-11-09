@@ -34,8 +34,10 @@
   <aside class="filters" id="filters">
     <button type="button" class="filters-toggle" id="filtersToggle" aria-expanded="false">Síur ▾</button>
     <div class="filters-body">
-      <label>Tegund<select id="fMake"><option value="">Allar</option></select></label>
-      <label>Gerð<select id="fModel"><option value="">Allar</option></select></label>
+      <div class="pick-field"><span>Tegund</span><button type="button" class="picker-btn" id="pickMake"><span class="pb-mono" id="pickMakeMono">∗</span><span class="pb-text" id="pickMakeText">Allar tegundir</span><span class="pb-caret">▾</span></button></div>
+      <div class="pick-field"><span>Gerð</span><button type="button" class="picker-btn" id="pickModel"><span class="pb-text" id="pickModelText">Allar gerðir</span><span class="pb-caret">▾</span></button></div>
+      <select id="fMake" hidden><option value="">Allar</option></select>
+      <select id="fModel" hidden><option value="">Allar</option></select>
       <div class="pair">
         <label>Verð frá (m.kr.)<input id="fPriceMin" type="number" inputmode="decimal" step="0.1" min="0"></label>
         <label>Verð til (m.kr.)<input id="fPriceMax" type="number" inputmode="decimal" step="0.1" min="0"></label>
@@ -66,6 +68,7 @@
   <section>
     <div class="status"><span id="count">Hleð inn…</span><span id="updated"></span></div>
     <div class="toolbar"><button type="button" id="saveSearch" class="ghost">🔔 Vista leit og fá tilkynningar</button><a id="fbLink" class="ghost" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></div>
+    <div id="modelChips" class="model-chips" hidden></div>
     <div id="results" class="grid"></div>
     <button type="button" id="more" class="ghost more" hidden>Sýna fleiri</button>
     <footer class="foot">

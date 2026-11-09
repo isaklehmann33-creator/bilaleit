@@ -23,7 +23,16 @@
   function mkr(n) { return (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m.kr.'; }
   function kmFmt(n) { return n == null ? '–' : n.toLocaleString('de-DE') + ' km'; }
   function pct(x) { return (x > 0 ? '+' : '') + Math.round(x * 100) + '%'; }
-  function cap(s) { return String(s || '').toLowerCase().replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); }); }
+  // Hástafir eins og bílaframleiðendur skrifa: skammstafanir og gerðir með tölum (GLE, EQC, X5, ID.4) haldast, annars Sprinter, Kia
+  var CAP_EXC = { KIA: 'Kia', RAM: 'Ram', UP: 'up!', NEW: 'New', VAN: 'Van' };
+  function cap(s) {
+    return String(s || '').split(/(\s+|-)/).map(function (w) {
+      var u = w.toUpperCase();
+      if (CAP_EXC[u]) return CAP_EXC[u];
+      if (/\d/.test(w) || (u.length <= 3 && /^[A-Z.+]+$/.test(u))) return u;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    }).join('');
+  }
   function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
 
   // ---------- flokkun ----------
@@ -34,12 +43,32 @@
     'C5 C3 MOKKA GRANDLAND CROSSLAND CR-V HR-V ZR-V MODEL ZS MARVEL EHS HS 3 4 WRANGLER COMPASS RENEGADE CHEROKEE GRAND VITARA ' +
     'S-CROSS JIMNY DUSTER CAPTUR KADJAR AUSTRAL ARKANA BZ4X UX NX RX MACAN CAYENNE ATTO SEAL-U TONGAN TOYOTA HILUX F-150 RANGER AMAROK').split(' ');
 
-  function baseModel(m) {
-    var w = String(m || '').toUpperCase().split(/\s+/);
+  // Sameinar mismunandi rithætti sömu gerðar: „V-KLASSE“, „V 250“, „V-250“ -> V; BMW „530E“ -> 5 SERIES o.s.frv.
+  var MB_CLASSES = /^(A|B|C|E|S|G|V|T|X|CL|CLA|CLK|CLS|GL|GLA|GLB|GLC|GLE|GLK|GLS|ML|SL|SLC|SLK|R|EQA|EQB|EQC|EQE|EQS|EQV|EQT)$/;
+  var TYPO = { SPORTAG: 'SPORTAGE', OPTIMALUXURI: 'OPTIMA', 'E-NIRO': 'NIRO', 'E-GOLF': 'GOLF', 'QASHQAI+2': 'QASHQAI', 'C-HR+': 'C-HR',
+    'KA+': 'KA', 'TRANSIT/TOURNEO': 'TRANSIT', IONIQ5: 'IONIQ 5', IONIQ6: 'IONIQ 6', IONIQ9: 'IONIQ 9', 'SPRINTER-E': 'SPRINTER', ECITAN: 'CITAN' };
+  function baseModel(m, make) {
+    var w = String(m || '').toUpperCase().replace(/\b(KLASSE|KLASSI|CLASS)\b/g, ' ').replace(/-\s/g, ' ').split(/\s+/)
+      .map(function (x) { return x.replace(/-$/, ''); }).filter(Boolean);
+    var mk = String(make || '').toUpperCase();
+    while (w.length > 1 && (w[0] === mk || w[0] === mk.split(/[\s-]/)[0] || w[0] === 'AMG' || w[0] === 'NEW' || w[0] === 'NYR')) w.shift();
+    if (!w.length) return '';
     if (w[0] === 'RANGE' && w[1] === 'ROVER') return /^(SPORT|EVOQUE|VELAR)$/.test(w[2] || '') ? 'RANGE ROVER ' + w[2] : 'RANGE ROVER';
-    if (/^(MODEL|GRAND|SANTA|LAND|C3|C4|C5)$/.test(w[0]) && w[1]) return w[0] + ' ' + w[1];
     if (w[0] === 'DISCOVERY' && w[1] === 'SPORT') return 'DISCOVERY SPORT';
-    return w[0] || '';
+    if (/^(MODEL|GRAND|SANTA|LAND|C3|C4|C5)$/.test(w[0]) && w[1]) return w[0] + ' ' + w[1];
+    if (/^(IONIQ|ID\.?)$/.test(w[0]) && /^\d$/.test(w[1] || '')) w[0] = w[0].replace(/\.$/, '') + (w[0] === 'IONIQ' ? ' ' : '.') + w[1];
+    var b = TYPO[w[0]] || w[0];
+    b = b.replace(/^([A-Z])-(\d+)$/, '$1$2').replace(/(\D)\d+\.\d+$/, '$1');           // F-350 -> F350, MUSTANG2.3 -> MUSTANG
+    if (mk === 'MERCEDES-BENZ') {
+      var mm = b.match(/^([A-Z]+)-?\d{2,3}[A-Z]*$/) || b.match(/^\d{3}([A-Z]+)$/);       // GLE450, V-250, C200, 450SL
+      if (mm) { var cl = /^SE[LC]?$/.test(mm[1]) ? 'S' : mm[1]; if (MB_CLASSES.test(cl)) b = cl; }
+    }
+    if (mk === 'BMW') {
+      if (/^[XZIM]$/.test(b) && /^\d$/.test(w[1] || '')) b = b + w[1];                     // X 5 -> X5
+      var bm = b.match(/^(\d)(\d\d)?[A-Z]*$/);                                          // 530E, 320D, 5 -> 5 SERIES
+      if (bm) b = bm[1] + ' SERIES';
+    }
+    return b;
   }
   function fuelCat(c) {
     var f = fold(c.fuel), t = fold(c.title);
@@ -57,11 +86,11 @@
   }
 
   function prep(c) {
-    c.base = baseModel(c.model);
+    c.base = baseModel(c.model, c.make);
     c.key = c.make + '|' + c.base;
     c.fcat = fuelCat(c);
     c.awd = isAwd(c);
-    c.suv = SUV.indexOf(c.base.split(' ')[0]) >= 0 || /\b(jeppi|jepplingur)\b/i.test(c.title);
+    c.suv = SUV.indexOf(c.base.split(' ')[0]) >= 0 || SUV.indexOf(c.base.replace(' ', '')) >= 0 || /\b(jeppi|jepplingur)\b/i.test(c.title);
     c.auto = /sjalf/.test(fold(c.trans)) ? true : /bein/.test(fold(c.trans)) ? false : (c.fcat === 'Rafmagn' ? true : null);
     c.age = Math.max(0, NOW - (c.year || NOW));
     c.ftitle = fold(c.make + ' ' + c.model);
@@ -225,6 +254,10 @@
     take(/nyjast\w*|nyjust\w*|yngst\w*/g, function () { f.sort = 'yearDesc'; });
     take(/gott verd|godu verdi|besta verd\w*|godum kaup\w*|kjarakaup|tilbod\w*/g, function () { f.deal = true; f.sort = 'deal'; });
 
+    // „v-klasse“, „c class“ -> Mercedes-gerð; „5 series“, „3 línan“ -> BMW-sería
+    take(/(?:^|\s)([a-z]{1,3})[- ]?(?:klasse|class|klassi)(?=\s)/g, function (m, l) { f.make = 'MERCEDES-BENZ'; f.model = l.toUpperCase(); });
+    take(/(?:^|\s)(\d)[- ]?(?:series|seria|serian|lina|linan|linu)(?=\s)/g, function (m, d) { f.make = 'BMW'; f.model = d + ' SERIES'; });
+
     // tegund og gerð
     Object.keys(MAKE_ALIAS).sort(function (a, b) { return b.length - a.length; }).forEach(function (a) {
       take(new RegExp('(^|\\s)' + a + '(?=\\s)', 'g'), function () { f.make = MAKE_ALIAS[a]; });
@@ -358,6 +391,7 @@
     if (!keepShown) shown = PAGE;
     var list = filtered();
     $('fbLink').href = fbLink(readFilters());
+    renderPickers();
     $('count').textContent = list.length.toLocaleString('de-DE') + ' bílar';
     $('results').innerHTML = list.length ? list.slice(0, shown).map(card).join('') :
       '<div class="empty">Engir bílar fundust. Prófaðu að víkka leitina eða smelltu á „Hreinsa allt“.</div>';
@@ -377,9 +411,10 @@
     store('compare', compare);
   }
 
-  function openModal(html) {
+  function openModal(html, cls) {
     $('modalBody').innerHTML = html;
     var d = $('modal');
+    d.className = cls || '';
     if (d.showModal) { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
     d.scrollTop = 0;
   }
@@ -464,6 +499,96 @@
       '<div class="actions"><a class="primary" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">Spyrja Claude hvern ég ætti að velja</a></div></div>');
   }
 
+  // ---------- val á tegund og gerð ----------
+  function hue(str) { var h = 0; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360; return h; }
+  function mono(make) {
+    var w = cap(make).split(/[\s-]+/);
+    return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
+  }
+  function monoHtml(make, big) {
+    return '<span class="mono' + (big ? ' big' : '') + '" style="--h:' + hue(make) + '">' + esc(mono(make)) + '</span>';
+  }
+  function mkrShort(n) { return (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: n < 1e7 ? 1 : 0 }); }
+  function median(a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[a.length >> 1] : 0; }
+  // talið út frá öllum hinum síunum (verði, eldsneyti …), svo fjöldinn passi við það sem birtist
+  function groupBy(keyFn, clear) {
+    var f = readFilters(), g = {};
+    clear.forEach(function (k) { f[k] = ''; });
+    filtered(f).forEach(function (c) {
+      var k = keyFn(c), x = g[k] = g[k] || { key: k, n: 0, prices: [], ymin: 9999, ymax: 0, ev: 0 };
+      x.n++; x.prices.push(c.price);
+      if (c.year) { x.ymin = Math.min(x.ymin, c.year); x.ymax = Math.max(x.ymax, c.year); }
+      if (c.fcat === 'Rafmagn' || c.fcat === 'Tengiltvinn') x.ev++;
+    });
+    return Object.keys(g).map(function (k) { var x = g[k]; x.med = median(x.prices); x.min = Math.min.apply(null, x.prices); x.max = Math.max.apply(null, x.prices); return x; });
+  }
+  function renderPickers() {
+    var mk = $('fMake').value, md = $('fModel').value;
+    $('pickMakeText').textContent = mk ? cap(mk) : 'Allar tegundir';
+    $('pickMakeMono').outerHTML = mk ? monoHtml(mk).replace('class="mono"', 'class="mono pb-mono" id="pickMakeMono"') : '<span class="pb-mono" id="pickMakeMono">∗</span>';
+    $('pickModelText').textContent = md ? cap(md) : (mk ? 'Allar gerðir' : 'Veldu tegund fyrst');
+    $('pickMake').classList.toggle('set', !!mk);
+    $('pickModel').classList.toggle('set', !!md);
+    var chips = $('modelChips');
+    if (!mk) { chips.hidden = true; chips.innerHTML = ''; return; }
+    var models = groupBy(function (c) { return c.base; }, ['model']).sort(function (a, b) { return b.n - a.n; });
+    var total = models.reduce(function (s, x) { return s + x.n; }, 0);
+    chips.hidden = false;
+    chips.innerHTML = '<button type="button" class="chip' + (md ? '' : ' on') + '" data-chip="">' + monoHtml(mk) + 'Allar ' + esc(cap(mk)) + '<b>' + total + '</b></button>' +
+      models.map(function (x) {
+        return '<button type="button" class="chip' + (x.key === md ? ' on' : '') + '" data-chip="' + esc(x.key) + '">' + esc(cap(x.key)) + '<b>' + x.n + '</b></button>';
+      }).join('');
+  }
+  function chooseMake(mk, thenModel) {
+    $('fMake').value = mk; fillModels(); $('fModel').value = '';
+    render();
+    if (thenModel && mk) openModelPicker(); else closeModal();
+  }
+  function chooseModel(md) { $('fModel').value = md; render(); }
+
+  function openMakePicker(thenModel) {
+    var then = thenModel === true ? ' data-then="model"' : '';
+    var makes = groupBy(function (c) { return c.make; }, ['make', 'model']);
+    var cur = $('fMake').value;
+    var popular = makes.slice().sort(function (a, b) { return b.n - a.n; }).slice(0, 12);
+    var all = makes.slice().sort(function (a, b) { return a.key < b.key ? -1 : 1; });
+    function tile(x) {
+      return '<button type="button" class="pk-tile' + (x.key === cur ? ' on' : '') + '" data-pick-make="' + esc(x.key) + '"' + then + ' data-name="' + esc(fold(x.key)) + '">' +
+        monoHtml(x.key, true) + '<span class="pk-name">' + esc(cap(x.key)) + '</span>' +
+        '<span class="pk-meta">' + x.n.toLocaleString('de-DE') + ' bílar · miðgildi ' + mkrShort(x.med) + ' m.kr.</span></button>';
+    }
+    openModal('<div class="m picker"><div class="m-head"><h2>Veldu tegund</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<input id="pickSearch" class="pk-search" type="search" placeholder="Leita að tegund…" autocomplete="off">' +
+      '<button type="button" class="pk-all' + (cur ? '' : ' on') + '" data-pick-make=""' + ' data-name="allar">Allar tegundir <b>' + makes.reduce(function (s, x) { return s + x.n; }, 0).toLocaleString('de-DE') + '</b></button>' +
+      '<div class="pk-section"><h4>Vinsælastar</h4><div class="pk-grid">' + popular.map(tile).join('') + '</div></div>' +
+      '<div class="pk-section"><h4>Allar tegundir A–Ö</h4><div class="pk-list">' + all.map(function (x) {
+        return '<button type="button" class="pk-row' + (x.key === cur ? ' on' : '') + '" data-pick-make="' + esc(x.key) + '"' + then + ' data-name="' + esc(fold(x.key)) + '">' +
+          monoHtml(x.key) + '<span>' + esc(cap(x.key)) + '</span><b>' + x.n + '</b></button>';
+      }).join('') + '</div></div></div>', 'sheet');
+  }
+
+  function openModelPicker() {
+    var mk = $('fMake').value, cur = $('fModel').value;
+    var models = groupBy(function (c) { return c.base; }, ['model']).sort(function (a, b) { return b.n - a.n; });
+    var lo = Math.min.apply(null, models.map(function (x) { return x.min; })), hi = Math.max.apply(null, models.map(function (x) { return x.max; }));
+    var span = Math.log(hi) - Math.log(lo) || 1;
+    function pos(v) { return ((Math.log(v) - Math.log(lo)) / span * 100).toFixed(1); }
+    openModal('<div class="m picker"><div class="m-head"><div class="pk-title">' + monoHtml(mk, true) + '<div><h2>' + esc(cap(mk)) + '</h2>' +
+      '<span class="note">' + models.length + ' gerðir · ' + models.reduce(function (s, x) { return s + x.n; }, 0) + ' bílar</span></div></div>' +
+      '<button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<div class="pk-bar"><input id="pickSearch" class="pk-search" type="search" placeholder="Leita að gerð…" autocomplete="off">' +
+      '<button type="button" class="link" id="pkChangeMake">Skipta um tegund</button></div>' +
+      '<button type="button" class="pk-all' + (cur ? '' : ' on') + '" data-pick-model="" data-name="allar">Allar gerðir</button>' +
+      '<div class="pk-section"><div class="pk-models">' + models.map(function (x) {
+        return '<button type="button" class="pk-model' + (x.key === cur ? ' on' : '') + '" data-pick-model="' + esc(x.key) + '" data-name="' + esc(fold(x.key)) + '">' +
+          '<span class="pm-top"><span class="pm-name">' + esc(cap(x.key)) + '</span><span class="pm-n">' + x.n + '</span></span>' +
+          '<span class="pm-meta">' + (x.ymax ? (x.ymin === x.ymax ? x.ymin : x.ymin + '–' + x.ymax) : '') + (x.ev ? ' · ⚡ ' + Math.round(x.ev / x.n * 100) + '%' : '') + '</span>' +
+          '<span class="pm-range" title="Verðbil"><span style="left:' + pos(x.min) + '%;right:' + (100 - pos(x.max)) + '%"></span><i style="left:' + pos(x.med) + '%"></i></span>' +
+          '<span class="pm-price">' + (x.min === x.max ? mkrShort(x.min) : mkrShort(x.min) + '–' + mkrShort(x.max)) + ' m.kr. <small>miðgildi ' + mkrShort(x.med) + '</small></span></button>';
+      }).join('') + '</div></div></div>', 'sheet');
+    $('pkChangeMake').addEventListener('click', function () { openMakePicker(true); });
+  }
+
   // ---------- atburðir ----------
   function runSearch(text) {
     var r = parseQuery(text);
@@ -521,6 +646,28 @@
     });
     $('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
     $('trayOpen').addEventListener('click', showCompare);
+    $('pickMake').addEventListener('click', openMakePicker);
+    $('pickModel').addEventListener('click', function () { if ($('fMake').value) openModelPicker(); else openMakePicker(true); });
+    $('modelChips').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-chip]') : null;
+      if (b) chooseModel(b.getAttribute('data-chip'));
+    });
+    $('modalBody').addEventListener('click', function (e) {
+      var t = e.target.closest ? e.target.closest('[data-pick-make],[data-pick-model]') : null;
+      if (!t) return;
+      if (t.hasAttribute('data-pick-make')) chooseMake(t.getAttribute('data-pick-make'), t.getAttribute('data-then') === 'model');
+      else { chooseModel(t.getAttribute('data-pick-model')); closeModal(); }
+    });
+    $('modalBody').addEventListener('input', function (e) {
+      if (e.target.id !== 'pickSearch') return;
+      var q = fold(e.target.value).trim();
+      document.querySelectorAll('#modalBody [data-name]').forEach(function (el) {
+        el.hidden = q && el.getAttribute('data-name').indexOf(q) < 0;
+      });
+      document.querySelectorAll('#modalBody .pk-section').forEach(function (sec) {
+        sec.hidden = !sec.querySelector('[data-name]:not([hidden])');
+      });
+    });
     $('trayClear').addEventListener('click', function () { compare = []; store('compare', compare); render(true); });
   }
 
