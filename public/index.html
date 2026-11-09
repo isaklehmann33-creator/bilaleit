@@ -120,6 +120,7 @@
     <footer class="foot">
       <p><a id="fbLink" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></p>
       <p id="sources"></p>
+      <p><button type="button" class="link-btn" id="showConsent">Fyrirvari um verðmat og áætlanir</button></p>
       <p>Verðmatið er tölfræðilíkan sem lærir af öllum auglýsingum: það ber hvern bíl saman við sömu gerð og leiðréttir fyrir árgerð, akstri, eldsneyti og útgáfu. Það er vísbending, ekki ástandsskoðun. Smelltu alltaf á upprunalegu auglýsinguna.</p>
     </footer>
   </section>
@@ -140,6 +141,22 @@
 </nav>
 
 <dialog id="modal"><div id="modalBody"></div></dialog>
+<dialog id="consent" aria-labelledby="consentTitle">
+  <div class="m consent">
+    <div class="cs-ic"><i data-ic="info"></i></div>
+    <h2 id="consentTitle">Áður en þú byrjar</h2>
+    <p>Bílaleit safnar auglýsingum frá bílasölum og bland.is og reiknar út frá þeim. Allar tölur sem síðan reiknar eru <b>ágiskanir</b>, ekki staðreyndir:</p>
+    <ul class="cs-list">
+      <li><i data-ic="gauge"></i><span><b>Verðmat</b> („Gott verð“, „Hátt verð“, áætlað markaðsverð) er tölfræðilíkan byggt á ásettu verði annarra auglýsinga. Það sér ekki ástand, búnað, þjónustusögu eða galla sem ekki eru nefndir.</span></li>
+      <li><i data-ic="cog"></i><span><b>Viðgerðarkostnaður</b> er gróft verðbil fyrir dæmigerðan bíl, lesið sjálfvirkt úr lýsingu seljanda. Raunverð getur verið allt annað.</span></li>
+      <li><i data-ic="wallet"></i><span><b>Lán, rekstrarkostnaður, gjöld, tilboðsráðgjöf og innflutningsverð</b> eru áætlanir sem geta verið rangar eða úreltar.</span></li>
+      <li><i data-ic="triangle-alert"></i><span><b>Myndgreining og viðvaranir</b> eru sjálfvirkar og geta skjátlast í báðar áttir.</span></li>
+    </ul>
+    <p class="note">Bílaleit ber ekki ábyrgð á ákvörðunum sem teknar eru út frá þessum upplýsingum. Lestu alltaf upprunalegu auglýsinguna, fáðu ástandsskoðun og tilboð frá verkstæði áður en þú kaupir.</p>
+    <label class="check cs-check"><input type="checkbox" id="consentCheck"><span>Ég skil að verð og kostnaður á síðunni eru ágiskanir</span></label>
+    <button type="button" class="btn-cta wide" id="consentOk" disabled>Samþykkja og halda áfram</button>
+  </div>
+</dialog>
 
 <script src="icons.js"></script>
 <script src="vendor/firebase-app-compat.js"></script>

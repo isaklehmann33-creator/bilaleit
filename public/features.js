@@ -653,5 +653,28 @@
     else if (n === 'me') acct('me');
   });
 
+  // ---------- fyrirvari: þarf að samþykkja að tölur eru ágiskanir (munað í vafranum; nýtt útgáfunúmer = spurt aftur) ----------
+  var CONSENT_V = '1';
+  function consent(force) {
+    var d = $('consent'), ok = false;
+    try { ok = localStorage.getItem('consent') === CONSENT_V; } catch (e) {}
+    if (ok && !force) return;
+    $('consentCheck').checked = ok;
+    $('consentOk').disabled = !ok;
+    $('consentOk').textContent = ok ? 'Loka' : 'Samþykkja og halda áfram';
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  }
+  $('consentCheck').addEventListener('change', function () { $('consentOk').disabled = !this.checked; });
+  $('consentOk').addEventListener('click', function () {
+    try { localStorage.setItem('consent', CONSENT_V); } catch (e) {}
+    var d = $('consent'); if (d.close) d.close(); else d.removeAttribute('open');
+  });
+  $('consent').addEventListener('cancel', function (e) {  // Esc lokar ekki fyrr en samþykkt
+    var ok = false; try { ok = localStorage.getItem('consent') === CONSENT_V; } catch (er) {}
+    if (!ok) e.preventDefault();
+  });
+  $('showConsent').addEventListener('click', function () { consent(true); });
+  consent(false);
+
   window.Features = { carExtras: carExtras, historyReady: historyReady, heroStats: heroStats, openValue: openValue, openImport: openImport, openWeek: openWeek, bifreidagjald: bifreidagjald };
 })();

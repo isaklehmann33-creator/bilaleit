@@ -722,3 +722,19 @@ button, .actions a, .cb-go, .pill-btn, .ghost { align-items: center; }
 .rp-sum .g b { color: var(--good); } .rp-sum .b b { color: var(--bad); }
 .repair .note { margin: 10px 0 0; }
 @media (max-width: 760px) { .rp-sum { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- fyrirvari ---------- */
+dialog#consent { width: min(560px, calc(100% - 24px)); z-index: 90; }
+dialog#consent::backdrop { background: rgba(3,6,5,.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.consent { padding: 26px; }
+.cs-ic { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; color: var(--accent-ink); background: linear-gradient(135deg, var(--accent), var(--accent2)); margin-bottom: 12px; }
+.cs-ic .ic { width: 26px; height: 26px; }
+.consent h2 { margin: 0 0 8px; font-size: 24px; }
+.consent p { margin: 0 0 12px; font-size: 14.5px; }
+.cs-list { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 10px; }
+.cs-list li { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; line-height: 1.45; padding: 10px 12px; border-radius: 12px; background: var(--mid-soft); }
+.cs-list .ic { color: var(--accent); margin-top: 2px; }
+.cs-check { display: flex; gap: 10px; align-items: center; margin: 4px 0 14px; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+.cs-check input { width: 20px; height: 20px; accent-color: var(--accent); }
+#consentOk:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); }
+@media (max-width: 760px) { dialog#consent { top: auto !important; bottom: 0; } .consent { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); } }
