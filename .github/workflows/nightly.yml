@@ -43,10 +43,15 @@ jobs:
           python3 vision.py
         env:
           VISION_BUDGET_MIN: ${{ github.event.inputs.vision_minutes || '40' }}
+      - name: Sami bíll á fleiri stöðum (myndafingraför)
+        continue-on-error: true
+        run: |
+          pip install -q pillow
+          python3 dupes.py
       - name: Vista gögn í git
         run: |
           git config user.name "bilaleit-bot"
           git config user.email "bilaleit-bot@users.noreply.github.com"
-          git add public/data/details public/data/vision.json vision_cache.json public/data/cars.json public/data/history.json public/data/sold.json public/data/catalog.json public/data/places.json public/data/registry.json dealers.json dealer_addresses.json geo_cache.json bland_cache.json
+          git add public/data/details public/data/vision.json vision_cache.json public/data/cars.json public/data/history.json public/data/sold.json public/data/catalog.json public/data/places.json public/data/registry.json public/data/dupes.json phash_cache.json dealers.json dealer_addresses.json geo_cache.json bland_cache.json
           git diff --cached --quiet || git commit -m "Uppfærð bílagögn $(date -u +%F)"
           git pull --rebase -q && git push

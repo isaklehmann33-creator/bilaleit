@@ -9,11 +9,8 @@
   var cars = [], model = null, shown = PAGE, compare = [];
 
   // ---------- hjálparföll ----------
-  function fold(s) {
-    return String(s || '').toLowerCase()
-      .replace(/[áà]/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/[óö]/g, 'o')
-      .replace(/ú/g, 'u').replace(/ý/g, 'y').replace(/þ/g, 'th').replace(/ð/g, 'd').replace(/æ/g, 'ae');
-  }
+  // gerðaföllin eru í models.js svo síðusmiðurinn (pages.js) noti sömu reglur
+  var fold = Models.fold, cap = Models.cap, baseModel = Models.baseModel;
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -23,16 +20,6 @@
   function mkr(n) { return (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m.kr.'; }
   function kmFmt(n) { return n == null ? '–' : n.toLocaleString('de-DE') + ' km'; }
   function pct(x) { return (x > 0 ? '+' : '') + Math.round(x * 100) + '%'; }
-  // Hástafir eins og bílaframleiðendur skrifa: skammstafanir og gerðir með tölum (GLE, EQC, X5, ID.4) haldast, annars Sprinter, Kia
-  var CAP_EXC = { KIA: 'Kia', RAM: 'Ram', UP: 'up!', NEW: 'New', VAN: 'Van', PHEV: 'PHEV', MHEV: 'MHEV', BEV: 'BEV', HSE: 'HSE', AMG: 'AMG', GTI: 'GTI', TDI: 'TDI', TSI: 'TSI', CDI: 'CDI', GTE: 'GTE', GTX: 'GTX', SUV: 'SUV' };
-  function cap(s) {
-    return String(s || '').split(/(\s+|-)/).map(function (w) {
-      var u = w.toUpperCase();
-      if (CAP_EXC[u]) return CAP_EXC[u];
-      if (/\d/.test(w) || (u.length <= 3 && /^[A-Z.+]+$/.test(u))) return u;
-      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-    }).join('');
-  }
   function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
 
   // ---------- flokkun ----------
@@ -43,33 +30,6 @@
     'C5 C3 MOKKA GRANDLAND CROSSLAND CR-V HR-V ZR-V MODEL ZS MARVEL EHS HS 3 4 WRANGLER COMPASS RENEGADE CHEROKEE GRAND VITARA ' +
     'S-CROSS JIMNY DUSTER CAPTUR KADJAR AUSTRAL ARKANA BZ4X UX NX RX MACAN CAYENNE ATTO SEAL-U TONGAN TOYOTA HILUX F-150 RANGER AMAROK').split(' ');
 
-  // Sameinar mismunandi rithætti sömu gerðar: „V-KLASSE“, „V 250“, „V-250“ -> V; BMW „530E“ -> 5 SERIES o.s.frv.
-  var MB_CLASSES = /^(A|B|C|E|S|G|V|T|X|CL|CLA|CLK|CLS|GL|GLA|GLB|GLC|GLE|GLK|GLS|ML|SL|SLC|SLK|R|EQA|EQB|EQC|EQE|EQS|EQV|EQT)$/;
-  var TYPO = { SPORTAG: 'SPORTAGE', OPTIMALUXURI: 'OPTIMA', 'E-NIRO': 'NIRO', 'E-GOLF': 'GOLF', 'QASHQAI+2': 'QASHQAI', 'C-HR+': 'C-HR',
-    'KA+': 'KA', 'TRANSIT/TOURNEO': 'TRANSIT', IONIQ5: 'IONIQ 5', IONIQ6: 'IONIQ 6', IONIQ9: 'IONIQ 9', 'SPRINTER-E': 'SPRINTER', ECITAN: 'CITAN' };
-  function baseModel(m, make) {
-    var w = String(m || '').toUpperCase().replace(/\b(KLASSE|KLASSI|CLASS)\b/g, ' ').replace(/-\s/g, ' ').split(/\s+/)
-      .map(function (x) { return x.replace(/-$/, ''); }).filter(Boolean);
-    var mk = String(make || '').toUpperCase();
-    while (w.length > 1 && (w[0] === mk || w[0] === mk.split(/[\s-]/)[0] || w[0] === 'AMG' || w[0] === 'NEW' || w[0] === 'NYR')) w.shift();
-    if (!w.length) return '';
-    if (w[0] === 'RANGE' && w[1] === 'ROVER') return /^(SPORT|EVOQUE|VELAR)$/.test(w[2] || '') ? 'RANGE ROVER ' + w[2] : 'RANGE ROVER';
-    if (w[0] === 'DISCOVERY' && w[1] === 'SPORT') return 'DISCOVERY SPORT';
-    if (/^(MODEL|GRAND|SANTA|LAND|C3|C4|C5)$/.test(w[0]) && w[1]) return w[0] + ' ' + w[1];
-    if (/^(IONIQ|ID\.?)$/.test(w[0]) && /^\d$/.test(w[1] || '')) w[0] = w[0].replace(/\.$/, '') + (w[0] === 'IONIQ' ? ' ' : '.') + w[1];
-    var b = TYPO[w[0]] || w[0];
-    b = b.replace(/^([A-Z])-(\d+)$/, '$1$2').replace(/(\D)\d+\.\d+$/, '$1');           // F-350 -> F350, MUSTANG2.3 -> MUSTANG
-    if (mk === 'MERCEDES-BENZ') {
-      var mm = b.match(/^([A-Z]+)-?\d{2,3}[A-Z]*$/) || b.match(/^\d{3}([A-Z]+)$/);       // GLE450, V-250, C200, 450SL
-      if (mm) { var cl = /^SE[LC]?$/.test(mm[1]) ? 'S' : mm[1]; if (MB_CLASSES.test(cl)) b = cl; }
-    }
-    if (mk === 'BMW') {
-      if (/^[XZIM]$/.test(b) && /^\d$/.test(w[1] || '')) b = b + w[1];                     // X 5 -> X5
-      var bm = b.match(/^(\d)(\d\d)?[A-Z]*$/);                                          // 530E, 320D, 5 -> 5 SERIES
-      if (bm) b = bm[1] + ' SERIES';
-    }
-    return b;
-  }
   function fuelCat(c) {
     var f = fold(c.fuel), t = fold(c.title);
     var raf = /raf|electric/.test(f), ice = /bens|dis|petrol|diesel/.test(f);
@@ -558,11 +518,13 @@
   function flagChips(c, max) {
     var fl = (c.fl || []).slice().sort(function (a, b) { return (BAD_FLAGS[b] ? 1 : 0) - (BAD_FLAGS[a] ? 1 : 0); });
     if (c.relist) fl.unshift('relist');
+    if (c.also) fl.unshift('also');
     if (c.kmBack) fl.unshift('kmback');
     if (c.rep && c.rep.length) fl.unshift('rep');
     if (c.vis) fl.unshift('vis');
     return fl.slice(0, max || 99).map(function (f) {
       if (f === 'relist') return '<span class="flag relist">🔁 Endurskráður</span>';
+      if (f === 'also') return '<span class="flag relist" title="Sami bíll er líka auglýstur annars staðar">📋 Á ' + (c.also.length + 1) + ' stöðum</span>';
       if (f === 'kmback') return '<span class="flag bad">⚠️ Akstur lækkaði</span>';
       if (f === 'rep') { var rc = repairCost(c); return '<span class="flag bad" title="' + esc(rc.names.join(', ')) + '">🔧 Viðgerð ~' + kRange(rc.lo, rc.hi) + '</span>'; }
       if (f === 'vis') return '<span class="flag bad" title="Sjálfvirkt mat út frá fyrstu mynd (' + Math.round(c.vis[1] * 100) + '% líkur). Getur skjátlast.">📷 ' +
@@ -601,7 +563,7 @@
       '<div class="meta">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') +
         '<span>' + (c.year || '–') + '</span><span>' + kmFmt(c.km) + '</span><span>' + esc(c.fcat) + '</span>' +
         (c.auto === true ? '<span>Sjálfsk.</span>' : c.auto === false ? '<span>Beinsk.</span>' : '') + (c.hp ? '<span>' + c.hp + ' hö</span>' : '') + (c.rng ? '<span>' + c.rng + ' km</span>' : '') + '</div>' +
-      (c.fl || c.relist ? '<div class="flags">' + flagChips(c, 2) + '</div>' : '') +
+      (c.fl || c.relist || c.also ? '<div class="flags">' + flagChips(c, 2) + '</div>' : '') +
       '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span></div>' +
       meter(c) + '<p class="why">' + esc(why(c)) + '</p></div></article>';
   }
@@ -643,7 +605,8 @@
     $('trayText').textContent = compare.length + ' í samanburði';
     $('trayOpen').disabled = compare.length < 2;
   }
-  function byId(id) { for (var i = 0; i < cars.length; i++) if (cars[i].id === id) return cars[i]; return null; }
+  var DUPOF = {};  // falin tvítekning -> auglýsingin sem birtist
+  function byId(id) { id = DUPOF[id] || id; for (var i = 0; i < cars.length; i++) if (cars[i].id === id) return cars[i]; return null; }
   function toggleCompare(id) {
     var i = compare.indexOf(id);
     if (i >= 0) compare.splice(i, 1);
@@ -808,11 +771,15 @@
       '<button type="button" data-ctab="cost">Kostnaður</button><button type="button" data-ctab="hist">Saga</button></div>' +
       '<div class="cbody">' +
       '<section data-cpanel="overview">' +
-      (c.fl || c.relist || c.perf.t ? '<div class="flags big">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') + flagChips(c) + '</div>' : '') +
+      (c.fl || c.relist || c.also || c.perf.t ? '<div class="flags big">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') + flagChips(c) + '</div>' : '') +
       '<div class="specs">' + spec('calendar', 'Árgerð', c.year) + spec('route', 'Ekinn', c.km != null ? kmFmt(c.km) + (c.age > 0 && c.km ? '<small>≈' + Math.round(c.km / c.age / 1000) + ' þ./ári</small>' : '') : '') +
       spec('fuel', 'Eldsneyti', esc(c.fcat)) + spec('cog', 'Skipting', c.auto === true ? 'Sjálfskipt' : c.auto === false ? 'Beinskipt' : '') +
       spec('zap', 'Afl', c.hp ? c.hp + ' hö' : '') + spec('gauge', 'Drægni', c.rng ? c.rng + ' km' : '') + spec('car', 'Drif', c.awd ? 'Fjórhjóladrif' : '') +
       spec('store', 'Seljandi', esc(c.dealer)) + '</div>' +
+      (c.also ? '<div class="also">' + ic('copy') + '<div><b>Sami bíll er auglýstur á ' + (c.also.length + 1) + ' stöðum</b>' +
+        '<div class="also-row"><span>' + esc(c.dealer) + ' (þessi)</span><b>' + kr(c.price) + '</b></div>' +
+        c.also.map(function (o) { return '<a class="also-row" href="' + esc(o.url) + '" target="_blank" rel="noopener"><span>' + esc(o.dealer) + '</span><b>' + kr(o.price) + '</b>' + ic('external-link') + '</a>'; }).join('') +
+        '<p class="note">Fundið út frá mynd, árgerð og akstri. ' + (c.also.some(function (o) { return o.price > c.price; }) ? 'Sami bíll er dýrari annars staðar, svo hér er ódýrasta verðið.' : '') + '</p></div></div>' : '') +
       '<div id="carReg"></div>' +
       (c.kmBack ? '<p class="warn-box">' + ic('triangle-alert') + '<span><b>Akstur lækkaði um ' + kmFmt(c.kmBack.from - c.kmBack.to) + '.</b> ' +
         (c.kmBack.same ? 'Í þessari auglýsingu stóð ' + kmFmt(c.kmBack.from) + ' en nú ' + kmFmt(c.kmBack.to) + ' (' + dayFmt(c.kmBack.at) + ').' :
@@ -821,6 +788,7 @@
       (c.relist ? '<p class="info-box">' + ic('refresh-cw') + '<span>Þessi bíll var áður á skrá hjá <b>' + esc(c.relist.d || '?') + '</b> á <b>' + kr(c.relist.price) + '</b> (tekinn af skrá ' + dayFmt(c.relist.g) + ').' +
         (c.relist.price > c.price ? ' Hann er nú ' + kr(c.relist.price - c.price) + ' ódýrari.' : c.relist.price < c.price ? ' Hann er nú ' + kr(c.price - c.relist.price) + ' dýrari.' : '') + '</span></p>' : '') +
       '<div id="carDetails"><div class="skel-line"></div><div class="skel-line short"></div></div>' +
+      (window.Faults ? Faults.html(c) : '') +
       '<div class="actions">' +
       '<button type="button" class="sec' + (inCmp ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + ic('git-compare-arrows') + (inCmp ? 'Í samanburði' : 'Bera saman') + '</button>' +
       '<button type="button" class="sec" data-watch="' + esc(c.id) + '">' + ic('bell') + 'Verðvakt</button>' +
@@ -832,6 +800,7 @@
       '<div class="est"><div class="est-top"><div><span class="note">Áætlað markaðsverð</span><div class="big">' + kr(c.est) + '</div></div>' +
       '<div class="est-ask"><span class="note">Ásett verð</span><div class="big">' + kr(c.price) + '</div>' + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</div></div>' +
       meter(c, true) + '<p class="why big">' + esc(why(c, true)) + '</p>' + estText + '</div>' +
+      '<div id="carSale"></div>' +
       (sim.length ? '<h4>Sambærilegir bílar</h4><p class="note">„Leiðrétt verð“ = hvað hinn bíllinn myndi kosta ef hann væri jafn gamall og jafn mikið ekinn og þessi. ' +
         'Fyrir bíl á þessum aldri og akstri lækkar verð að jafnaði um ~' + Math.max(0, kmEff).toFixed(1) + '% fyrir hverja 10.000 km og ~' + Math.max(0, yrEff).toFixed(0) + '% á ári.</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +
@@ -891,8 +860,43 @@
       }).slice(0, 6);
       if (gone.length) html += '<h4>Sambærilegir sem hafa selst eða verið teknir af skrá</h4><div class="past">' + gone.map(pastRow).join('') + '</div>';
       if (!html) html = '<p class="note">Saga auglýsinga byrjaði 9. nóv. Hér birtist verðsaga og sambærilegir seldir bílar þegar hún safnast upp.</p>';
-      el.innerHTML = html;
+      el.innerHTML = trendHtml(c) + html;
+      var sl = $('carSale'); if (sl) sl.innerHTML = saleHtml(c, me);
     });
+  }
+
+  // ---------- verðþróun gerðar og sölutími (úr sögu auglýsinga) ----------
+  function histRange() {
+    var f = null, l = null;
+    HIST.forEach(function (a) { if (!f || a.f < f) f = a.f; if (!l || a.l > l) l = a.l; });
+    return { start: f, today: l };
+  }
+  function modelPage(c) { return '/verd/' + Models.slug(c.make) + '/' + Models.slug(c.base) + '/'; }
+  function trendHtml(c) {
+    var ads = HIST.filter(function (a) { return a.m === c.make && a.base === c.base; });
+    var svg = Models.trendSvg(Models.trend(ads), 3);
+    return '<div class="trend-box"><div class="trend-head"><h4>' + ic('chart-line') + 'Verðþróun ' + esc(cap(c.make) + ' ' + cap(c.base)) + '</h4>' +
+      '<a href="' + modelPage(c) + '" target="_blank" rel="noopener">Allt um gerðina' + ic('arrow-up-right') + '</a></div>' +
+      (svg ? svg + '<p class="note">Miðgildi ásetts verðs allra auglýsinga sem voru á skrá í hverjum mánuði (allar árgerðir).</p>' :
+        '<p class="note">Línuritið birtist þegar a.m.k. tveir mánuðir af sögu eru komnir (sagan hófst ' + dayFmt(histRange().start) + ').</p>') + '</div>';
+  }
+  function saleHtml(c, me) {
+    var r = histRange(), groups = [
+      { t: cap(c.make) + ' ' + cap(c.base), ads: HIST.filter(function (a) { return a.m === c.make && a.base === c.base; }) },
+      { t: cap(c.make), ads: HIST.filter(function (a) { return a.m === c.make; }) },
+      { t: 'bílar á svipuðu verði', ads: HIST.filter(function (a) { return a.price > c.price * 0.65 && a.price < c.price * 1.5; }) }];
+    var g = null, st = null;
+    for (var i = 0; i < groups.length && !g; i++) { st = Models.saleStats(groups[i].ads, r.start, r.today); if (st.n >= 8) g = groups[i]; }
+    if (!g) return '<div class="sale-box">' + ic('clock') + '<span><b>Sölutími.</b> Spá um hve fljótt svona bílar seljast og hvort verð lækki birtist þegar nokkrar vikur af sögu eru komnar (hófst ' + dayFmt(r.start) + ').</span></div>';
+    var mine = me ? Models.days(me.f, r.today) : null, known = me && me.f > r.start;
+    var tip = mine != null && st.days ? (mine > st.days * 1.5 ? 'Hefur verið lengur á skrá en flestir: líklega svigrúm til að semja.' :
+      mine < st.days * 0.5 ? 'Nýlega kominn á skrá: seljandi gefur síður eftir strax.' : '') : '';
+    return '<div class="sale-box">' + ic('clock') + '<div><b>Sölutími</b> <span class="note">(' + esc(g.t) + ', ' + st.n + ' horfnar auglýsingar)</span>' +
+      '<div class="sale-stats"><div><b>~' + Math.round(st.days) + ' dagar</b><span>á skrá að jafnaði</span></div>' +
+      (st.drop14 != null && st.obs >= 8 ? '<div><b>' + Math.round(st.drop14 * 100) + '%</b><span>lækka verð innan 2 vikna</span></div>' : '') +
+      (st.cut ? '<div><b>−' + Math.round(st.cut * 100) + '%</b><span>dæmigerð lækkun</span></div>' : '') +
+      (mine != null ? '<div><b>' + (known ? '' : '≥ ') + mine + ' dagar</b><span>þessi á skrá</span></div>' : '') + '</div>' +
+      (tip ? '<p class="note">' + tip + '</p>' : '') + '</div></div>';
   }
 
   function showCompare() {
@@ -1341,12 +1345,15 @@
     var regP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'registry.json')), get('data/registry.json?t=' + Date.now())]).then(function (r) {
       return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
     });
+    var dupP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'dupes.json')), get('data/dupes.json?t=' + Date.now())]).then(function (r) {
+      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
+    });
     var soldP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'sold.json')), get('data/sold.json?t=' + Date.now())]).then(function (r) {
       return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
     });
-    var CAT = null, REGD = null, SOLDD = null;
-    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now()), visP, catP, regP, soldP]).then(function (res) {
-      SOLDD = res[5];
+    var CAT = null, REGD = null, SOLDD = null, DUPD = null;
+    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now()), visP, catP, regP, soldP, dupP]).then(function (res) {
+      SOLDD = res[5]; DUPD = res[6];
       VISION = (res[2] && res[2].flags) || {};
       CAT = res[3]; REGD = res[4];
       var d = res[0] && (!res[1] || res[0].updated >= res[1].updated) ? res[0] : res[1];
@@ -1360,6 +1367,15 @@
         if (!c.price || !c.make || dup[k]) return false;
         return (dup[k] = true);
       }).map(prep);
+      // sami bíll á fleiri stöðum (fundinn út frá mynd, dupes.py): ódýrasta auglýsingin birtist, hinar fylgja henni
+      var ids = {}; cars.forEach(function (c) { ids[c.id] = c; });
+      ((DUPD && DUPD.groups) || []).forEach(function (g) {
+        var cs = g.map(function (id) { return ids[id]; }).filter(Boolean).sort(function (a, b) { return a.price - b.price; });
+        if (cs.length < 2) return;
+        cs[0].also = cs.slice(1).map(function (o) { return { id: o.id, dealer: o.dealer, price: o.price, url: o.url, src: o.src }; });
+        cs.slice(1).forEach(function (o) { DUPOF[o.id] = cs[0].id; });
+      });
+      cars = cars.filter(function (c) { return !DUPOF[c.id]; });
       var live = {}; cars.forEach(function (c) { live[c.id] = 1; });
       SOLD = ((SOLDD && SOLDD.rows) || []).filter(function (r) { return !live[r[0]] && r[5] > 100000; }).map(function (r) {
         return prep({ id: 'sold:' + r[0], make: r[1], model: r[2], year: r[3], km: r[4], price: r[5], goneAt: r[6], firstAt: r[7], fuel: r[8], title: r[9] || (r[1] + ' ' + r[2]),

@@ -51,6 +51,16 @@ def notin(column, values):
     return {"Condition": {"Not": {"Expression": isin(column, values)["Condition"]}}}
 
 
+def between(column, start, end):
+    """start <= dálkur < end, fyrir dagsetningar á sniðinu 'YYYY-MM-DD'."""
+    def d(v):
+        return {"Literal": {"Value": f"datetime'{v}T00:00:00'"}}
+    return [{"Condition": {"Comparison": {"ComparisonKind": 2, "Left": _col(column), "Right": d(start)}}},
+            {"Condition": {"Comparison": {"ComparisonKind": 3, "Left": _col(column), "Right": d(end)}}}]
+
+
+PASSENGER = ["Fólksbifreið (M1)", "Fólksbifreið (M1)/Torfærubifreið", "Fólksbifreið (M1) / Torfærubifreið"]
+
 IN_TRAFFIC = [eq("Umferðaskráning", "In"), notin("Staða skráningar", ["Afskráð"])]
 
 

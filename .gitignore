@@ -1,3 +1,5 @@
 __pycache__/
 .firebase/
 *.log
+public/verd/
+public/sitemap.xml

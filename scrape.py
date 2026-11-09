@@ -749,6 +749,33 @@ def norm_make(s):
     return re.sub(r"[^A-Z0-9]", "", (s or "").split(",")[0].upper().replace("MERCEDES BENZ", "MERCEDESBENZ"))
 
 
+SURV_COHORTS = [1995, 2000, 2005, 2010, 2015]
+SCRAPPED = {"Úrvinnsla", "Ónýtt"}  # „Úr landi“ og „Týnt“ segja ekkert um endingu
+
+
+def survival(make_of):
+    """Ending: af fólksbílum sem komu nýir til landsins og fyrst voru skráðir á hverju 5 ára tímabili, hve margir eru enn á skrá og hve mörgum var fargað.
+    -> {"c": [1995, ...], "avg": {"2005": [lifandi, fargað]}, "m": {tegund eins og í cars.json: {UNDIRTEGUND: {"2005": [lifandi, fargað]}}}}"""
+    import pbi
+    out = {"c": SURV_COHORTS, "avg": {}, "m": {}}
+    for y in SURV_COHORTS:
+        rows = pbi.query(["Tegund", "Undirtegund", "Ástæða afskráningar"], ["Talning fastanúmera"],
+                         pbi.between("Fyrsti skráningardagur", f"{y}-01-01", f"{y + 5}-01-01")
+                         + [pbi.isin("Ökutækjaflokkur", pbi.PASSENGER), pbi.notin("Innflutningsástand", sorted(USED_IMPORT))], top=30000)
+        tot = [0, 0]
+        for r in rows:
+            n, why = r["Talning fastanúmera"] or 0, r["Ástæða afskráningar"]
+            i = 0 if why is None else 1 if why in SCRAPPED else None
+            if i is None:
+                continue
+            tot[i] += n
+            if r["Tegund"] in make_of and r["Undirtegund"]:
+                cell = out["m"].setdefault(make_of[r["Tegund"]], {}).setdefault(r["Undirtegund"], {}).setdefault(str(y), [0, 0])
+                cell[i] += n
+        out["avg"][str(y)] = tot
+    return out
+
+
 def build_registry(cars):
     import pbi
     reg = json.loads(REGISTRY.read_text("utf-8")) if REGISTRY.exists() else {"makes": {}, "plates": {}}
@@ -786,6 +813,10 @@ def build_registry(cars):
         reg["makes"] = makes
     except Exception as e:  # skráin er aukaupplýsingar; gömul gögn haldast ef Power BI bregst
         print(f"  ökutækjaskrá (tegundir): {e}", file=sys.stderr)
+    try:
+        reg["surv"] = survival({n: mk for mk in reg["makes"] for n in by_norm.get(norm_make(mk), [])})
+    except Exception as e:
+        print(f"  ökutækjaskrá (ending): {e}", file=sys.stderr)
     # bílnúmer úr auglýsingum (Brimborg notar bílnúmerið sem auðkenni)
     plates = sorted({c["id"].split("-", 1)[1] for c in cars if c.get("src") == "Brimborg" and re.fullmatch(r"[A-Z]{2}[A-Z0-9]\d{2}", c["id"].split("-", 1)[1])})
     found = {}

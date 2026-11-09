@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://bilaleit.web.app/sitemap.xml

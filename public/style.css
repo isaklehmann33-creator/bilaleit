@@ -753,3 +753,64 @@ dialog#consent::backdrop { background: rgba(3,6,5,.78); backdrop-filter: blur(10
 .ship-box .note { margin: 8px 0 0; }
 .imp-photo img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 14px; margin: 10px 0 4px; display: block; background: var(--mid-soft); }
 .imp-photo:empty { display: none; }
+
+/* ending (lifunarhlutfall úr ökutækjaskrá) */
+.surv { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.surv-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.surv-top .ic { color: var(--mid); }
+.surv.good .surv-top .ic, .surv.good .surv-top b { color: var(--good); }
+.surv.bad .surv-top .ic, .surv.bad .surv-top b { color: var(--bad); }
+.surv-bars { display: grid; gap: 6px; margin-top: 10px; }
+.surv-bars > div { display: grid; grid-template-columns: minmax(90px, 30%) 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
+.surv-bars span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.surv-bars i { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.surv-bars em { display: block; height: 100%; border-radius: 99px; background: var(--mid); }
+.surv.good .surv-bars > div:first-child em { background: var(--good); }
+.surv.bad .surv-bars > div:first-child em { background: var(--bad); }
+.surv-bars .avg em { background: var(--line2); opacity: .9; }
+.surv-bars b { text-align: right; font-variant-numeric: tabular-nums; }
+.surv .note { margin: 8px 0 0; }
+
+/* „Gott að athuga“: þekktir veikleikar gerðarinnar */
+.faults { margin-top: 18px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--mid-soft); }
+.faults h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.faults h4 .ic { color: var(--accent); }
+.faults ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.faults li { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; line-height: 1.45; }
+.faults li .ic { width: 16px; height: 16px; margin-top: 2px; color: var(--muted); }
+.faults li.own .ic { color: var(--warn); }
+.faults .note { margin: 10px 0 0; }
+
+/* verðþróun og sölutími */
+.trend-box { margin-bottom: 16px; }
+.trend-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.trend-head h4 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.trend-head h4 .ic { color: var(--accent); }
+.trend-head a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--accent); text-decoration: none; }
+.trend-head a .ic { width: 14px; height: 14px; }
+svg.trend { width: 100%; height: auto; display: block; margin-top: 8px; overflow: visible; }
+.trend .tg { stroke: var(--line); stroke-width: 1; }
+.trend .tl { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.trend .tp circle { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.trend .tp circle.hit { fill: transparent; stroke: none; cursor: default; }
+.trend .tp:hover circle:not(.hit) { r: 6; }
+.trend text { fill: var(--muted); font: 500 12px var(--font); }
+.trend text.tv { fill: var(--text); font-weight: 700; }
+.sale-box { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--mid-soft); font-size: 14px; }
+.sale-box > .ic { color: var(--accent); margin-top: 2px; flex: none; }
+.sale-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 10px; }
+.sale-stats div { display: flex; flex-direction: column; }
+.sale-stats b { font: 700 18px var(--display); }
+.sale-stats span { color: var(--muted); font-size: 12px; }
+.sale-box .note { margin: 8px 0 0; }
+
+/* sami bíll auglýstur á fleiri stöðum */
+.also { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--loc-bg); font-size: 14px; }
+.also > .ic { color: var(--loc); margin-top: 2px; flex: none; }
+.also > div { flex: 1; min-width: 0; }
+.also-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.also-row:last-of-type { border-bottom: 0; }
+.also-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.also-row .ic { width: 14px; height: 14px; color: var(--muted); }
+a.also-row:hover span { color: var(--accent); }
+.also .note { margin: 6px 0 0; }

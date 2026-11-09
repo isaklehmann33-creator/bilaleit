@@ -130,6 +130,20 @@
     });
     return n ? { n: n, age: ageN ? ageSum / ageN : null, used: used / n } : null;
   }
+  // Ending: hve stór hluti gerðarinnar (sömu árgerða) er enn á skrá, miðað við alla fólksbíla sömu árgerða.
+  // Yngstu árgerðunum hefur varla verið fargað, svo þá er miðað við 2010–14 sem vísbendingu.
+  function survival(make, base, year) { return Models.survival(REG, make, base, year); }
+  function survHtml(c) {
+    var s = survival(c.make, c.base, c.year);
+    if (!s) return '';
+    var pc = function (x) { return Math.round(x * 100) + '%'; }, span = s.c + '–' + String(s.c + 4).slice(2);
+    return '<div class="surv ' + s.cls + '"><div class="surv-top">' + ic('shield-check') + '<b>' + s.label + '</b><span class="note">' +
+      (s.own ? 'árgerðir ' : 'vísbending út frá árg. ') + span + '</span></div>' +
+      '<div class="surv-bars"><div><span>' + A.esc(A.cap(c.base)) + '</span><i><em style="width:' + pc(s.p) + '"></em></i><b>' + pc(s.p) + '</b></div>' +
+      '<div class="avg"><span>Allir fólksbílar</span><i><em style="width:' + pc(s.avg) + '"></em></i><b>' + pc(s.avg) + '</b></div></div>' +
+      '<p class="note">Ending á Íslandi: af ' + s.n.toLocaleString('de-DE') + ' bílum sem komu nýir til landsins ' + span + ', hve mörgum hefur ekki verið fargað. ' +
+      'Ódýrum smábílum er fargað fyrr af því viðgerð borgar sig síður, svo þetta segir mest í samanburði við svipaða bíla.</p></div>';
+  }
   function plateOf(c) { return c.src === 'Brimborg' ? c.id.split('-')[1] : null; }
 
   // ---------- birting í bílaglugga ----------
@@ -152,7 +166,7 @@
           (st.age != null ? '<div><b>' + st.age.toFixed(1).replace('.', ',') + ' ár</b><span>meðalaldur</span></div>' : '') +
           '<div><b>' + Math.round(st.used * 100) + '%</b><span>fluttir inn notaðir</span></div>' +
           '<div><b>' + forSale + '</b><span>á sölu núna (' + (forSale / st.n * 100).toFixed(1).replace('.', ',') + '%)</span></div></div>' +
-          (st.n < 150 ? '<p class="note">Sjaldgæf gerð á Íslandi, svo fáir eru á sölu hverju sinni.</p>' : '') + '</div>';
+          (st.n < 150 ? '<p class="note">Sjaldgæf gerð á Íslandi, svo fáir eru á sölu hverju sinni.</p>' : '') + survHtml(c) + '</div>';
       }
       el.innerHTML = html;
     });
@@ -265,5 +279,5 @@
   }
 
   function plateInfo(c) { var p = plateOf(c); return p && REG && REG.plates ? REG.plates[p] || null : null; }
-  window.Registry = { plateInfo: plateInfo, co2For: co2For, query: query, build: build, decode: decode, where: where, plate: plate, stats: stats, load: load, renderCar: renderCar, openPlate: openPlate };
+  window.Registry = { survival: survival, plateInfo: plateInfo, co2For: co2For, query: query, build: build, decode: decode, where: where, plate: plate, stats: stats, load: load, renderCar: renderCar, openPlate: openPlate };
 })();
