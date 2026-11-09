@@ -243,6 +243,7 @@
   function parseAd(t) {
     t = String(t || '').replace(/\u00a0/g, ' ');
     var r = {}, m;
+    var title = (t.match(/^TITILL:([^\n]*)/m) || [])[1] || '';
     // verð: helst „Brutto“/„Preis“ línan, annars fyrsta evruupphæð yfir 1.000
     var prices = [], re = /(?:€ ?([\d][\d., ']{2,}\d)|([\d][\d., ']{2,}\d) ?€)/g;
     while ((m = re.exec(t))) {
@@ -254,7 +255,10 @@
     }
     var pb = prices.filter(function (x) { return x.brutto; })[0] || prices[0];
     if (pb) r.eur = pb.v;
-    if ((m = t.match(/CO\s?[2₂][^\n\d]{0,40}?(?:\n\s*)?(\d{1,3}(?:[.,]\d)?)\s*g\s*\/\s*km/i))) r.co2 = Math.round(+m[1].replace(',', '.'));
+    // titill síðunnar („BMW 520 in Niederaichbach für 26.999 €“) er áreiðanlegasta verðið
+    if ((m = title.match(/(?:für|for|à|per|voor)\s+([\d][\d., ']*\d)\s*€/i))) r.eur = eurNum(m[1]);
+    // „CO₂-Emissionen (komb.)2\n124 g/km“: neðanmálstala á eftir heitinu, gildið á sömu eða næstu línu
+    if ((m = t.match(/CO\s?[2₂][^\n]{0,45}?(?:\n\s*|\s)(\d{1,3}(?:[.,]\d)?)\s*g\s*\/\s*km/i))) r.co2 = Math.round(+m[1].replace(',', '.'));
     var fuelTxt = (t.match(/(?:Kraftstoffart|Kraftstoff|Fuel type|Fuel|Energieträger)\s*:?\s*\n?\s*([^\n]{2,40})/i) || [])[1] || '';
     var all = (fuelTxt + ' ' + t.slice(0, 3000)).toLowerCase();
     r.ev = /elektro(?!.*benzin)|electric(?! hybrid)|\bbev\b/.test(fuelTxt.toLowerCase()) && !/hybrid/.test(fuelTxt.toLowerCase());
@@ -264,7 +268,7 @@
     if ((m = t.match(/(\d{2,4})\s*kW\s*\(\s*(\d{2,4})\s*(?:PS|hp|CH)/i))) r.hp = +m[2];
     // tegund og gerð: „Marke“/„Modell“ ef til, annars fyrsta lína sem byrjar á þekktri tegund
     var makes = A.makes().slice().sort(function (a, b) { return b.length - a.length; });
-    var head = t.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 60);
+    var head = (title ? [title.replace(/\s+(in|für|for|à|\|)\s.*$/i, '')] : []).concat(t.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 60));
     for (var i = 0; i < head.length && !r.make; i++) {
       var up = head[i].toUpperCase().replace(/MERCEDES[ -]BENZ|MERCEDES/, 'MERCEDES-BENZ').replace(/^VW\b/, 'VOLKSWAGEN');
       for (var j = 0; j < makes.length; j++) if (up.indexOf(makes[j] + ' ') === 0) { r.make = makes[j]; r.model = up.slice(makes[j].length).trim(); break; }
@@ -325,12 +329,12 @@
     }
     // bókamerkjatakkinn: sendir texta síðunnar í #flytja= (fer aldrei á netþjón, bara í vafranum)
     var bm = "javascript:(function(){var m=document.querySelector('meta[property=\"og:image\"]'),im=m?m.content:'';if(!im){var b=[].slice.call(document.images).filter(function(x){return x.naturalWidth>400})[0];im=b?b.src:'';}" +
-      "var t=document.body.innerText.slice(0,12000);window.open('" + location.origin + location.pathname +
-      "#flytja='+encodeURIComponent('MYND:'+im+'\\n'+location.href+'\\n'+t),'_blank');})();";
+      "var t=document.body.innerText.slice(0,15000);window.open('" + location.origin + location.pathname +
+      "#flytja='+encodeURIComponent('MYND:'+im+'\\nTITILL:'+document.title+'\\n'+location.href+'\\n'+t),'_blank');})();";
     $('bmLink').setAttribute('href', bm);
     function applyAd(txt) {
       var r = parseAd(txt), got = [];
-      var im = (String(txt).match(/^MYND:(\S+)/) || [])[1], src = (String(txt).match(/^(?:MYND:\S*\n)?(https?:\/\/\S+)/) || [])[1];
+      var im = (String(txt).match(/^MYND:(\S+)/) || [])[1], src = (String(txt).match(/^(?:MYND:\S*\n)?(?:TITILL:[^\n]*\n)?(https?:\/\/\S+)/) || [])[1];
       if (im && $('iPhoto')) $('iPhoto').innerHTML = '<a href="' + A.esc(src || im) + '" target="_blank" rel="noopener"><img src="' + A.esc(im) + '" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>';
       if (r.eur) { $('iEur').value = fmtThousands(r.eur); got.push(A.kr(r.eur).replace(' kr.', ' €')); }
       if (r.co2 != null) { $('iCo2').value = r.co2; got.push(r.co2 + ' g/km CO2'); }
@@ -380,7 +384,7 @@
         '<a href="https://www.bmwkraftur.is/spjall/viewtopic.php?f=1&t=15417" target="_blank" rel="noopener">bmwkraftur.is</a>, <a href="https://spjall.vaktin.is/viewtopic.php?t=74053" target="_blank" rel="noopener">spjallid.is</a>.</p>';
       $('iOut').parentNode.insertBefore(box, $('iOut'));
     });
-    if (pasted) { $('iPaste').value = pasted.replace(/^MYND:\S*\n/, '').slice(0, 400) + '…'; applyAd(pasted); }
+    if (pasted) { $('iPaste').value = pasted.replace(/^MYND:\S*\n/, '').replace(/^TITILL:[^\n]*\n/, '').slice(0, 400) + '…'; applyAd(pasted); }
     eurRate().then(function (r) {
       if (!$('iRate')) return;
       $('iRate').value = r.rate.toFixed(2).replace('.', ',');
