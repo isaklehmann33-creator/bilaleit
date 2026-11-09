@@ -113,6 +113,8 @@
       if (/ AMG GT /.test(t) || / (63|65) /.test(t) || / (45|63) S /.test(t) || / SL 6\d/.test(t)) return r(2, 'AMG');
       if (/ 45 /.test(t)) return r(2, 'AMG 45');
       if ((m = t.match(/ (35|43|53|55) /))) return r(1, 'AMG ' + m[1]);
+      if (/ (?:[A-Z]{1,3} ?)?(500|550|560|420|430) /.test(t) || / [A-Z]{1,3}(500|550) /.test(t)) return r(1, 'V8');
+      if (/ (?:[A-Z]{1,3} ?)?600 /.test(t)) return r(2, 'V12');
     }
     if (mk === 'BMW') {
       if (/ (M[2-8]|X[3-7] M|XM) /.test(t) || / M COMPETITION /.test(t)) return r(2, 'M');
@@ -167,12 +169,31 @@
   // log(verð) = fasti gerðar + b·aldur + c·akstur + eldsneytisáhrif + kraftútgáfa + vélarafl.
   // Hallatölur eru metnar *innan* hverrar gerðar (sami bíll, mismikið ekinn), svo dýrar tegundir rugla þær ekki.
   var FUELS = ['Rafmagn', 'Tengiltvinn', 'Tvinn', 'Dísel'];
+  // Aldur og akstur sem „brotnar línur“: verðfallið má hægja á sér (eða snúast við) fyrir gamla og mikið ekna bíla.
+  // Án þess féllu 20 ára bílar endalaust ~7% á ári og voru metnir allt of lágt.
+  var AGE_KNOTS = [4, 9, 14, 19], KM_KNOTS = [100000, 200000];
+  var F = { age: 0, km: AGE_KNOTS.length + 1 };  // stöður í feats(): aldur, aldurshnútar, akstur, aksturshnútar, eldsneyti, útgáfa, afl, útgáfa×aldur
+  F.fuel = F.km + 1 + KM_KNOTS.length; F.perf1 = F.fuel + FUELS.length; F.perf2 = F.perf1 + 1; F.pw = F.perf2 + 1; F.perfAge = F.pw + 1;
   function feats(c) {
     var km = c.km != null ? c.km : 15000 * c.age; // vantar akstur: gerum ráð fyrir meðalakstri
-    var x = [c.age, km / 1e4];
+    var x = [c.age];
+    AGE_KNOTS.forEach(function (k) { x.push(Math.max(0, c.age - k)); });
+    x.push(km / 1e4);
+    KM_KNOTS.forEach(function (k) { x.push(Math.max(0, km - k) / 1e4); });
     for (var i = 0; i < FUELS.length; i++) x.push(c.fcat === FUELS[i] ? 1 : 0);
     x.push(c.perf.t === 1 ? 1 : 0, c.perf.t === 2 ? 1 : 0, c.pw, c.perf.t ? c.age : 0);  // síðasta: sportbílar falla hægar í verði
     return x;
+  }
+  // verðfall á ári við tiltekinn aldur (halli brotnu línunnar þar)
+  function ageSlope(age, perf) {
+    var b = model.beta, s = b[F.age];
+    AGE_KNOTS.forEach(function (k, i) { if (age > k) s += b[F.age + 1 + i]; });
+    return s + (perf ? b[F.perfAge] : 0);
+  }
+  function kmSlope(km) {
+    var b = model.beta, s = b[F.km];
+    KM_KNOTS.forEach(function (k, i) { if (km > k) s += b[F.km + 1 + i]; });
+    return s;
   }
   function solve(A, b) {
     var n = b.length, M = A.map(function (r, i) { return r.concat([b[i]]); });
@@ -216,6 +237,11 @@
     });
     for (i = 0; i < d; i++) XtX[i][i] += 0.5; // smá ridge svo fáir bílar valdi ekki rugli
     var beta = solve(XtX, Xty);
+    if (beta[F.pw] < 0) {  // stærri vél á ekki að lækka verð; ef gögnin segja það (ruglingur), sleppum aflinu
+      for (i = 0; i < d; i++) { XtX[F.pw][i] = XtX[i][F.pw] = 0; }
+      XtX[F.pw][F.pw] = 1; Xty[F.pw] = 0;
+      beta = solve(XtX, Xty);
+    }
     function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
 
     var tot = 0, makes = {}, grp = {}, grpT = {};
@@ -224,7 +250,7 @@
       tot += c._r;
       var m = makes[c.make] = makes[c.make] || { s: 0, n: 0 }; m.s += c._r; m.n++;
       var g = grp[c.key] = grp[c.key] || { s: 0, n: 0, ss: 0 }; g.s += c._r; g.n++; g.ss += c._r * c._r;
-      var gt = grpT[c.key + '|' + c.perf.t] = grpT[c.key + '|' + c.perf.t] || { s: 0, n: 0 }; gt.s += c._r; gt.n++;
+      var tk = c.key + '|' + c.perf.label, gt = grpT[tk] = grpT[tk] || { s: 0, n: 0 }; gt.s += c._r; gt.n++;  // sama útgáfa (AMG 55 ≠ V8)
     });
     var glob = tot / list.length;
     // Mat fyrir hvern bíl án hans sjálfs (leave-one-out), svo bíllinn hafi ekki áhrif á eigið mat
@@ -233,10 +259,10 @@
       var mk = (m.s - c._r + 3 * glob) / (m.n - 1 + 3);
       var gi = (g.s - c._r + 1.5 * mk) / (g.n - 1 + 1.5);
       // kraftútgáfur: miðum fyrst við aðra í sömu útgáfu (Golf R við Golf R); almenna álagið gildir bara ef enginn er til
-      if (c.perf.t) { var gt = grpT[c.key + '|' + c.perf.t]; gi = (gt.s - c._r + 1 * gi) / (gt.n - 1 + 1); }
+      if (c.perf.t) { var gt = grpT[c.key + '|' + c.perf.label]; gi = (gt.s - c._r + 1 * gi) / (gt.n - 1 + 1); }
       c.est = Math.round(Math.exp(gi + lin(c)) / 1e4) * 1e4;
       c.peers = g.n - 1;
-      c.tierPeers = groups[c.key].filter(function (o) { return o !== c && o.perf.t === c.perf.t; }).length;
+      c.tierPeers = groups[c.key].filter(function (o) { return o !== c && o.perf.label === c.perf.label; }).length;
       c.dev = c.price / c.est - 1;
     });
     // mat fyrir bíl sem er ekki í gögnunum (t.d. „hvað er bíllinn minn virði?“), með líklegu bili
@@ -250,7 +276,7 @@
       var m = makes[c.make], g = grp[c.key];
       var mk = m ? (m.s + 3 * glob) / (m.n + 3) : glob;
       var gi = g ? (g.s + 1.5 * mk) / (g.n + 1.5) : mk;
-      var gt = grpT[c.key + '|' + c.perf.t];
+      var gt = grpT[c.key + '|' + c.perf.label];
       if (c.perf.t && gt) gi = (gt.s + gi) / (gt.n + 1);
       // dreifing: innan gerðar ef nóg er af bílum, annars markaðurinn í heild
       var sd = g && g.n >= 5 ? Math.sqrt(Math.max(g.ss / g.n - Math.pow(g.s / g.n, 2), 0.004)) : Math.sqrt(gss);
@@ -604,7 +630,7 @@
   function showCar(c) {
     openCarId = c.id; syncUrl();
     var v = verdict(c), sim = similar(c, 8), b = model.beta;
-    var kmEff = (1 - Math.exp(b[1])) * 100, yrEff = (1 - Math.exp(b[0])) * 100;
+    var kmEff = (1 - Math.exp(kmSlope(c.km || 0))) * 100, yrEff = (1 - Math.exp(ageSlope(c.age, c.perf.t))) * 100;
     var rows = sim.map(function (o) {
       return '<tr class="click" data-open="' + esc(o.id) + '"><td>' + esc(cap(o.model)) + '<br><span class="note">' + esc(o.dealer) + '</span></td>' +
         '<td class="num">' + (o.year || '–') + '</td><td class="num">' + kmFmt(o.km) + '</td><td>' + esc(o.fcat) + '</td>' +
@@ -620,7 +646,7 @@
       '<p class="note">' + (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
         'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ', útgáfu' : '') + (c.pwRaw != null ? ', vélarafli' : '') + '.') +
       (c.perf.t ? ' ' + esc(c.perf.label) + ' er ' + (c.perf.t === 2 ? 'toppútgáfa' : 'sportútgáfa') + ': slíkar útgáfur kosta að jafnaði ~' +
-        Math.round((Math.exp(model.beta[c.perf.t === 2 ? 7 : 6]) - 1) * 100) + '% meira. ' +
+        Math.round((Math.exp(model.beta[c.perf.t === 2 ? F.perf2 : F.perf1]) - 1) * 100) + '% meira. ' +
         (c.tierPeers ? c.tierPeers + ' aðrir í sömu útgáfu eru á skrá.' : 'Enginn annar í sömu útgáfu er á skrá, svo matið er óvissara.') : '') + '</p>';
     openModal(
       '<div class="car-m">' +
@@ -656,7 +682,7 @@
       '<div class="est-ask"><span class="note">Ásett verð</span><div class="big">' + kr(c.price) + '</div>' + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</div></div>' +
       meter(c, true) + estText + '</div>' +
       (sim.length ? '<h4>Sambærilegir bílar</h4><p class="note">„Leiðrétt verð“ = hvað hinn bíllinn myndi kosta ef hann væri jafn gamall og jafn mikið ekinn og þessi. ' +
-        'Verð lækkar að jafnaði um ~' + kmEff.toFixed(1) + '% fyrir hverja 10.000 km og ~' + yrEff.toFixed(0) + '% á ári.</p>' +
+        'Fyrir bíl á þessum aldri og akstri lækkar verð að jafnaði um ~' + Math.max(0, kmEff).toFixed(1) + '% fyrir hverja 10.000 km og ~' + Math.max(0, yrEff).toFixed(0) + '% á ári.</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +
         rows + '</tbody></table></div>' : '') +
       '<div id="carAlt"></div>' +
@@ -1184,7 +1210,7 @@
     render: render, refreshSaved: refreshSaved, openModal: openModal, closeModal: closeModal, showCar: showCar,
     query: function () { return $('q').value; }, setQuery: function (t) { $('q').value = t || ''; $('understood').hidden = true; },
     esc: esc, kr: kr, kmFmt: kmFmt, cap: cap, img: img, fold: fold, pct: pct, mkrShort: mkrShort, monoHtml: monoHtml,
-    prep: prep, model: function () { return model; }, similar: similar, adjusted: adjusted, verdict: verdict,
+    prep: prep, model: function () { return model; }, ageSlope: ageSlope, kmSlope: kmSlope, similar: similar, adjusted: adjusted, verdict: verdict,
     catalogBases: catalogBases, loadHistory: loadHistory, hist: function () { return HIST; }, dayFmt: dayFmt, daysBetween: daysBetween,
     pastRow: pastRow, dateIs: dateIs, details: loadDetails, makes: function () { return uniq(cars.map(function (c) { return c.make; })).sort(); },
     setView: function (v) { $('fView').value = v; render(); }

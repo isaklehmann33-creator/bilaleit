@@ -49,7 +49,7 @@
       '<label>Ekinn (km)<input id="vKm" type="number" inputmode="numeric" min="0" step="1000" value="' + (last.km != null ? last.km : 90000) + '" required></label>' +
       '<label>Eldsneyti<select id="vFuel">' + ['Bensín', 'Dísel', 'Tvinn', 'Tengiltvinn', 'Rafmagn'].map(function (x) { return '<option' + (x === last.fuel ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' +
       '<label>Skipting<select id="vTrans"><option value="sj"' + (last.trans !== 'bein' ? ' selected' : '') + '>Sjálfskipting</option><option value="bein"' + (last.trans === 'bein' ? ' selected' : '') + '>Beinskipting</option></select></label>' +
-      '<label class="wide">Útgáfa / vél (valfrjálst)<input id="vExtra" type="text" placeholder="t.d. 330e, AMG 45, GTI, Performance, 4x4" value="' + esc(last.extra || '') + '"></label>' +
+      '<label class="wide">Útgáfa / vél (valfrjálst)<input id="vExtra" type="text" placeholder="t.d. 500, 220 CDI, 330e, AMG 45, GTI, Performance" value="' + esc(last.extra || '') + '"></label>' +
       '<button type="submit" class="btn-cta wide">Meta bílinn</button></form><div id="valOut"></div></div>');
     function fillM() {
       var ms = modelsFor($('vMake').value), want = last.model;
@@ -133,7 +133,7 @@
       var fixed = q.insurance + q.tax + (c.fcat === 'Rafmagn' ? q.upkeep * 0.7 : q.upkeep);
       var kmFee = q.kmYear * q.kmFee;
       // verðfall út frá markaðnum: hvað bíllinn lækkar á ári með aldri og akstri (sama líkan og verðmatið)
-      var b = A.model().beta, lossPct = 1 - Math.exp(b[0] + (c.perf.t ? b[9] : 0) + b[1] * q.kmYear / 1e4);
+      var lossPct = 1 - Math.exp(Math.min(0, A.ageSlope(c.age, c.perf.t)) + Math.min(0, A.kmSlope(c.km || 0)) * q.kmYear / 1e4);
       var dep = c.price * Math.max(0, lossPct);
       var year = energy + fixed + kmFee + dep;
       $('cRun').innerHTML = '<div class="big">' + A.kr(year / 12) + ' <small>á mán.</small></div>' +
