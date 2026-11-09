@@ -314,6 +314,8 @@
     if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa', unsure: true };
     if (c.enginePeers != null && c.enginePeers < 2 && Math.abs(c.dev) >= 0.12) return { cls: 'mid', txt: 'Fáir með sömu vél', unsure: true };
     if (c.km == null && c.age > 3) return { cls: 'mid', txt: 'Akstur óþekktur', unsure: true };
+    // matið miðast við gallalausan bíl: ódýr bíll sem lýsingin segir gallaðan er ekki „gott verð“
+    if (c.dev <= -0.12 && c.fl && c.fl.some(function (f) { return f === 'tjon' || f === 'laga' || f === 'ryd'; })) return { cls: 'warn', txt: 'Ódýr en nefnir galla ' + pct(c.dev) };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
     if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
     return { cls: 'mid', txt: 'Eðlilegt verð ' + pct(c.dev) };
@@ -692,13 +694,14 @@
     if (long) out += '. Borið saman við ' + c.peers + ' ' + cap(c.make) + ' ' + name + ' á skrá, leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ' og útgáfu' : '') + '.';
     return out;
   }
-  var LEGEND_TXT = { good: 'Gott verð: a.m.k. 12% undir mati', mid: 'Eðlilegt verð: innan við 12% frá mati', bad: 'Hátt verð: a.m.k. 12% yfir mati', warn: 'Athugaðu: óvenjulegt verð eða bíll' };
+  var LEGEND_TXT = { good: 'Gott verð: a.m.k. 12% undir mati', mid: 'Eðlilegt verð: innan við 12% frá mati', bad: 'Hátt verð: a.m.k. 12% yfir mati', warn: 'Athugaðu: óvenjulegt verð, gallar eða sérútbúinn bíll. Matið miðast við gallalausan bíl.' };
   function showLegend() {
     openModal('<div class="m narrow"><div class="m-head"><h2>Hvernig er verðið metið?</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       '<p>Hver bíll er borinn saman við alla aðra bíla af <b>sömu gerð</b> á skrá. Verð þeirra er leiðrétt fyrir aldri, akstri, eldsneyti, útgáfu og vélarafli, og úr því fæst <b>áætlað markaðsverð</b>.</p>' +
       '<div class="legend"><div><span class="mt-lab good">Gott verð</span><span>a.m.k. 12% undir mati</span></div>' +
       '<div><span class="mt-lab mid">Eðlilegt verð</span><span>innan við 12% frá mati</span></div>' +
       '<div><span class="mt-lab bad">Hátt verð</span><span>a.m.k. 12% yfir mati</span></div>' +
+      '<div><span class="mt-lab warn">Ódýr en nefnir galla</span><span>undir mati, en lýsingin nefnir tjón, ryð eða bilun: matið miðast við gallalausan bíl</span></div>' +
       '<div><span class="mt-lab warn">Athugaðu verðið</span><span>meira en helmingi undir mati: oft villa, tjón eða varahlutabíll</span></div>' +
       '<div><span class="mt-lab mid">Fáir sambærilegir / Sjaldgæf útgáfa</span><span>of fáir sambærilegir bílar til að meta vel</span></div>' +
       '<div><span class="mt-lab warn">Sérútbúinn / verkefni</span><span>rallý-, keppnis-, tjóna- eða varahlutabíll: ekki borinn saman</span></div></div>' +
@@ -961,6 +964,7 @@
       var dl = c.fs ? daysBetween(c.fs, new Date().toISOString().slice(0, 10).replace(/-/g, '')) : 0;
       c.w = dl <= 60 ? 1 : Math.max(0.35, 1 - (dl - 60) / 240);
     }
+    if (c.fl && c.fl.some(function (f) { return f === 'tjon' || f === 'laga' || f === 'ryd'; })) c.w *= 0.25;  // gallaðir draga matið síður niður
   }
   var VISION = {};  // ástandsmat út frá mynd (vision.py): id -> [flokkur, líkur]
   var HIST = null, histP = null;  // saga: allar auglýsingar sem við höfum séð (data/history.json), sótt þegar þarf

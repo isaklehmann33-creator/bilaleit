@@ -509,7 +509,8 @@ NEG = r"(?:ekki|ekkert|engin|ekkert|aldrei|enginn|laus við|án)\W+(?:\w+\W+){0,
 FLAGS = {   # kóði: (neikvætt?, mynstur)
     "tjon": (True, r"tjón|árekstr|klesst|tjónabíl"),
     "ryd": (True, r"\bryð"),
-    "laga": (True, r"þarfnast|þarf að laga|þarf smá|bilaður|bilun|vélarvandamál|gírkassavandamál|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar"),
+    "laga": (True, r"þarfnast|þarf að laga|þarf smá|þarf að skipta um|þarf nýj|bilaður|biluð|bilað|bilun|gallað|gallaður|gölluð|galli\b|gallar\b|ónýt|virkar ekki|"
+                   r"lekur|leki\b|olíuleki|vélarljós|check engine|vélarvandamál|gírkassavandamál|skiptingin slær|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar"),
     "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun"),
     "serut": (True, r"rall[ýy]\w*|keppnisbíl|kvartmílu|driftbíl|sandspyrnu|torfærubíl|til niðurrifs|í varahluti|varahlutabíl|ógangfær|óökufær|verkefnabíll|verkefni fyrir"),
     "timareim": (False, r"(?:ný|nýleg|skipt um|nýbúið að skipta um) (?:tímareim|keðju)|tímareim (?:ný|nýleg|skipt)"),
