@@ -15,7 +15,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><img src="icon.svg" alt=""><span>Bílaleit</span></div>
+    <div class="brand-row"><div class="brand"><img src="icon.svg" alt=""><span>Bílaleit</span></div><div class="acct" id="acct"></div></div>
     <form id="searchForm" class="search" autocomplete="off">
       <input id="q" type="search" placeholder="t.d. „sjálfskiptur jepplingur undir 4 milljónum, ekinn minna en 80 þús km“" aria-label="Leit">
       <button type="submit">Leita</button>
@@ -65,6 +65,7 @@
 
   <section>
     <div class="status"><span id="count">Hleð inn…</span><span id="updated"></span></div>
+    <div class="toolbar"><button type="button" id="saveSearch" class="ghost">🔔 Vista leit og fá tilkynningar</button><a id="fbLink" class="ghost" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></div>
     <div id="results" class="grid"></div>
     <button type="button" id="more" class="ghost more" hidden>Sýna fleiri</button>
     <footer class="foot">
@@ -82,6 +83,11 @@
 
 <dialog id="modal"><div id="modalBody"></div></dialog>
 
+<script src="vendor/firebase-app-compat.js"></script>
+<script src="vendor/firebase-auth-compat.js"></script>
+<script src="vendor/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="app.js"></script>
+<script src="account.js"></script>
 </body>
 </html>

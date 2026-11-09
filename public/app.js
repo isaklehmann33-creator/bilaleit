@@ -292,8 +292,8 @@
     $('fBody').value = f.body || ''; $('fDealer').value = f.dealer || ''; $('fText').value = f.text || '';
     $('fAwd').checked = !!f.awd; $('fDeal').checked = !!f.deal; $('fSort').value = f.sort || 'deal';
   }
-  function filtered() {
-    var f = readFilters(), words = f.text ? f.text.split(/\s+/) : [];
+  function filtered(f0) {
+    var f = f0 || readFilters(), words = f.text ? f.text.split(/\s+/) : [];
     var out = cars.filter(function (c) {
       if (f.make && c.make !== f.make) return false;
       if (f.model && c.base !== f.model) return false;
@@ -331,15 +331,33 @@
     return '<article class="car" data-id="' + esc(c.id) + '">' +
       '<div class="ph" style="' + (img(c) ? "background-image:url('" + esc(img(c)) + "')" : '') + '">' +
       '<span class="dealer">' + esc(c.dealer) + '</span>' +
-      '<button type="button" class="cmp' + (on ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + (on ? '✓ Í samanburði' : '+ Bera saman') + '</button></div>' +
+      '<button type="button" class="cmp' + (on ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + (on ? '✓ Í samanburði' : '+ Bera saman') + '</button>' +
+      saveBtn(c.id) + '</div>' +
       '<div class="body"><h3>' + esc(cap(c.make) + ' ' + cap(c.model)) + '</h3>' +
       '<div class="meta">' + (c.year || '–') + ' · ' + kmFmt(c.km) + ' · ' + esc(c.fcat) + (c.auto === true ? ' · ssk.' : c.auto === false ? ' · bsk.' : '') + '</div>' +
       '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span>' +
       '<span class="badge ' + v.cls + '">' + v.txt + '</span></div></div></article>';
   }
+  function isSaved(id) { return !!(window.Acct && Acct.isSaved(id)); }
+  function saveBtn(id) {
+    return '<button type="button" class="save' + (isSaved(id) ? ' on' : '') + '" data-save="' + esc(id) + '" aria-label="Vista bíl" title="Vista bíl">' +
+      (isSaved(id) ? '♥' : '♡') + '</button>';
+  }
+  function fbLink(f) {
+    // Facebook leyfir ekki söfnun, en við getum opnað sömu leit þar fyrir notandann
+    var q = [f.make && cap(f.make), f.model && cap(f.model), f.text].filter(Boolean).join(' ');
+    var p = [];
+    if (f.priceMin) p.push('minPrice=' + Math.round(f.priceMin * 1e6));
+    if (f.priceMax) p.push('maxPrice=' + Math.round(f.priceMax * 1e6));
+    if (q) return 'https://www.facebook.com/marketplace/reykjavik/search?query=' + encodeURIComponent(q) + (p.length ? '&' + p.join('&') : '');
+    if (f.yearMin) p.push('minYear=' + f.yearMin);
+    if (f.yearMax) p.push('maxYear=' + f.yearMax);
+    return 'https://www.facebook.com/marketplace/reykjavik/vehicles' + (p.length ? '?' + p.join('&') : '');
+  }
   function render(keepShown) {
     if (!keepShown) shown = PAGE;
     var list = filtered();
+    $('fbLink').href = fbLink(readFilters());
     $('count').textContent = list.length.toLocaleString('de-DE') + ' bílar';
     $('results').innerHTML = list.length ? list.slice(0, shown).map(card).join('') :
       '<div class="empty">Engir bílar fundust. Prófaðu að víkka leitina eða smelltu á „Hreinsa allt“.</div>';
@@ -400,6 +418,7 @@
         'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri og eldsneyti.') + '</div></div>' +
       '<div class="actions"><a class="primary" href="' + esc(c.url) + '" target="_blank" rel="noopener">Opna auglýsingu hjá ' + esc(c.dealer) + '</a>' +
       '<button type="button" class="sec" data-cmp="' + esc(c.id) + '">' + (compare.indexOf(c.id) >= 0 ? '✓ Í samanburði' : '+ Bera saman') + '</button>' +
+      '<button type="button" class="sec" data-save="' + esc(c.id) + '">' + (isSaved(c.id) ? '♥ Vistaður' : '♡ Vista bíl') + '</button>' +
       '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">Spyrja Claude um bílinn</a></div></div></div>' +
       (sim.length ? '<h4>Sambærilegir bílar</h4><p class="note">„Leiðrétt verð“ er hvað hinn bíllinn myndi kosta ef hann væri jafn gamall og jafn mikið ekinn og þessi. ' +
         'Á markaðnum lækkar verð að jafnaði um ~' + kmEff.toFixed(1) + '% fyrir hverja 10.000 km og ~' + yrEff.toFixed(0) + '% á ári.</p>' +
@@ -484,9 +503,12 @@
     });
     $('more').addEventListener('click', function () { shown += PAGE; render(true); });
     document.addEventListener('click', function (e) {
-      var t = e.target.closest ? e.target.closest('[data-cmp],[data-open],[data-close],.car') : null;
+      var t = e.target.closest ? e.target.closest('[data-save],[data-cmp],[data-open],[data-close],.car') : null;
       if (!t) return;
-      if (t.hasAttribute('data-cmp')) {
+      if (t.hasAttribute('data-save')) {
+        e.stopPropagation();
+        if (window.Acct) Acct.toggleSave(t.getAttribute('data-save'));
+      } else if (t.hasAttribute('data-cmp')) {
         e.stopPropagation(); toggleCompare(t.getAttribute('data-cmp'));
         var on = compare.indexOf(t.getAttribute('data-cmp')) >= 0;
         document.querySelectorAll('[data-cmp="' + t.getAttribute('data-cmp') + '"]').forEach(function (b) {
@@ -534,6 +556,7 @@
       $('sources').textContent = 'Heimildir: ' + Object.keys(d.sources).map(function (k) { return k + ' (' + d.sources[k] + ')'; }).join(' · ');
       var q = new URLSearchParams(location.search).get('q');
       if (q) { $('q').value = q; runSearch(q); } else render();
+      if (window.Acct) Acct.dataReady();
     }).catch(function (e) {
       $('count').textContent = 'Tókst ekki að sækja gögn.';
       console.error(e);
@@ -541,6 +564,21 @@
   }
 
 
+  function refreshSaved() {
+    document.querySelectorAll('[data-save]').forEach(function (b) {
+      var on = isSaved(b.getAttribute('data-save'));
+      b.classList.toggle('on', on);
+      b.textContent = b.classList.contains('sec') ? (on ? '♥ Vistaður' : '♡ Vista bíl') : (on ? '♥' : '♡');
+    });
+  }
+
+  // aðgangur að gögnum og birtingu fyrir account.js
+  window.App = {
+    cars: function () { return cars; }, byId: byId, filtered: filtered, readFilters: readFilters, setFilters: setFilters,
+    render: render, refreshSaved: refreshSaved, openModal: openModal, closeModal: closeModal, showCar: showCar,
+    query: function () { return $('q').value; }, setQuery: function (t) { $('q').value = t || ''; $('understood').hidden = true; },
+    esc: esc, kr: kr, kmFmt: kmFmt, cap: cap, img: img
+  };
   bind();
   load();
 })();
