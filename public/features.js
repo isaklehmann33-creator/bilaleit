@@ -89,7 +89,7 @@
     if (sim.length) html += '<h4>Sambærilegir á sölu núna</h4><p class="note">„Leiðrétt“ = verð hins bílsins ef hann væri jafn gamall og jafn mikið ekinn og þinn.</p>' +
       '<div class="tbl-wrap"><table><thead><tr><th>Bíll</th><th class="num">Árg.</th><th class="num">Ekinn</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +
       sim.map(function (o) {
-        return '<tr class="click" data-open="' + esc(o.id) + '"><td>' + esc(A.cap(o.make) + ' ' + A.cap(o.model)) + '<br><span class="note">' + esc(o.dealer) + '</span></td>' +
+        return '<tr' + (o.sold ? ' class="sold-row"' : ' class="click" data-open="' + esc(o.id) + '"') + '><td>' + esc(A.cap(o.make) + ' ' + A.cap(o.model)) + '<br><span class="note">' + (o.sold ? 'Seldur / af skrá ' + A.dayFmt(o.goneAt) : esc(o.dealer)) + '</span></td>' +
           '<td class="num">' + (o.year || '–') + '</td><td class="num">' + A.kmFmt(o.km) + '</td><td class="num">' + A.kr(o.price) + '</td><td class="num"><b>' + A.kr(A.adjusted(o, c)) + '</b></td></tr>';
       }).join('') + '</tbody></table></div>';
     html += '<div id="valPast"></div>';

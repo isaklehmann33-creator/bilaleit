@@ -186,7 +186,7 @@
   // Án þess féllu 20 ára bílar endalaust ~7% á ári og voru metnir allt of lágt.
   var AGE_KNOTS = [4, 9, 14, 19], KM_KNOTS = [100000, 200000];
   var FI = { age: 0, km: AGE_KNOTS.length + 1 };  // stöður í feats(): aldur, aldurshnútar, akstur, aksturshnútar, eldsneyti, útgáfa, afl, útgáfa×aldur
-  FI.fuel = FI.km + 1 + KM_KNOTS.length; FI.perf1 = FI.fuel + FUELS.length; FI.perf2 = FI.perf1 + 1; FI.pw = FI.perf2 + 1; FI.perfAge = FI.pw + 1;
+  FI.fuel = FI.km + 1 + KM_KNOTS.length; FI.perf1 = FI.fuel + FUELS.length; FI.perf2 = FI.perf1 + 1; FI.pw = FI.perf2 + 1; FI.perfAge = FI.pw + 1; FI.mo = FI.perfAge + 1;
   function feats(c) {
     var km = c.km != null ? c.km : 15000 * c.age; // vantar akstur: gerum ráð fyrir meðalakstri
     var x = [c.age];
@@ -194,7 +194,8 @@
     x.push(km / 1e4);
     KM_KNOTS.forEach(function (k) { x.push(Math.max(0, km - k) / 1e4); });
     for (var i = 0; i < FUELS.length; i++) x.push(c.fcat === FUELS[i] ? 1 : 0);
-    x.push(c.perf.t === 1 ? 1 : 0, c.perf.t === 2 ? 1 : 0, c.pw, c.perf.t ? c.age : 0);  // síðasta: sportbílar falla hægar í verði
+    x.push(c.perf.t === 1 ? 1 : 0, c.perf.t === 2 ? 1 : 0, c.pw, c.perf.t ? c.age : 0);  // sportbílar falla hægar í verði
+    x.push(c.mo || 0);  // mánuðir síðan bíllinn seldist (0 = á skrá núna): líkanið lærir markaðsþróun
     return x;
   }
   // verðfall á ári við tiltekinn aldur (halli brotnu línunnar þar)
@@ -237,14 +238,15 @@
     Object.keys(groups).forEach(function (k) {
       var g = groups[k];
       if (g.length < 2) return;
-      var mx = new Array(d).fill(0), my = 0;
-      g.forEach(function (c) { var x = feats(c); for (i = 0; i < d; i++) mx[i] += x[i] / g.length; my += Math.log(c.price) / g.length; });
+      var mx = new Array(d).fill(0), my = 0, W = 0;
+      g.forEach(function (c) { W += c.w; });
+      g.forEach(function (c) { var x = feats(c); for (i = 0; i < d; i++) mx[i] += c.w * x[i] / W; my += c.w * Math.log(c.price) / W; });
       g.forEach(function (c) {
         var x = feats(c), y = Math.log(c.price) - my;
         for (i = 0; i < d; i++) {
           var xi = x[i] - mx[i];
-          Xty[i] += xi * y;
-          for (j = 0; j < d; j++) XtX[i][j] += xi * (x[j] - mx[j]);
+          Xty[i] += c.w * xi * y;
+          for (j = 0; j < d; j++) XtX[i][j] += c.w * xi * (x[j] - mx[j]);
         }
       });
     });
@@ -257,24 +259,25 @@
     if (beta[FI.pw] < 0.03) beta[FI.pw] = 0.03;  // stærri vél lækkar aldrei verð
     function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
 
-    var tot = 0, makes = {}, grp = {}, grpT = {};
+    var tot = 0, totW = 0, makes = {}, grp = {}, grpT = {};
     list.forEach(function (c) {
       c._r = Math.log(c.price) - lin(c);
-      tot += c._r;
-      var m = makes[c.make] = makes[c.make] || { s: 0, n: 0 }; m.s += c._r; m.n++;
-      var g = grp[c.key] = grp[c.key] || { s: 0, n: 0, ss: 0 }; g.s += c._r; g.n++; g.ss += c._r * c._r;
-      var tk = c.key + '|' + c.perf.label, gt = grpT[tk] = grpT[tk] || { s: 0, n: 0 }; gt.s += c._r; gt.n++;  // sama útgáfa (AMG 55 ≠ V8)
+      var w = c.w; tot += w * c._r; totW += w;
+      var m = makes[c.make] = makes[c.make] || { s: 0, n: 0 }; m.s += w * c._r; m.n += w;
+      var g = grp[c.key] = grp[c.key] || { s: 0, n: 0, ss: 0, cnt: 0 }; g.s += w * c._r; g.n += w; g.ss += w * c._r * c._r; g.cnt++;
+      var tk = c.key + '|' + c.perf.label, gt = grpT[tk] = grpT[tk] || { s: 0, n: 0 }; gt.s += w * c._r; gt.n += w;  // sama útgáfa (AMG 55 ≠ V8)
     });
-    var glob = tot / list.length;
+    var glob = tot / totW;
     // Mat fyrir hvern bíl án hans sjálfs (leave-one-out), svo bíllinn hafi ekki áhrif á eigið mat
     list.forEach(function (c) {
-      var m = makes[c.make], g = grp[c.key];
-      var mk = (m.s - c._r + 3 * glob) / (m.n - 1 + 3);
-      var gi = (g.s - c._r + 1.5 * mk) / (g.n - 1 + 1.5);
+      if (c.sold) return;  // seldir bílar eru bara viðmið, ekki metnir sjálfir
+      var m = makes[c.make], g = grp[c.key], w = c.w;
+      var mk = (m.s - w * c._r + 3 * glob) / (m.n - w + 3);
+      var gi = (g.s - w * c._r + 1.5 * mk) / (g.n - w + 1.5);
       // kraftútgáfur: miðum fyrst við aðra í sömu útgáfu (Golf R við Golf R); almenna álagið gildir bara ef enginn er til
-      if (c.perf.t) { var gt = grpT[c.key + '|' + c.perf.label]; gi = (gt.s - c._r + 1 * gi) / (gt.n - 1 + 1); }
+      if (c.perf.t) { var gt = grpT[c.key + '|' + c.perf.label]; gi = (gt.s - w * c._r + 1 * gi) / (gt.n - w + 1); }
       c.est = Math.round(Math.exp(gi + lin(c)) / 1e4) * 1e4;
-      c.peers = g.n - 1;
+      c.peers = g.cnt - 1;
       c.tierPeers = groups[c.key].filter(function (o) { return o !== c && o.perf.label === c.perf.label; }).length;
       // sambærilegir með sömu vél og eldsneyti (t.d. 520i ber sig ekki saman við 530e/545e)
       c.enginePeers = c.pwRaw == null ? null : groups[c.key].filter(function (o) {
@@ -283,7 +286,7 @@
       c.dev = c.price / c.est - 1;
     });
     // mat fyrir bíl sem er ekki í gögnunum (t.d. „hvað er bíllinn minn virði?“), með líklegu bili
-    var gss = list.reduce(function (s, c) { return s + (c._r - glob) * (c._r - glob); }, 0) / list.length;
+    var gss = list.reduce(function (s, c) { return s + c.w * (c._r - glob) * (c._r - glob); }, 0) / totW;
     function estimate(c) {
       var grpCars = groups[c.key] || [];
       if (c.pwRaw == null) {
@@ -296,9 +299,9 @@
       var gt = grpT[c.key + '|' + c.perf.label];
       if (c.perf.t && gt) gi = (gt.s + gi) / (gt.n + 1);
       // dreifing: innan gerðar ef nóg er af bílum, annars markaðurinn í heild
-      var sd = g && g.n >= 5 ? Math.sqrt(Math.max(g.ss / g.n - Math.pow(g.s / g.n, 2), 0.004)) : Math.sqrt(gss);
+      var sd = g && g.cnt >= 5 ? Math.sqrt(Math.max(g.ss / g.n - Math.pow(g.s / g.n, 2), 0.004)) : Math.sqrt(gss);
       var est = Math.exp(gi + lin(c));
-      return { est: est, lo: est * Math.exp(-1.0 * sd), hi: est * Math.exp(1.0 * sd), peers: g ? g.n : 0, sd: sd };
+      return { est: est, lo: est * Math.exp(-1.0 * sd), hi: est * Math.exp(1.0 * sd), peers: g ? g.cnt : 0, sd: sd };
     }
     return { beta: beta, lin: lin, groups: groups, estimate: estimate };
   }
@@ -735,6 +738,9 @@
     var v = verdict(c), sim = similar(c, 8), b = model.beta;
     var kmEff = (1 - Math.exp(kmSlope(c.km || 0))) * 100, yrEff = (1 - Math.exp(ageSlope(c.age, c.perf.t))) * 100;
     var rows = sim.map(function (o) {
+      if (o.sold) return '<tr class="sold-row"><td>' + esc(cap(o.model)) + '<br><span class="note">Seldur / af skrá ' + dayFmt(o.goneAt) + '</span></td>' +
+        '<td class="num">' + (o.year || '–') + '</td><td class="num">' + kmFmt(o.km) + '</td><td>' + esc(o.fcat) + '</td>' +
+        '<td class="num">' + kr(o.price) + '</td><td class="num"><b>' + kr(adjusted(o, c)) + '</b></td></tr>';
       return '<tr class="click" data-open="' + esc(o.id) + '"><td>' + esc(cap(o.model)) + '<br><span class="note">' + esc(o.dealer) + '</span></td>' +
         '<td class="num">' + (o.year || '–') + '</td><td class="num">' + kmFmt(o.km) + '</td><td>' + esc(o.fcat) + '</td>' +
         '<td class="num">' + kr(o.price) + '</td><td class="num"><b>' + kr(adjusted(o, c)) + '</b></td></tr>';
@@ -897,14 +903,15 @@
   }
   // Gerð úr frjálsum titli (oft bland.is: „Benz - svartur“, „Mercedes Panorama“): ef hún er ekki raunveruleg gerð
   // (gerðaskrá NHTSA/ESB eða ökutækjaskrá, eða minnst 2 auglýsingar hjá bílasölum) leitum við að alvöru gerð í titlinum.
-  function cleanBases() {
+  function cleanBases(all) {
+    all = all || cars;
     var dealerCnt = {};
     cars.forEach(function (c) { if (!c.priv) dealerCnt[c.key] = (dealerCnt[c.key] || 0) + 1; });
     var known = {};
     cars.forEach(function (c) { if (dealerCnt[c.key] >= 2) (known[c.make] = known[c.make] || {})[c.base] = 1; });
     Object.keys(CATALOG).forEach(function (mk) { var o = known[mk] = known[mk] || {}; Object.keys(CATALOG[mk]).forEach(function (b) { o[b] = 1; }); });
     var sorted = {};
-    cars.forEach(function (c) {
+    all.forEach(function (c) {
       var k = known[c.make] || {};
       if (c.base && (k[c.base] || !c.priv)) return;  // bílasölur skrifa heitin rétt; bara frjálsir titlar á bland.is hreinsaðir
       var list = sorted[c.make] = sorted[c.make] || Object.keys(k).filter(function (b) { return b.length > 1; }).sort(function (a, b) { return b.length - a.length; });
@@ -932,6 +939,19 @@
     return detailP[n].then(function (s) { return s[id]; });
   }
 
+  var SOLD = [];   // seldir / teknir af skrá síðustu 12 mán. (data/sold.json): viðmið í verðlíkaninu
+  // vægi: nýlegar sölur vega mikið, gamlar minna; auglýsingar sem standa lengi á skrá eru oft of dýrar og vega minna
+  function weigh(c) {
+    var today = Date.now();
+    if (c.sold) {
+      var mo = Math.max(0, (today - day(c.goneAt)) / (30 * 864e5)), dom = daysBetween(c.firstAt, c.goneAt);
+      c.mo = mo;
+      c.w = 1.2 * Math.exp(-mo / 8) * (dom <= 45 ? 1.2 : dom > 150 ? 0.6 : 1);
+    } else {
+      var dl = c.fs ? daysBetween(c.fs, new Date().toISOString().slice(0, 10).replace(/-/g, '')) : 0;
+      c.w = dl <= 60 ? 1 : Math.max(0.35, 1 - (dl - 60) / 240);
+    }
+  }
   var VISION = {};  // ástandsmat út frá mynd (vision.py): id -> [flokkur, líkur]
   var HIST = null, histP = null;  // saga: allar auglýsingar sem við höfum séð (data/history.json), sótt þegar þarf
   function loadHistory() {
@@ -1269,8 +1289,12 @@
     var regP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'registry.json')), get('data/registry.json?t=' + Date.now())]).then(function (r) {
       return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
     });
-    var CAT = null, REGD = null;
-    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now()), visP, catP, regP]).then(function (res) {
+    var soldP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'sold.json')), get('data/sold.json?t=' + Date.now())]).then(function (r) {
+      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
+    });
+    var CAT = null, REGD = null, SOLDD = null;
+    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now()), visP, catP, regP, soldP]).then(function (res) {
+      SOLDD = res[5];
       VISION = (res[2] && res[2].flags) || {};
       CAT = res[3]; REGD = res[4];
       var d = res[0] && (!res[1] || res[0].updated >= res[1].updated) ? res[0] : res[1];
@@ -1284,9 +1308,15 @@
         if (!c.price || !c.make || dup[k]) return false;
         return (dup[k] = true);
       }).map(prep);
+      var live = {}; cars.forEach(function (c) { live[c.id] = 1; });
+      SOLD = ((SOLDD && SOLDD.rows) || []).filter(function (r) { return !live[r[0]] && r[5] > 100000; }).map(function (r) {
+        return prep({ id: 'sold:' + r[0], make: r[1], model: r[2], year: r[3], km: r[4], price: r[5], goneAt: r[6], firstAt: r[7], fuel: r[8], title: r[9] || (r[1] + ' ' + r[2]),
+          src: r[10], trans: r[11], drive: r[12], dealer: '', sold: true });
+      });
       setCatalog(CAT || {}, REGD);
-      cleanBases();
-      model = fit(cars.filter(function (c) { return !c.special; }));
+      cleanBases(cars.concat(SOLD));
+      cars.concat(SOLD).forEach(weigh);
+      model = fit(cars.concat(SOLD).filter(function (c) { return !c.special; }));
       cars.forEach(function (c) {  // sérútbúnir: mat út frá líkaninu án þeirra (bara til upplýsinga)
         if (!c.special) return;
         var r = model.estimate(c); c.est = Math.round(r.est / 1e4) * 1e4; c.peers = r.peers; c.tierPeers = 0; c.dev = c.price / c.est - 1;

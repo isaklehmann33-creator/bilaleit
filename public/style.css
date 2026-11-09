@@ -672,3 +672,4 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .stats em { font-style: normal; font-weight: 700; } .stats em.up { color: var(--good); } .stats em.down { color: var(--bad); }
 #visitDash .chart-wrap { margin-top: 10px; }
+.sold-row td { opacity: .75; } .sold-row .note { color: var(--loc); }

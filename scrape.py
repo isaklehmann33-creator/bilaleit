@@ -386,6 +386,13 @@ def main():
         print(f"  villa í lýsingum: {e}", file=sys.stderr)
     seen = set()  # sami bíll auglýstur af tveimur bílasölum
     cars = [c for c in cars if not (fingerprint(c) + (c["model"],) in seen or seen.add(fingerprint(c) + (c["model"],)))]
+    try:  # hvenær hver auglýsing sást fyrst (fyrir vægi auglýsinga sem standa lengi)
+        ads = json.loads(HISTORY.read_text("utf-8"))["ads"] if HISTORY.exists() else {}
+        for c in cars:
+            if c["id"] in ads:
+                c["fs"] = ads[c["id"]]["f"]
+    except Exception as e:
+        print(f"  fyrst séð: {e}", file=sys.stderr)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "updated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
@@ -738,6 +745,7 @@ def build_registry(cars):
 # Hver auglýsing sem við höfum séð: fyrst/síðast séð, verðsaga og hvenær hún hvarf (seld eða tekin út).
 HISTORY = Path(__file__).parent / "public" / "data" / "history.json"
 KEEP_GONE_DAYS = 730
+SOLD = Path(__file__).parent / "public" / "data" / "sold.json"
 
 
 def update_history(cars):
@@ -750,7 +758,8 @@ def update_history(cars):
         if not a:
             a = ads[c["id"]] = {"m": c["make"], "o": c["model"], "y": c.get("year"), "k": c.get("km"), "d": c.get("dealer", ""),
                                 "u": c.get("url", ""), "f": today, "p": []}
-        a.update({"l": today, "k": c.get("km"), "g": None})
+        a.update({"l": today, "k": c.get("km"), "g": None, "fu": c.get("fuel", ""), "t": c.get("title", ""), "s": c.get("src", ""),
+                  "tr": c.get("trans", ""), "dr": c.get("drive", "")})
         if not a["p"] or a["p"][-1][1] != c["price"]:
             a["p"].append([today, c["price"]])
     cutoff = (datetime.now(timezone.utc).timestamp() - KEEP_GONE_DAYS * 86400)
@@ -761,6 +770,17 @@ def update_history(cars):
         if a.get("g") and datetime.strptime(a["g"], "%Y%m%d").replace(tzinfo=timezone.utc).timestamp() < cutoff:
             del ads[k]
     h["updated"] = today
+    # seldir / teknir af skrá síðustu 12 mánuði: notaðir í verðlíkaninu (síðasta verð ≈ söluverð)
+    year_ago = (datetime.now(timezone.utc).timestamp() - 365 * 86400)
+    sold = []
+    for k, a in ads.items():
+        if not a.get("g") or not a.get("p") or not a.get("fu"):
+            continue
+        if datetime.strptime(a["g"], "%Y%m%d").replace(tzinfo=timezone.utc).timestamp() < year_ago:
+            continue
+        sold.append([k, a["m"], a["o"], a.get("y"), a.get("k"), a["p"][-1][1], a["g"], a["f"], a["fu"], a.get("t", ""), a.get("s", ""), a.get("tr", ""), a.get("dr", "")])
+    SOLD.write_text(json.dumps({"updated": today, "cols": ["id", "make", "model", "year", "km", "price", "gone", "first", "fuel", "title", "src", "trans", "drive"],
+                                "rows": sold}, ensure_ascii=False, separators=(",", ":")), "utf-8")
     HISTORY.write_text(json.dumps(h, ensure_ascii=False, separators=(",", ":")), "utf-8")
     print(f"Saga: {len(ads)} auglýsingar, {sum(1 for a in ads.values() if a.get('g'))} horfnar")
 
