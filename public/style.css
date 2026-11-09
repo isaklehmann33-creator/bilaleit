@@ -670,3 +670,5 @@ button.mt-lab { background: none; border: 0; padding: 0; cursor: help; font-fami
 /* talnareitir án kerfispíla */
 input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.stats em { font-style: normal; font-weight: 700; } .stats em.up { color: var(--good); } .stats em.down { color: var(--bad); }
+#visitDash .chart-wrap { margin-top: 10px; }

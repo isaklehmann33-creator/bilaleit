@@ -267,6 +267,7 @@
         '<div class="stats"><div><b>' + rows.length + '</b><span>notendur</span></div><div><b>' + tot.saved + '</b><span>vistaðir bílar</span></div>' +
         '<div><b>' + tot.searches + '</b><span>vistaðar leitir</span></div><div><b>' + cars.length.toLocaleString('de-DE') + '</b><span>bílar á skrá</span></div></div>' +
         '<div class="actions" style="margin:0 0 10px"><button type="button" class="sec" data-acct="force-reload">🔄 Uppfæra allar opnar síður</button></div>' +
+        '<div id="visitDash"><div class="skel-line"></div><div class="skel-line short"></div></div>' +
         '<p class="note">Heimildir: ' + Object.keys(bySrc).map(function (k) { return A.esc(k) + ' ' + bySrc[k]; }).join(' · ') + '</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Netfang</th><th>Stofnaður</th><th>Síðast</th><th class="num">Bílar</th><th class="num">Leitir</th><th></th></tr></thead><tbody>' +
         rows.map(function (r) {
@@ -275,9 +276,51 @@
             (r.id === user.uid ? '' : '<button type="button" class="link danger" data-acct="admin-del" data-uid="' + A.esc(r.id) + '">Eyða gögnum</button>') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
         '<p class="note">„Eyða gögnum“ eyðir vistuðum bílum, leitum og tilkynningum notandans (ekki innskráningunni sjálfri).</p></div>';
+      visitDashboard();
     }).catch(function (e) {
       $('modalBody').innerHTML = '<div class="m"><div class="m-head"><h2>Stjórnandi</h2><button class="x" data-close aria-label="Loka">×</button></div><p class="err">Aðgangi hafnað: ' + A.esc(e.message) + '</p></div>';
     });
+  }
+
+  // ---------- heimsóknamælaborð (bara stjórnandi) ----------
+  function visitDashboard() {
+    var from = new Date(Date.now() - 59 * 864e5).toISOString().slice(0, 10);
+    db.collection('stats').where(firebase.firestore.FieldPath.documentId(), '>=', from).get().then(function (qs) {
+      var by = {};
+      qs.forEach(function (d) { by[d.id] = d.data(); });
+      var days = [];
+      for (var i = 59; i >= 0; i--) {
+        var k = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10), x = by[k] || {};
+        days.push({ k: k, v: x.v || 0, u: x.u || 0, m: x.m || 0, d: x.d || 0 });
+      }
+      function sum(a, f) { return a.reduce(function (s, x) { return s + x[f]; }, 0); }
+      var today = days[59], last7 = days.slice(53), prev7 = days.slice(46, 53), last30 = days.slice(30);
+      var u7 = sum(last7, 'u'), up7 = sum(prev7, 'u'), trend = up7 ? Math.round((u7 / up7 - 1) * 100) : null;
+      var mob = sum(last30, 'm'), desk = sum(last30, 'd'), share = mob + desk ? Math.round(mob / (mob + desk) * 100) : 0;
+      // línurit: einstakir gestir á dag síðustu 30 daga (ein röð, sveimtexti á hverjum degi)
+      var W = 640, H = 200, L = 34, B = 22, T = 10, max = Math.max(4, Math.max.apply(null, last30.map(function (x) { return x.u; }))) * 1.15;
+      var X = function (i) { return L + (W - L - 8) * i / 29; }, Y = function (v) { return T + (H - T - B) * (1 - v / max); };
+      var line = last30.map(function (x, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ',' + Y(x.u).toFixed(1); }).join('');
+      var area = line + 'L' + X(29) + ',' + (H - B) + 'L' + X(0) + ',' + (H - B) + 'Z';
+      var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Einstakir gestir á dag">' +
+        [0, max / 2, max].map(function (t) { return '<line class="grid" x1="' + L + '" x2="' + W + '" y1="' + Y(t) + '" y2="' + Y(t) + '"/><text class="ax" x="' + (L - 6) + '" y="' + (Y(t) + 4) + '" text-anchor="end">' + Math.round(t) + '</text>'; }).join('') +
+        '<path d="' + area + '" fill="var(--accent)" opacity=".12"/><path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>' +
+        last30.map(function (x, i) {
+          var lab = A.dateIs(new Date(x.k));
+          return '<g data-tip="<b>' + lab + '</b><br>' + x.u + ' gestir · ' + x.v + ' flettingar"><rect class="hit" x="' + (X(i) - 11) + '" y="' + T + '" width="22" height="' + (H - T - B) + '"/>' +
+            '<circle class="pt" cx="' + X(i) + '" cy="' + Y(x.u) + '" r="' + (i === 29 ? 4 : 2.5) + '"/></g>' +
+            (i % 7 === 2 || i === 29 ? '<text class="ax" x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + lab + '</text>' : '');
+        }).join('') + '<line class="base" x1="' + L + '" x2="' + W + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/></svg>';
+      var el = $('visitDash'); if (!el) return;
+      el.innerHTML = '<h4>Heimsóknir</h4><div class="stats">' +
+        '<div><b>' + today.u + '</b><span>gestir í dag (' + today.v + ' flettingar)</span></div>' +
+        '<div><b>' + u7 + '</b><span>gestir síðustu 7 daga' + (trend != null ? ' <em class="' + (trend >= 0 ? 'up' : 'down') + '">' + (trend >= 0 ? '+' : '') + trend + '%</em>' : '') + '</span></div>' +
+        '<div><b>' + sum(last30, 'u') + '</b><span>gestir síðustu 30 daga</span></div>' +
+        '<div><b>' + share + '%</b><span>í síma (30 dagar)</span></div></div>' +
+        '<div class="chart-wrap">' + svg + '</div>' +
+        '<p class="note">Einstakur gestur = einn vafri á dag (nafnlaust, engar persónuupplýsingar). Þínar eigin heimsóknir eru ekki taldar. Talning hófst ' +
+        A.dateIs(new Date((days.filter(function (x) { return x.v; })[0] || today).k), true) + '.</p>';
+    }).catch(function (e) { var el = $('visitDash'); if (el) el.innerHTML = '<p class="err">Gat ekki sótt heimsóknir: ' + A.esc(e.message) + '</p>'; });
   }
 
   // ---------- smá-skilaboð ----------
@@ -349,8 +392,22 @@
     }
     reloadSeen = v || 0;
   }, function () {});
+  // ---------- heimsóknatalning (nafnlaus): stats/ÁÁÁÁ-MM-DD {v: flettingar, u: einstakir gestir, m: sími, d: tölva} ----------
+  var tracked = false;
+  function trackVisit() {
+    if (tracked || isAdmin() || /^(localhost|127\.)/.test(location.hostname)) return;
+    tracked = true;
+    var day = new Date().toISOString().slice(0, 10), first = false;
+    try { first = localStorage.getItem('vday') !== day; localStorage.setItem('vday', day); } catch (e) {}
+    var inc = firebase.firestore.FieldValue.increment, mobile = matchMedia('(max-width: 760px)').matches || /iphone|android/i.test(navigator.userAgent);
+    var data = { v: inc(1) };
+    if (first) { data.u = inc(1); data[mobile ? 'm' : 'd'] = inc(1); }
+    db.collection('stats').doc(day).set(data, { merge: true }).catch(function () {});
+  }
+
   auth.onAuthStateChanged(function (u) {
     user = u; doc = null; checked = false;
+    trackVisit();
     renderHeader(); A.refreshSaved();
     if (!u) return;
     db.collection('users').doc(u.uid).get().then(function (d) {
