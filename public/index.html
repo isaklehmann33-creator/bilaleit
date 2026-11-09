@@ -8,14 +8,15 @@
 <meta name="theme-color" content="#0f6b5c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="style.css">
+<script>try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand-row"><div class="brand"><img src="icon.svg" alt=""><span>Bílaleit</span></div><div class="acct" id="acct"></div></div>
+    <div class="brand-row"><div class="brand"><img src="icon.svg" alt=""><span>Bílaleit</span></div><div class="head-r"><button type="button" class="icon-btn" id="themeBtn" aria-label="Skipta um útlit" title="Ljóst / dökkt">🌓</button><button type="button" class="pill-btn" id="installBtn" hidden>📲 Setja á heimaskjá</button><div class="acct" id="acct"></div></div></div>
     <form id="searchForm" class="search" autocomplete="off">
       <input id="q" type="search" placeholder="t.d. „sjálfskiptur jepplingur undir 4 milljónum, ekinn minna en 80 þús km“" aria-label="Leit">
       <button type="submit">Leita</button>
@@ -56,12 +57,18 @@
       <label>Orð í heiti<input id="fText" type="text" placeholder="t.d. 4matic, gt line"></label>
       <label class="check"><input id="fAwd" type="checkbox"> Fjórhjóladrif</label>
       <label class="check"><input id="fDeal" type="checkbox"> Aðeins gott verð</label>
+      <label class="check"><input id="fClean" type="checkbox"> Án viðvarana (tjón, ryð …)</label>
+      <div class="pick-field"><span>Búnaður</span><div class="ft-chips" id="ftChips"></div></div>
+      <input type="hidden" id="fFt" value="">
+      <label>Rafdrægni minnst (km)<input id="fRange" type="number" inputmode="numeric" step="50" min="0" placeholder="t.d. 400"></label>
       <label>Raða eftir<select id="fSort">
         <option value="deal">Besta verð miðað við mat</option>
         <option value="priceAsc">Ódýrast fyrst</option>
         <option value="priceDesc">Dýrast fyrst</option>
         <option value="kmAsc">Minnst ekinn</option>
         <option value="yearDesc">Nýjasta árgerð</option>
+        <option value="hpPerKr">Mest afl fyrir peninginn</option>
+        <option value="kmPerKr">Mest drægni fyrir peninginn</option>
       </select></label>
       <button type="button" id="reset" class="ghost">Hreinsa allt</button>
     </div>

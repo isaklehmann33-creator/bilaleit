@@ -14,7 +14,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read, delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow create, update: if request.auth != null && request.auth.uid == uid
-                            && request.resource.data.keys().hasOnly(['email', 'created', 'lastSeen', 'saved', 'searches', 'notes']);
+                            && request.resource.data.keys().hasOnly(['email', 'created', 'lastSeen', 'saved', 'searches', 'notes', 'watch']);
     }
   }
 }

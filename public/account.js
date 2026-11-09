@@ -17,7 +17,7 @@
   function snap(c) { return { title: A.cap(c.make) + ' ' + A.cap(c.model), price: c.price, year: c.year || null, km: c.km == null ? null : c.km, img: c.img || '', url: c.url, dealer: c.dealer, t: now() }; }
 
   // ---------- geymsla ----------
-  function empty() { return { saved: {}, searches: [], notes: [] }; }
+  function empty() { return { saved: {}, searches: [], notes: [], watch: {} }; }
   function persist() {
     if (!user || !doc) return;
     clearTimeout(saveTimer);
@@ -90,6 +90,28 @@
     persist(); renderHeader(); A.refreshSaved();
   }
 
+  // ---------- verðvakt á einum bíl ----------
+  function openWatch(id, btn) {
+    if (!user) return showLogin('Skráðu þig inn til að fá tilkynningu þegar verðið lækkar.');
+    var c = A.byId(id), w = doc.watch[id];
+    var box = document.createElement('div');
+    box.className = 'watch-box';
+    box.innerHTML = '<label>Láttu mig vita ef verðið fer niður í<span class="inp-s"><input id="wTarget" type="number" inputmode="numeric" step="50000" value="' +
+      (w ? w.target : Math.round(c.price * 0.9 / 5e4) * 5e4) + '"><i>kr.</i></span></label>' +
+      '<button type="button" class="primary" id="wSave">Vista verðvakt</button>' + (w ? '<button type="button" class="link" id="wDel">Hætta að vakta</button>' : '');
+    btn.parentNode.parentNode.insertBefore(box, btn.parentNode.nextSibling);
+    btn.disabled = true;
+    $('wSave').addEventListener('click', function () {
+      var target = +$('wTarget').value;
+      if (!(target > 0)) return;
+      doc.watch[id] = { target: target, title: A.cap(c.make) + ' ' + A.cap(c.model), price: c.price, t: now(), hit: c.price <= target };
+      if (!doc.saved[id]) doc.saved[id] = snap(c);
+      persist(); renderHeader(); A.refreshSaved();
+      box.innerHTML = '<p class="note">✓ Þú færð tilkynningu ef verðið fer niður í ' + A.kr(target) + ' eða lægra. Bíllinn er líka vistaður.</p>';
+    });
+    if ($('wDel')) $('wDel').addEventListener('click', function () { delete doc.watch[id]; persist(); box.innerHTML = '<p class="note">Verðvakt fjarlægð.</p>'; });
+  }
+
   // ---------- vistaðar leitir ----------
   function describeF(f) {
     var p = [];
@@ -152,6 +174,15 @@
         old.price = c.price;
       } else if (c && old.gone) delete old.gone;
     });
+    // verðvakt: tilkynning þegar bíll fer niður fyrir markverð notandans
+    Object.keys(doc.watch).forEach(function (id) {
+      var w = doc.watch[id], c = A.byId(id);
+      if (!c) { notes.push({ t: now(), kind: 'gone', title: w.title + ' er ekki lengur á skrá. Verðvaktin hefur verið fjarlægð.', cars: [], read: false }); delete doc.watch[id]; return; }
+      if (c.price <= w.target && !w.hit) {
+        notes.push({ t: now(), kind: 'watch', title: '🔔 ' + w.title + ' er komin(n) í ' + A.kr(c.price) + ' (markverð þitt var ' + A.kr(w.target) + ')', cars: [id], read: false });
+        w.hit = true;
+      } else if (c.price > w.target && w.hit) w.hit = false;
+    });
     if (notes.length) doc.notes = notes.concat(doc.notes).slice(0, MAX_NOTES);
     persist(); renderHeader();
     if (notes.length) toast(notes.length === 1 ? notes[0].title : notes.length + ' nýjar tilkynningar 🔔');
@@ -174,7 +205,8 @@
       body = ids.length ? ids.map(function (id) {
         var c = A.byId(id), s = doc.saved[id];
         if (c) {
-          var diff = s.price && c.price !== s.price ? '<span class="note">Var ' + A.kr(s.price) + ' þegar þú vistaðir</span>' : '';
+          var diff = (s.price && c.price !== s.price ? '<span class="note">Var ' + A.kr(s.price) + ' þegar þú vistaðir</span>' : '') +
+            (doc.watch[id] ? '<span class="note">🔔 Verðvakt: ' + A.kr(doc.watch[id].target) + '</span>' : '');
           return carRow(c, diff + '<button type="button" class="link" data-save="' + A.esc(id) + '">Fjarlægja</button>');
         }
         return '<div class="row-car gone"><div class="noimg"></div><div class="rc-body"><b>' + A.esc(s.title) + '</b><span>Ekki lengur á skrá</span>' +
@@ -293,7 +325,7 @@
 
   // ---------- ræsing ----------
   window.Acct = {
-    isSaved: isSaved, toggleSave: toggleSave,
+    isSaved: isSaved, toggleSave: toggleSave, openWatch: openWatch,
     dataReady: function () { dataLoaded = true; checkUpdates(); }
   };
   renderHeader();
@@ -317,7 +349,7 @@
     if (!u) return;
     db.collection('users').doc(u.uid).get().then(function (d) {
       doc = d.exists ? d.data() : empty();
-      doc.saved = doc.saved || {}; doc.searches = doc.searches || []; doc.notes = doc.notes || [];
+      doc.saved = doc.saved || {}; doc.searches = doc.searches || []; doc.notes = doc.notes || []; doc.watch = doc.watch || {};
       if (!doc.created) { doc.created = now(); persist(); }
       renderHeader(); A.refreshSaved(); checkUpdates();
     }).catch(function (e) { console.error(e); toast('Gat ekki sótt vistuð gögn: ' + e.message); });

@@ -61,6 +61,13 @@
     $('valForm').addEventListener('submit', function (e) { e.preventDefault(); runValue(); });
     if (last.make) runValue();
   }
+  function estimateMine(v) {
+    var full = (v.model + ' ' + (v.extra || '')).toUpperCase();
+    var c = A.prep({ id: 'val', make: v.make, model: full, title: v.make + ' ' + full, year: v.year, km: v.km, fuel: FUEL_TXT[v.fuel],
+      trans: v.trans === 'sj' ? 'Sjálfskipting' : 'Beinskipting', drive: /4X4|AWD|4MATIC|QUATTRO|XDRIVE/.test(full) ? 'Fjórhjóladrif' : '', price: 1, src: 'val' });
+    c.base = v.model; c.key = c.make + '|' + c.base; c.fcat = v.fuel;
+    return { c: c, r: A.model().estimate(c) };
+  }
   function runValue() {
     var v = { make: $('vMake').value, model: $('vModel').value, year: num('vYear'), km: num('vKm'), fuel: $('vFuel').value, trans: $('vTrans').value, extra: $('vExtra').value.trim() };
     store('valuation', v);
@@ -108,7 +115,8 @@
       '<details class="cost-more"><summary>Forsendur (breyttu að vild)</summary><div class="cost-inputs">' +
       inp('cPetrol', 'Bensín', p.petrol, 1, 'kr/l') + inp('cDiesel', 'Dísel', p.diesel, 1, 'kr/l') + inp('cKwh', 'Rafmagn', p.kwh, 1, 'kr/kWh') +
       inp('cKmFee', 'Kílómetragjald', p.kmFee, 0.1, 'kr/km') + inp('cIns', 'Tryggingar', p.insurance, 5000, 'kr/ár') + inp('cTax', 'Bifreiðagjöld', p.tax, 1000, 'kr/ár') +
-      inp('cUp', 'Viðhald og dekk', p.upkeep, 5000, 'kr/ár') + '</div><p class="note">Áætlanir. Vextir, eldsneytisverð og gjöld breytast, og tryggingar og bifreiðagjöld fara eftir bíl og ökumanni.</p></details></div></div>';
+      inp('cUp', 'Viðhald og dekk', p.upkeep, 5000, 'kr/ár') + '</div><p class="note">Áætlanir. Vextir, eldsneytisverð og gjöld breytast, og tryggingar og bifreiðagjöld fara eftir bíl og ökumanni.</p></details></div></div>' +
+      '<h4>🔄 Bílaskipti</h4><div class="cost-box" id="cTrade"></div><div id="cAlt"></div>';
     function calc() {
       var q = { down: num('cDown'), rate: num('cRate'), years: num('cYears'), kmYear: num('cKm'), petrol: num('cPetrol'), diesel: num('cDiesel'), kwh: num('cKwh'),
         kmFee: num('cKmFee'), insurance: num('cIns'), tax: num('cTax'), upkeep: num('cUp') };
@@ -136,6 +144,49 @@
     }
     el.addEventListener('input', calc);
     calc();
+    trade(c);
+    alternatives(c);
+  }
+
+  // bílaskipti: bíllinn þinn (úr „Hvað er bíllinn minn virði?“) upp í þennan
+  function trade(c) {
+    var el = $('cTrade'), v = store('valuation');
+    if (!v || !v.make) {
+      el.innerHTML = '<p class="note" style="margin:0">Viltu setja bílinn þinn upp í? Verðmettu hann fyrst, þá reiknast milligjöfin hér.</p>' +
+        '<div class="actions"><button type="button" class="sec" id="tValue">💰 Verðmeta bílinn minn</button></div>';
+      $('tValue').addEventListener('click', openValue);
+      return;
+    }
+    var m = estimateMine(v), tradeIn = m.r.est * 0.85, diff = c.price - tradeIn;
+    var q = Object.assign({}, DEF, store('costs') || {}), r = q.rate / 100 / 12, n = Math.max(1, q.years * 12);
+    var pay = diff > 0 ? (r ? diff * r / (1 - Math.pow(1 + r, -n)) : diff / n) : 0;
+    el.innerHTML = '<div class="trade-row"><span>Bíllinn þinn: <b>' + esc(A.cap(v.make) + ' ' + A.cap(v.model)) + '</b> ' + v.year + ', ' + A.kmFmt(v.km) + '</span>' +
+      '<span>metinn ~' + mkr(m.r.est) + ', uppítaka ~<b>' + mkr(tradeIn) + '</b></span></div>' +
+      '<div class="trade-sum"><div><span class="note">Milligjöf</span><b>' + (diff > 0 ? A.kr(diff) : 'Þú færð ~' + A.kr(-diff) + ' til baka') + '</b></div>' +
+      (diff > 0 ? '<div><span class="note">Ef milligjöfin er öll tekin að láni (' + q.rate + '%, ' + q.years + ' ár)</span><b>' + A.kr(pay) + ' á mán.</b></div>' : '') + '</div>' +
+      '<p class="note">Uppítökuverð er áætlað 15% undir markaðsverði; bílasölur meta bílinn sjálfar. <button type="button" class="link" id="tEdit">Breyta bílnum mínum</button></p>';
+    $('tEdit').addEventListener('click', openValue);
+  }
+
+  // valkostir: aðrar gerðir í sama verð- og stærðarflokki, besti bíllinn af hverri
+  function alternatives(c) {
+    var ev = c.fcat === 'Rafmagn';
+    var pool = A.cars().filter(function (o) {
+      return o.base !== c.base && o.suv === c.suv && (o.fcat === 'Rafmagn') === ev && o.price >= c.price * 0.8 && o.price <= c.price * 1.2 &&
+        Math.abs((o.year || 0) - (c.year || 0)) <= 2 && o.peers >= 2 && o.dev > -0.5 && !(o.fl && o.fl.some(function (x) { return /tjon|ryd|laga/.test(x); }));
+    });
+    var best = {};
+    pool.forEach(function (o) { var k = o.make + '|' + o.base; if (!best[k] || o.dev < best[k].dev) best[k] = o; });
+    var list = Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.dev - b.dev; }).slice(0, 6);
+    if (!list.length) return;
+    $('cAlt').innerHTML = '<h4>💡 Valkostir á svipuðu verði</h4><p class="note">Aðrar ' + (c.suv ? 'jepplinga/jeppa' : 'gerðir') + (ev ? ' (rafmagn)' : '') +
+      ' á ' + mkr(c.price * 0.8) + '–' + mkr(c.price * 1.2) + ', árgerð ' + ((c.year || 0) - 2) + '–' + ((c.year || 0) + 2) + '. Besta verðið af hverri gerð.</p>' +
+      '<div class="alt-grid">' + list.map(function (o) {
+        var vd = A.verdict(o);
+        return '<button type="button" class="alt" data-open="' + esc(o.id) + '">' + (A.img(o) ? '<img src="' + esc(A.img(o)) + '" alt="" loading="lazy">' : '<span class="noimg"></span>') +
+          '<b>' + esc(A.cap(o.make) + ' ' + A.cap(o.base)) + '</b><span>' + (o.year || '') + ' · ' + A.kmFmt(o.km) + '</span><span class="price">' + A.kr(o.price) + '</span>' +
+          '<span class="badge ' + vd.cls + '">' + vd.txt + '</span></button>';
+      }).join('') + '</div>';
   }
 
   // ---------- 📊 Markaðurinn ----------
@@ -374,6 +425,28 @@
   $('openValue').addEventListener('click', openValue);
   $('openMarket').addEventListener('click', openMarket);
   $('openMap').addEventListener('click', openMap);
+
+  // ---------- ljóst / dökkt útlit ----------
+  $('themeBtn').addEventListener('click', function () {
+    var cur = document.documentElement.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+
+  // ---------- setja á heimaskjá ----------
+  var deferred = null, standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; $('installBtn').hidden = false; });
+  if (ios && !standalone) $('installBtn').hidden = false;
+  $('installBtn').addEventListener('click', function () {
+    if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; $('installBtn').hidden = true; }); return; }
+    A.openModal('<div class="m narrow"><div class="m-head"><h2>📲 Setja á heimaskjá</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<ol class="install-steps"><li>Ýttu á <b>Deila</b>-takkann neðst í Safari (ferningur með ör upp ⬆️)</li><li>Skrunaðu niður og veldu <b>„Add to Home Screen“ / „Setja á heimaskjá“</b></li>' +
+      '<li>Ýttu á <b>Bæta við</b>. Bílaleit opnast þá eins og app.</li></ol></div>');
+  });
+  window.addEventListener('appinstalled', function () { $('installBtn').hidden = true; });
 
   window.Features = { carExtras: carExtras, historyReady: historyReady };
 })();
