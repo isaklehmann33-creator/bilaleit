@@ -9,3 +9,6 @@ window.FIREBASE_CONFIG = {
 };
 // Aðgangur stjórnanda (eigandans). Sama auðkenni er í firestore.rules, sem er það sem gildir.
 window.ADMIN_UID = "";
+
+// Útgáfa síðunnar (deploy.sh uppfærir); app.js endurhleður sig þegar version.json breytist
+window.APP_VERSION = '1794236217';
