@@ -1,0 +1,302 @@
+{
+"1": {
+"addr": "Hlíðasmára 13, 201 Kópavogur",
+"name": "Netbifreiðasalan"
+},
+"10": {
+"addr": "Krókhálsi 7, 110 Reykjavík",
+"name": "Bílamiðstöðin"
+},
+"100": {
+"addr": "Helluhrauni 4, 220 Hafnarfjörður",
+"name": "Bílaplan.is"
+},
+"105": {
+"addr": "Hólshrauni 5, 220 Hafnarfjörður",
+"name": "Bílagallerí"
+},
+"108": {
+"addr": "Völuteigi 4, 270 Mosfellsbær",
+"name": "Vinnuvélar og Ásafl"
+},
+"114": {
+"addr": "Stekkjarbakka 4, 109 Reykjavík",
+"name": "Gæðabílar"
+},
+"12": {
+"addr": "Hrísmýri 3, 800 Selfoss",
+"name": "Bílasala Selfoss"
+},
+"122": {
+"addr": "Blikavöllum 3, 230 Reykjanesbær",
+"name": "Blue bíll"
+},
+"123": {
+"addr": "Holtsgötu 52, 260 Reykjanesbær",
+"name": "Bílasala Reykjaness"
+},
+"124": {
+"addr": "Gylfaflöt 6-8, 112 Reykjavík",
+"name": "Bifreiðakaup"
+},
+"125": {
+"addr": "Suðurhrauni 10, 210 Garðabær",
+"name": "Trucks ehf."
+},
+"126": {
+"addr": "Kletthálsi 11, 110 Reykjavík",
+"name": "Íslandsbílar"
+},
+"128": {
+"addr": "Skútuvogi 4, 104 Reykjavík",
+"name": "Bílakompaní"
+},
+"13": {
+"addr": "Malarhöfða 2, 110 Reykjavík",
+"name": "Bílasalan Bílfang"
+},
+"131": {
+"addr": "Trönuhrauni 5, 220 Hafnarfjörður",
+"name": "Vallarbraut"
+},
+"134": {
+"addr": "Hólmbergsbraut 5, 230 Reykjanesbær",
+"name": "Plús Gallery bílasala"
+},
+"135": {
+"addr": "Vatnagörðum 24, 104 Reykjavík",
+"name": "Tesla Motors Iceland"
+},
+"137": {
+"addr": "Kletthálsi 15, 110 Reykjavík",
+"name": "Stormur"
+},
+"145": {
+"addr": "Tunguhálsi 6, 110 Reykjavík",
+"name": "Bíladílar"
+},
+"146": {
+"addr": "Fosshálsi 1, 110 Reykjavík",
+"name": "Draumabílar"
+},
+"148": {
+"addr": "Njarðarbraut 11, 260 Reykjanesbær",
+"name": "Askja Reykjanesbæ"
+},
+"15": {
+"addr": "Funahöfða 1, 110 Reykjavík",
+"name": "Borgarbílasalan"
+},
+"151": {
+"addr": "Bugðufljóti 11, 270 Mosfellsbær",
+"name": "Saga Motors"
+},
+"156": {
+"addr": "Álhellu 7, 221 Hafnarfjörður",
+"name": "Véltindar"
+},
+"158": {
+"addr": "Gilsbúð 3, 210 Garðabær",
+"name": "Bæjarbílar"
+},
+"16": {
+"addr": "Funahöfða 1, 110 Reykjavík",
+"name": "Höfðahöllin"
+},
+"165": {
+"addr": "Kletthálsi 2, 110 Reykjavík",
+"name": "K2 bílar"
+},
+"168": {
+"addr": "Hólshrauni 5, 220 Hafnarfjörður",
+"name": "Bílasala Bjössa"
+},
+"169": {
+"addr": "Háaleitisbraut 12, 108 Reykjavík",
+"name": "Aðalbílasalan"
+},
+"170": {
+"addr": "Hamarshöfða 1, 110 Reykjavík",
+"name": "Bílsýn"
+},
+"19": {
+"addr": "Krókhálsi 7, 110 Reykjavík",
+"name": "Bílaland"
+},
+"2": {
+"addr": "Skógarhlíð 10, 105 Reykjavík",
+"name": "Bílasala Íslands"
+},
+"22": {
+"addr": "Kletthálsi 2, 110 Reykjavík",
+"name": "Bílalíf"
+},
+"24": {
+"addr": "Njarðarbraut 19, 260 Reykjanesbær",
+"name": "Toyota Reykjanesbæ"
+},
+"26": {
+"addr": "Þórsstíg 2, 600 Akureyri",
+"name": "Höldur, notaðir bílar"
+},
+"27": {
+"addr": "Freyjunesi 2, 603 Akureyri",
+"name": "Bílasala Akureyrar"
+},
+"28": {
+"addr": "Baldursnesi 1, 603 Akureyri",
+"name": "Toyota Akureyri"
+},
+"29": {
+"addr": "Malarhöfða 2a, 110 Reykjavík",
+"name": "bíll.is"
+},
+"31": {
+"addr": "Smiðjuvöllum 17, 300 Akranes",
+"name": "Bílasalan Bílás"
+},
+"32": {
+"addr": "Krókhálsi 9, 110 Reykjavík",
+"name": "Bílabúð Benna Reykjavík"
+},
+"33": {
+"addr": "Kletthálsi 11, 110 Reykjavík",
+"name": "Bílalind"
+},
+"34": {
+"addr": "Kletthálsi 2, 110 Reykjavík",
+"name": "Toppbílar"
+},
+"36": {
+"addr": "Eldshöfða 18, 110 Reykjavík",
+"name": "Bílasalan Geisli"
+},
+"37": {
+"addr": "Gránufélagsgötu 45, 600 Akureyri",
+"name": "BB bílar, betri bílar"
+},
+"4": {
+"addr": "Fossnesi 14, 800 Selfoss",
+"name": "Toyota Selfossi"
+},
+"40": {
+"addr": "Smiðjuvegi 44e, 200 Kópavogur",
+"name": "Bílamarkaðurinn"
+},
+"42": {
+"addr": "Hátúni 6a, 105 Reykjavík",
+"name": "Sparibíll"
+},
+"43": {
+"addr": "Stórhöfða 15, 110 Reykjavík",
+"name": "Bílasala Guðfinns"
+},
+"45": {
+"addr": "Tónahvarfi 6L, 203 Kópavogur",
+"name": "Vinnubilar.is"
+},
+"46": {
+"addr": "Njarðarbraut 15, 260 Reykjanesbær",
+"name": "K. Steinarsson"
+},
+"47": {
+"addr": "Kletthálsi 2, 110 Reykjavík",
+"name": "Heimsbílar"
+},
+"49": {
+"addr": "Stekkjarbakka 6, 109 Reykjavík",
+"name": "diesel.is"
+},
+"5": {
+"addr": "Bíldshöfða 10, 110 Reykjavík",
+"name": "Bílasala Reykjavíkur"
+},
+"53": {
+"addr": "Krókhálsi 7, 110 Reykjavík",
+"name": "Bílabankinn"
+},
+"55": {
+"addr": "Fosshálsi 27 (Dragháls megin), 110 Reykjavík",
+"name": "Höfðabílar"
+},
+"56": {
+"addr": "Stekkjarbakka 4, 109 Reykjavík",
+"name": "100 bílar"
+},
+"6": {
+"addr": "Kletthálsi 2, 110 Reykjavík",
+"name": "Nýja bílahöllin"
+},
+"61": {
+"addr": "Fossnesi A, 800 Selfoss",
+"name": "IB ehf."
+},
+"63": {
+"addr": "Njarðarbraut 13, 260 Reykjanesbær",
+"name": "Bílakjarninn"
+},
+"65": {
+"addr": "Þverholti 6, 270 Mosfellsbær",
+"name": "ÍSBAND"
+},
+"68": {
+"addr": "Miðási 2, 700 Egilsstaðir",
+"name": "Bílasala Austurlands"
+},
+"71": {
+"addr": "Núpalind 1 (Lindum, Kópavogi), 201 Kópavogur",
+"name": "Netbilar.is"
+},
+"76": {
+"addr": "Kauptúni 6, 210 Garðabær",
+"name": "Toyota Betri notaðir bílar"
+},
+"77": {
+"addr": "Kletthálsi 2, 110 Reykjavík",
+"name": "Stóra bílasalan"
+},
+"8": {
+"addr": "Smiðshöfða 17 (Stórhöfðamegin), 110 Reykjavík",
+"name": "Bílaborg"
+},
+"80": {
+"addr": "Þorraholti 2, 210 Garðabær",
+"name": "Hekla, notaðir bílar"
+},
+"81": {
+"addr": "Krókhálsi 7, 110 Reykjavík",
+"name": "Askja, notaðir bílar"
+},
+"85": {
+"addr": "Lónsbakka, 604 Akureyri",
+"name": "Bílaríki"
+},
+"86": {
+"addr": "Víkurhvarfi 6, 203 Kópavogur",
+"name": "Víkurverk"
+},
+"9": {
+"addr": "Bíldshöfða 5, 110 Reykjavík",
+"name": "Bílahöllin"
+},
+"92": {
+"addr": "Bíldshöfða 6-8, 110 Reykjavík",
+"name": "Brimborg"
+},
+"94": {
+"addr": "Tryggvabraut 5, 600 Akureyri",
+"name": "Brimborg Akureyri"
+},
+"96": {
+"addr": "Skeifunni 17, 108 Reykjavík",
+"name": "Suzuki bílar"
+},
+"98": {
+"addr": "Selhellu 5, 221 Hafnarfjörður",
+"name": "Hertz bílasala"
+},
+"99": {
+"addr": "Bugðufljóti 7, 270 Mosfellsbær",
+"name": "Útilegumaðurinn"
+}
+}

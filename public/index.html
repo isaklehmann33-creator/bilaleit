@@ -69,7 +69,10 @@
 
   <section>
     <div class="status"><span id="count">Hleð inn…</span><span id="updated"></span></div>
-    <div class="toolbar"><button type="button" id="saveSearch" class="ghost">🔔 Vista leit og fá tilkynningar</button><a id="fbLink" class="ghost" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></div>
+    <div class="views" id="views"><button type="button" class="on" data-view="">Allir bílar</button><button type="button" data-view="new">🆕 Nýtt <b id="nNew"></b></button><button type="button" data-view="drop">📉 Lækkað í verði <b id="nDrop"></b></button><button type="button" id="locPill" class="loc-pill" hidden></button></div>
+    <input type="hidden" id="fView" value="">
+    <input type="hidden" id="fLoc" value="">
+    <div class="toolbar"><button type="button" id="openValue" class="ghost">💰 Hvað er bíllinn minn virði?</button><button type="button" id="openMarket" class="ghost">📊 Markaðurinn</button><button type="button" id="openMap" class="ghost">🗺️ Kort</button><button type="button" id="saveSearch" class="ghost">🔔 Vista leit og fá tilkynningar</button><a id="fbLink" class="ghost" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></div>
     <div id="modelChips" class="model-chips" hidden></div>
     <div id="results" class="grid"></div>
     <button type="button" id="more" class="ghost more" hidden>Sýna fleiri</button>
@@ -94,5 +97,6 @@
 <script src="firebase-config.js"></script>
 <script src="app.js"></script>
 <script src="account.js"></script>
+<script src="features.js"></script>
 </body>
 </html>

@@ -1,0 +1,691 @@
+{
+"": null,
+"101 Reykjavík": [
+64.14598,
+-21.94224
+],
+"102": [
+64.1323,
+-21.94573
+],
+"103 Reykjavík": [
+64.14598,
+-21.94224
+],
+"104 Reykjavík": [
+64.14598,
+-21.94224
+],
+"105 Reykjavík": [
+64.14598,
+-21.94224
+],
+"107 Reykjavík": [
+64.14598,
+-21.94224
+],
+"108 Reykjavík": [
+64.14598,
+-21.94224
+],
+"109 Reykjavík": [
+64.14598,
+-21.94224
+],
+"110 Reykjavík": [
+64.14598,
+-21.94224
+],
+"111 Reykjavík": [
+64.14598,
+-21.94224
+],
+"112 Reykjavík": [
+64.14598,
+-21.94224
+],
+"113 Reykjavík": [
+64.14598,
+-21.94224
+],
+"116 Reykjavík": [
+64.14598,
+-21.94224
+],
+"132 Reykjavík": [
+64.14598,
+-21.94224
+],
+"161": [
+64.09633,
+-21.73841
+],
+"170 Seltjarnarnesi": [
+64.1508,
+-21.99293
+],
+"190 Vogum": [
+65.85403,
+-22.4632
+],
+"200 Kópavogi": [
+64.11078,
+-21.89494
+],
+"200 Kópavogur": [
+64.11135,
+-21.90481
+],
+"201 Kópavogi": [
+64.11078,
+-21.89494
+],
+"201 Kópavogur": [
+64.11135,
+-21.90481
+],
+"203 Kópavogi": [
+64.11078,
+-21.89494
+],
+"203 Kópavogur": [
+64.11135,
+-21.90481
+],
+"210 Garðabæ": [
+64.08803,
+-21.9194
+],
+"210 Garðabær": [
+64.08803,
+-21.9194
+],
+"220 Hafnarfirði": [
+64.0752,
+-21.94601
+],
+"220 Hafnarfjörður": [
+64.06954,
+-21.95757
+],
+"221 Hafnarfirði": [
+64.06482,
+-21.95065
+],
+"221 Hafnarfjörður": [
+64.06954,
+-21.95757
+],
+"225 Álftanesi": [
+64.10395,
+-22.01876
+],
+"230 Reykjanesbæ": [
+63.99866,
+-22.56144
+],
+"230 Reykjanesbær": [
+63.98327,
+-22.55615
+],
+"235 Reykjanesbæ": [
+63.99866,
+-22.56144
+],
+"240 Grindavík": [
+63.84424,
+-22.43175
+],
+"245 Sandgerði": [
+64.03881,
+-22.70593
+],
+"250 Garði": [
+64.0729,
+-22.65506
+],
+"251": [
+64.07366,
+-22.66623
+],
+"26": [
+64.09633,
+-21.05097
+],
+"260 Reykjanesbæ": [
+63.99866,
+-22.56144
+],
+"260 Reykjanesbær": [
+63.98327,
+-22.55615
+],
+"262": [
+63.96915,
+-22.57354
+],
+"270 Mosfellsbæ": [
+64.16563,
+-21.705
+],
+"270 Mosfellsbær": [
+64.16749,
+-21.69713
+],
+"271 Mosfellsbæ": [
+64.16569,
+-21.70505
+],
+"276 Mosfellsbæ": [
+64.16563,
+-21.705
+],
+"300 Akranes": [
+64.31708,
+-22.08335
+],
+"300 Akranesi": [
+64.31708,
+-22.08335
+],
+"301 Akranesi": [
+64.31708,
+-22.08335
+],
+"310 Borgarnesi": [
+64.53833,
+-21.92021
+],
+"311 Borgarnesi": [
+64.53833,
+-21.92021
+],
+"320 Reykholt í Borgarfirði": null,
+"341": [
+65.00641,
+-22.77071
+],
+"342": [
+64.83907,
+-22.60813
+],
+"350 Grundarfirði": [
+64.92525,
+-23.2587
+],
+"355 Ólafsvík": [
+64.89593,
+-23.70843
+],
+"360 Hellissandi": [
+64.91194,
+-23.88916
+],
+"400 Ísafirði": [
+66.05485,
+-23.14227
+],
+"540 Blönduósi": [
+65.6466,
+-20.27057
+],
+"541 Blönduósi": [
+65.65965,
+-20.28275
+],
+"545 Skagaströnd": [
+65.82332,
+-20.30056
+],
+"550 Sauðárkróki": [
+65.74019,
+-19.58207
+],
+"580 Siglufirði": [
+66.1502,
+-18.90865
+],
+"600 Akureyri": [
+65.6839,
+-18.11218
+],
+"601 Akureyri": [
+65.6839,
+-18.11218
+],
+"603 Akureyri": [
+65.6839,
+-18.11218
+],
+"604": [
+65.73289,
+-18.23681
+],
+"604 Akureyri": [
+65.6839,
+-18.11218
+],
+"607": [
+65.69325,
+-17.85479
+],
+"616": [
+65.97973,
+-18.07829
+],
+"620 Dalvík": [
+65.97109,
+-18.53044
+],
+"621 Dalvík": [
+65.97109,
+-18.53044
+],
+"640 Húsavík": [
+66.04332,
+-17.34104
+],
+"691": [
+65.707,
+-14.92216
+],
+"700 Egilsstaðir": [
+65.26204,
+-14.40353
+],
+"700 Egilsstöðum": [
+63.94547,
+-21.18014
+],
+"701 Egilsstöðum": [
+63.94547,
+-21.18014
+],
+"710 Seyðisfirði": [
+65.26424,
+-13.99677
+],
+"719": null,
+"730 Reyðarfirði": [
+65.03199,
+-14.20023
+],
+"735 Eskifirði": [
+65.07426,
+-14.01759
+],
+"740 Neskaupstað": [
+65.14841,
+-13.67556
+],
+"750 Fáskrúðsfirði": null,
+"780 Höfn í Hornafirði": [
+64.25326,
+-15.20804
+],
+"800 Selfoss": [
+63.93681,
+-21.00353
+],
+"800 Selfossi": [
+63.94808,
+-21.01531
+],
+"801 Selfossi": [
+63.94808,
+-21.01531
+],
+"803": [
+63.90764,
+-20.81379
+],
+"805": [
+64.0581,
+-20.86826
+],
+"810 Hveragerði": [
+63.99759,
+-21.18683
+],
+"815 Þorlákshöfn": [
+63.85616,
+-21.38663
+],
+"816 Þorlákshöfn": [
+63.85616,
+-21.38663
+],
+"820 Eyrarbakka": [
+63.86735,
+-21.1667
+],
+"825 Stokkseyri": [
+63.83697,
+-21.06115
+],
+"845 Flúðum": [
+65.32779,
+-14.48083
+],
+"850 Hellu": [
+65.71262,
+-21.60397
+],
+"851 Hellu": [
+65.71262,
+-21.60397
+],
+"860 Hvolsvelli": [
+63.75355,
+-20.22992
+],
+"861 Hvolsvelli": [
+63.75355,
+-20.22992
+],
+"870 Vík": [
+63.41882,
+-19.00547
+],
+"880 Kirkjubæjarklaustri": [
+63.78701,
+-18.0531
+],
+"900 Vestmannaeyjum": [
+63.44429,
+-20.2613
+],
+"Baldursnesi 1, 603 Akureyri": null,
+"Blikavöllum 3, 230 Reykjanesbær": null,
+"Bugðufljóti 11, 270 Mosfellsbær": null,
+"Bugðufljóti 7, 270 Mosfellsbær": null,
+"Bíldshöfða 10, 110 Reykjavík": null,
+"Bíldshöfða 5, 110 Reykjavík": null,
+"Bíldshöfða 6-8, 110 Reykjavík": null,
+"Eldshöfða 18, 110 Reykjavík": null,
+"Fosshálsi 1, 110 Reykjavík": null,
+"Fosshálsi 27 (Dragháls megin), 110 Reykjavík": null,
+"Fossnesi 14, 800 Selfoss": null,
+"Fossnesi A, 800 Selfoss": null,
+"Freyjunesi 2, 603 Akureyri": null,
+"Funahöfða 1, 110 Reykjavík": null,
+"Fáskrúðsfirði": null,
+"Gilsbúð 3, 210 Garðabær": [
+64.092,
+-21.8977
+],
+"Gránufélagsgötu 45, 600 Akureyri": null,
+"Gylfaflöt 6-8, 112 Reykjavík": [
+64.1422,
+-21.80352
+],
+"Hamarshöfða 1, 110 Reykjavík": null,
+"Helluhrauni 4, 220 Hafnarfjörður": null,
+"Hlíðasmára 13, 201 Kópavogur": null,
+"Holtsgötu 52, 260 Reykjanesbær": null,
+"Hrísmýri 3, 800 Selfoss": [
+63.94664,
+-21.01074
+],
+"Háaleitisbraut 12, 108 Reykjavík": [
+64.1374,
+-21.89091
+],
+"Hátúni 6a, 105 Reykjavík": null,
+"Hólmbergsbraut 5, 230 Reykjanesbær": null,
+"Hólshrauni 5, 220 Hafnarfjörður": null,
+"Kauptúni 6, 210 Garðabær": null,
+"Kletthálsi 11, 110 Reykjavík": null,
+"Kletthálsi 15, 110 Reykjavík": null,
+"Kletthálsi 2, 110 Reykjavík": null,
+"Krókhálsi 7, 110 Reykjavík": null,
+"Krókhálsi 9, 110 Reykjavík": null,
+"Lónsbakka, 604 Akureyri": null,
+"Malarhöfða 2, 110 Reykjavík": null,
+"Malarhöfða 2a, 110 Reykjavík": null,
+"Miðási 2, 700 Egilsstaðir": null,
+"Njarðarbraut 11, 260 Reykjanesbær": [
+63.97195,
+-22.53413
+],
+"Njarðarbraut 13, 260 Reykjanesbær": [
+63.97208,
+-22.53576
+],
+"Njarðarbraut 15, 260 Reykjanesbær": [
+63.97234,
+-22.53778
+],
+"Njarðarbraut 19, 260 Reykjanesbær": [
+63.97255,
+-22.53938
+],
+"Núpalind 1 (Lindum, Kópavogi), 201 Kópavogur": null,
+"Reykholt í Borgarfirði": null,
+"Selhellu 5, 221 Hafnarfjörður": null,
+"Skeifunni 17, 108 Reykjavík": null,
+"Skógarhlíð 10, 105 Reykjavík": [
+64.13394,
+-21.92078
+],
+"Skútuvogi 4, 104 Reykjavík": null,
+"Smiðjuvegi 44e, 200 Kópavogur": null,
+"Smiðjuvöllum 17, 300 Akranes": null,
+"Smiðshöfða 17 (Stórhöfðamegin), 110 Reykjavík": null,
+"Stekkjarbakka 4, 109 Reykjavík": null,
+"Stekkjarbakka 6, 109 Reykjavík": null,
+"Stórhöfða 15, 110 Reykjavík": null,
+"Suðurhrauni 10, 210 Garðabær": null,
+"Tryggvabraut 5, 600 Akureyri": [
+65.69014,
+-18.09805
+],
+"Trönuhrauni 5, 220 Hafnarfjörður": null,
+"Tunguhálsi 6, 110 Reykjavík": null,
+"Tónahvarfi 6L, 203 Kópavogur": null,
+"Vatnagörðum 24, 104 Reykjavík": null,
+"Víkurhvarfi 6, 203 Kópavogur": null,
+"Völuteigi 4, 270 Mosfellsbær": null,
+"v2:Baldursnesi 1, 603 Akureyri": [
+65.69666,
+-18.12428
+],
+"v2:Blikavöllum 3, 230 Reykjanesbær": null,
+"v2:Bugðufljóti 11, 270 Mosfellsbær": null,
+"v2:Bugðufljóti 7, 270 Mosfellsbær": null,
+"v2:Bíldshöfða 10, 110 Reykjavík": [
+64.12467,
+-21.8216
+],
+"v2:Bíldshöfða 5, 110 Reykjavík": [
+64.12498,
+-21.83205
+],
+"v2:Bíldshöfða 6-8, 110 Reykjavík": null,
+"v2:Eldshöfða 18, 110 Reykjavík": [
+64.13113,
+-21.8251
+],
+"v2:Fosshálsi 1, 110 Reykjavík": [
+64.12209,
+-21.7979
+],
+"v2:Fosshálsi 27 (Dragháls megin), 110 Reykjavík": null,
+"v2:Fossnesi 14, 800 Selfoss": [
+63.94808,
+-21.01531
+],
+"v2:Fossnesi A, 800 Selfoss": null,
+"v2:Freyjunesi 2, 603 Akureyri": [
+65.69693,
+-18.12035
+],
+"v2:Funahöfða 1, 110 Reykjavík": [
+64.12738,
+-21.82425
+],
+"v2:Gilsbúð 3, 210 Garðabær": [
+64.092,
+-21.8977
+],
+"v2:Gránufélagsgötu 45, 600 Akureyri": [
+65.68664,
+-18.08216
+],
+"v2:Gylfaflöt 6-8, 112 Reykjavík": [
+64.1422,
+-21.80352
+],
+"v2:Hamarshöfða 1, 110 Reykjavík": [
+64.12789,
+-21.8154
+],
+"v2:Helluhrauni 4, 220 Hafnarfjörður": [
+64.07636,
+-21.94432
+],
+"v2:Hlíðasmára 13, 201 Kópavogur": [
+64.09714,
+-21.88715
+],
+"v2:Holtsgötu 52, 260 Reykjanesbær": [
+63.98366,
+-22.55087
+],
+"v2:Hrísmýri 3, 800 Selfoss": [
+63.94664,
+-21.01074
+],
+"v2:Háaleitisbraut 12, 108 Reykjavík": [
+64.1374,
+-21.89091
+],
+"v2:Hátúni 6a, 105 Reykjavík": [
+64.14221,
+-21.90012
+],
+"v2:Hólmbergsbraut 5, 230 Reykjanesbær": null,
+"v2:Hólshrauni 5, 220 Hafnarfjörður": [
+64.08227,
+-21.93838
+],
+"v2:Kauptúni 6, 210 Garðabær": [
+64.07264,
+-21.91831
+],
+"v2:Kletthálsi 11, 110 Reykjavík": [
+64.11632,
+-21.78187
+],
+"v2:Kletthálsi 15, 110 Reykjavík": [
+64.11501,
+-21.78302
+],
+"v2:Kletthálsi 2, 110 Reykjavík": [
+64.11644,
+-21.78385
+],
+"v2:Krókhálsi 7, 110 Reykjavík": [
+64.12212,
+-21.786
+],
+"v2:Krókhálsi 9, 110 Reykjavík": [
+64.12329,
+-21.78162
+],
+"v2:Lónsbakka, 604 Akureyri": null,
+"v2:Malarhöfða 2, 110 Reykjavík": [
+64.12477,
+-21.8358
+],
+"v2:Malarhöfða 2a, 110 Reykjavík": [
+64.12478,
+-21.83496
+],
+"v2:Miðási 2, 700 Egilsstaðir": [
+65.25776,
+-14.398
+],
+"v2:Njarðarbraut 11, 260 Reykjanesbær": [
+63.97195,
+-22.53413
+],
+"v2:Njarðarbraut 13, 260 Reykjanesbær": [
+63.97208,
+-22.53576
+],
+"v2:Njarðarbraut 15, 260 Reykjanesbær": [
+63.97234,
+-22.53778
+],
+"v2:Njarðarbraut 19, 260 Reykjanesbær": [
+63.97255,
+-22.53938
+],
+"v2:Núpalind 1 (Lindum, Kópavogi), 201 Kópavogur": null,
+"v2:Selhellu 5, 221 Hafnarfjörður": [
+64.04725,
+-21.98721
+],
+"v2:Skeifunni 17, 108 Reykjavík": null,
+"v2:Skógarhlíð 10, 105 Reykjavík": [
+64.13394,
+-21.92078
+],
+"v2:Skútuvogi 4, 104 Reykjavík": null,
+"v2:Smiðjuvegi 44e, 200 Kópavogur": [
+64.11103,
+-21.85328
+],
+"v2:Smiðjuvöllum 17, 300 Akranes": null,
+"v2:Smiðshöfða 17 (Stórhöfðamegin), 110 Reykjavík": null,
+"v2:Stekkjarbakka 4, 109 Reykjavík": [
+64.11223,
+-21.84228
+],
+"v2:Stekkjarbakka 6, 109 Reykjavík": [
+64.11146,
+-21.84241
+],
+"v2:Stórhöfða 15, 110 Reykjavík": [
+64.1292,
+-21.8136
+],
+"v2:Suðurhrauni 10, 210 Garðabær": [
+64.08038,
+-21.92677
+],
+"v2:Tryggvabraut 5, 600 Akureyri": [
+65.69014,
+-18.09805
+],
+"v2:Trönuhrauni 5, 220 Hafnarfjörður": [
+64.07913,
+-21.94764
+],
+"v2:Tunguhálsi 6, 110 Reykjavík": [
+64.11876,
+-21.78642
+],
+"v2:Tónahvarfi 6L, 203 Kópavogur": null,
+"v2:Vatnagörðum 24, 104 Reykjavík": null,
+"v2:Víkurhvarfi 6, 203 Kópavogur": null,
+"v2:Völuteigi 4, 270 Mosfellsbær": null,
+"v2:Álhellu 7, 221 Hafnarfjörður": [
+64.04141,
+-22.02027
+],
+"v2:Þorraholti 2, 210 Garðabær": [
+64.0943,
+-21.8835
+],
+"v2:Þverholti 6, 270 Mosfellsbær": [
+64.1681,
+-21.69838
+],
+"v2:Þórsstíg 2, 600 Akureyri": null,
+"Álhellu 7, 221 Hafnarfjörður": null,
+"Þorraholti 2, 210 Garðabær": null,
+"Þverholti 6, 270 Mosfellsbær": null,
+"Þórsstíg 2, 600 Akureyri": null
+}

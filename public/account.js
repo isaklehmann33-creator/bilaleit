@@ -12,7 +12,7 @@
   function now() { return Date.now(); }
   function when(t) {
     var d = new Date(t);
-    return d.toLocaleDateString('is-IS', { day: 'numeric', month: 'short' }) + ' kl. ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    return A.dateIs(d) + ' kl. ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
   }
   function snap(c) { return { title: A.cap(c.make) + ' ' + A.cap(c.model), price: c.price, year: c.year || null, km: c.km == null ? null : c.km, img: c.img || '', url: c.url, dealer: c.dealer, t: now() }; }
 

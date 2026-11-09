@@ -3,7 +3,11 @@ name: Uppfæra bíla
 on:
   schedule:
     - cron: "0 4 * * *"   # kl. 04:00 á hverri nóttu (Ísland = UTC)
-  workflow_dispatch: {}    # "Run workflow" takki á GitHub
+  workflow_dispatch:       # "Run workflow" takki á GitHub
+    inputs:
+      details_minutes:
+        description: "Mínútur til að sækja lýsingar (35 á nóttu; hærra til að ná upp)"
+        default: "35"
 
 permissions:
   contents: write
@@ -11,7 +15,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,10 +23,12 @@ jobs:
           python-version: "3.12"
       - name: Sækja auglýsingar
         run: python3 scrape.py
+        env:
+          DETAILS_BUDGET_MIN: ${{ github.event.inputs.details_minutes || '35' }}
       - name: Vista gögn í git
         run: |
           git config user.name "bilaleit-bot"
           git config user.email "bilaleit-bot@users.noreply.github.com"
-          git add public/data/cars.json public/data/history.json public/data/catalog.json dealers.json bland_cache.json
+          git add public/data/details public/data/cars.json public/data/history.json public/data/catalog.json public/data/places.json dealers.json dealer_addresses.json geo_cache.json bland_cache.json
           git diff --cached --quiet || git commit -m "Uppfærð bílagögn $(date -u +%F)"
           git pull --rebase -q && git push

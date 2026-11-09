@@ -6,6 +6,7 @@ Engin aukasöfn - bara Python staðalsafn, svo þetta keyrir beint í GitHub Act
 """
 import html
 import json
+import os
 import re
 import sys
 import time
@@ -160,6 +161,7 @@ def parse_askja(h):
 BS = "https://bilasolur.is/"
 BS_CATS = [0, 1, 2, 3, 8, 14, 28]  # fólksbíll, skutbíll, jeppi, pallbíll, sportbíll, fjölnotabíll, sportjeppi
 DEALERS = Path(__file__).parent / "dealers.json"  # bid -> nafn bílasölu, geymt milli keyrslna
+ADDRS = Path(__file__).parent / "dealer_addresses.json"  # bid -> {name, addr}
 
 
 def bs_opener():
@@ -229,6 +231,8 @@ def fetch_bilasolur():
 
     # nöfn bílasala: ein auglýsing á hverja nýja bílasölu, svo geymt í dealers.json
     names = json.loads(DEALERS.read_text("utf-8")) if DEALERS.exists() else {}
+    names = {k: (v.get("name", "") if isinstance(v, dict) else v) for k, v in names.items()}
+    addrs = json.loads(ADDRS.read_text("utf-8")) if ADDRS.exists() else {}
     for c in out:
         if c["bid"] not in names:
             try:
@@ -239,6 +243,15 @@ def fetch_bilasolur():
                 print(f"  náði ekki nafni sölu {c['bid']}: {e}", file=sys.stderr)
             time.sleep(2)
         c["dealer"] = names.get(c["bid"]) or f"Bílasala #{c['bid']}"
+        if c["bid"] not in addrs:  # heimilisfang bílasölunnar (fyrir kortið), sótt einu sinni
+            try:
+                d = op.open(f"{BS}BilasalaDetails.aspx?id={c['bid']}", timeout=30).read().decode("utf-8", "replace")
+                m = re.search(r'labelBilasalaNafn"[^>]*>.*?</span>\s*</div>\s*<div>\s*(.*?)\s*</div>\s*<div>\s*(.*?)\s*</div>', d, re.S)
+                addrs[c["bid"]] = {"name": c["dealer"], "addr": f"{text(m.group(1))}, {text(m.group(2))}" if m else ""}
+            except Exception as e:
+                print(f"  náði ekki heimilisfangi {c['bid']}: {e}", file=sys.stderr)
+            time.sleep(2)
+    ADDRS.write_text(json.dumps(addrs, ensure_ascii=False, indent=0, sort_keys=True), "utf-8")
     DEALERS.write_text(json.dumps(names, ensure_ascii=False, indent=0, sort_keys=True), "utf-8")
     return out
 
@@ -289,11 +302,13 @@ def parse_bland(h):
         attrs = {flat[i]: flat[i + 1] for i in range(len(flat) - 1) if flat[i] in ("Ár", "Skipting", "Akstur", "Eldsneyti")}
         price = next((x for x in flat if re.fullmatch(r"[\d.]+ kr\.?", x)), None)
         cover = re.search(r'data-cover="([^"]+)"', e)
+        town = re.search(r'classifiedAddress">\s*<a[^>]*>\s*([^<]+?)\s*</a>', e)
         out.append({"id": "bland-" + m.group(2), "dealer": "Bland.is (einstaklingur)", "url": BLAND + m.group(1),
                     "title": text(m.group(3)), "price": num(price), "oldPrice": None,
                     "year": year_of(attrs.get("Ár", "")), "km": num(attrs.get("Akstur", "")),
                     "fuel": attrs.get("Eldsneyti", ""), "trans": attrs.get("Skipting", ""),
-                    "img": ("https:" + cover.group(1)) if cover else ""})
+                    "img": ("https:" + cover.group(1)) if cover else "",
+                    "loc": re.sub(r"\s+", " ", town.group(1)).strip() if town else ""})
     return out
 
 
@@ -365,6 +380,10 @@ def main():
         report[name] = len(got)
         cars += got
     cars = [c for c in cars if c.get("price") and c["price"] > 100000]
+    try:
+        update_details(cars)
+    except Exception as e:
+        print(f"  villa í lýsingum: {e}", file=sys.stderr)
     seen = set()  # sami bíll auglýstur af tveimur bílasölum
     cars = [c for c in cars if not (fingerprint(c) + (c["model"],) in seen or seen.add(fingerprint(c) + (c["model"],)))]
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -375,6 +394,172 @@ def main():
     print(f"Alls {len(cars)} bílar -> {OUT}")
     update_history(cars)
     build_catalog(cars)
+    build_places(cars)
+
+
+# --- lýsingar seljanda, hestöfl og búnaður (af síðu hverrar auglýsingar) -------------
+# ~13.000 síður: sóttar smám saman (nýjar fyrst) innan tímamarka, geymdar í public/data/details/NN.json
+DETAILS_DIR = Path(__file__).parent / "public" / "data" / "details"
+DETAILS_SHARDS = 64
+DETAILS_BUDGET_MIN = float(os.environ.get("DETAILS_BUDGET_MIN", "35"))
+
+
+def shard_of(car_id):
+    h = 5381  # djb2, sama og í app.js
+    for ch in car_id:
+        h = (h * 33 + ord(ch)) & 0xFFFFFFFF
+    return h % DETAILS_SHARDS
+
+
+def flat(h):
+    h = re.sub(r"<script.*?</script>|<style.*?</style>|<svg.*?</svg>|<!--.*?-->", " ", h, flags=re.S)
+    parts = [text(x) for x in re.split(r"<[^>]+>", h)]
+    return [x for x in parts if x]
+
+
+def after(parts, label, n=1):
+    for i, x in enumerate(parts):
+        if x == label and i + n < len(parts):
+            return parts[i + n]
+    return ""
+
+
+def parse_details(c, h):
+    parts, d = flat(h), {}
+    src = c.get("src")
+    if src == "bilasolur.is":
+        m = re.search(r'cd-section-title">\s*Nánari upplýsingar\s*</[^>]+>(.*?)(?:<div class="col-6|<a href=\'https://p1|<img class="cd-car-photo"|cd-section-title)', h, re.S)
+        if m:
+            d["d"] = text(m.group(1).replace("<br", "\n<br"))
+        hp = re.search(r"(\d{2,4})\s*hestöfl", " ".join(parts))
+    elif src == "Brimborg":
+        d["d"] = after(parts, "Nánari lýsing á bíl")
+        hp = re.search(r"Heildarafl \(hö\) (\d{2,4})", " ".join(parts))
+    elif src == "Hekla":
+        hp = re.search(r"Hestöfl (\d{2,4})", " ".join(parts))
+        eq = re.search(r'<h2>Búnaður</h2>.*?<ul class="menu">(.*?)</ul>', h, re.S)
+        if eq:
+            d["e"] = [text(x) for x in re.findall(r"<li>(.*?)</li>", eq.group(1))][:60]
+    elif src == "Askja":
+        hp = re.search(r"Hestöfl (\d{2,4}) hö", " ".join(parts))
+        eq = re.search(r'>Búnaður<.*?<ul[^>]*>(.*?)</ul>', h, re.S)
+        if eq:
+            d["e"] = [text(x) for x in re.findall(r"<li[^>]*>(.*?)</li>", eq.group(1), re.S)][:60]
+    elif src == "bland.is":
+        m = re.search(r'itemprop="description"[^>]*>(.*?)</p>', h, re.S)
+        if m:
+            d["d"] = text(m.group(1).replace("<br", "\n<br"))
+        hp = None
+    else:
+        hp = None
+    if hp:
+        d["hp"] = int(hp.group(1))
+    if d.get("d"):
+        d["d"] = d["d"][:2500]
+    return d
+
+
+def update_details(cars):
+    DETAILS_DIR.mkdir(parents=True, exist_ok=True)
+    shards = {}
+    for i in range(DETAILS_SHARDS):
+        f = DETAILS_DIR / f"{i:02d}.json"
+        shards[i] = json.loads(f.read_text("utf-8")) if f.exists() else {}
+    have = {k for s in shards.values() for k in s}
+    live = {c["id"] for c in cars}
+    todo = [c for c in cars if c["id"] not in have and c.get("url")]
+    todo.sort(key=lambda c: c.get("src") == "bilasolur.is")  # umboðin og bland fyrst, þau eru færri
+    deadline, done, op = time.time() + DETAILS_BUDGET_MIN * 60, 0, bs_opener()
+    for c in todo:
+        if time.time() > deadline:
+            break
+        try:
+            html_ = op.open(c["url"], timeout=30).read().decode("utf-8", "replace")
+            shards[shard_of(c["id"])][c["id"]] = parse_details(c, html_)
+            done += 1
+        except Exception as e:
+            shards[shard_of(c["id"])][c["id"]] = {}
+            print(f"  lýsing {c['url']}: {e}", file=sys.stderr)
+        time.sleep(1)
+    for i, s in shards.items():  # henda lýsingum auglýsinga sem eru horfnar
+        s = {k: v for k, v in s.items() if k in live}
+        (DETAILS_DIR / f"{i:02d}.json").write_text(json.dumps(s, ensure_ascii=False, separators=(",", ":")), "utf-8")
+        shards[i] = s
+    hp = {k: v["hp"] for s in shards.values() for k, v in s.items() if v.get("hp")}
+    for c in cars:
+        if c["id"] in hp:
+            c["hp"] = hp[c["id"]]
+    left = len(todo) - done
+    print(f"Lýsingar: sótti {done}, {left} eftir, {len(hp)} með hestöfl")
+
+
+# --- staðsetningar fyrir kortið ---------------------------------------------
+PLACES = Path(__file__).parent / "public" / "data" / "places.json"
+GEO_CACHE = Path(__file__).parent / "geo_cache.json"  # heimilisfang -> [lat, lon] (OpenStreetMap Nominatim, 1 fyrirspurn/sek)
+
+
+def _nominatim(q):
+    r = json.loads(get("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=is&q=" + urllib.parse.quote(q)))
+    time.sleep(1.1)
+    return r[0] if r else None
+
+
+def street_variants(addr):
+    """Heimilisföng eru oft í þágufalli („Krókhálsi 7“) en OpenStreetMap þekkir nefnifallið („Krókháls 7“)."""
+    m = re.match(r"\s*(.+?)\s+(\d+[a-zA-Z]?)\s*,\s*(.*)", addr)
+    if not m:
+        return [addr]
+    street, no, town = m.groups()
+    cands = [street]
+    for a, b in (("hálsi", "háls"), ("bakka", "bakki"), ("hrauni", "hraun"), ("vegi", "vegur"), ("götu", "gata"), ("braut", "braut"),
+                 ("túni", "tún"), ("firði", "fjörður"), ("holti", "holt"), ("höfða", "höfði"), ("ási", "ás"), ("smára", "smári"),
+                 ("lind", "lind"), ("nesi", "nes"), ("hellu", "hella"), ("stræti", "stræti"), ("mýri", "mýri"), ("garði", "garður")):
+        if street.endswith(a):
+            cands.append(street[: -len(a)] + b)
+    out, bare = [], re.sub(r"^\d+\s*", "", town)
+    for st in cands:
+        out += [f"{st} {no}, {town}", f"{st} {no}, {bare}"]
+    return out
+
+
+def geocode(q, cache, street=False):
+    key = ("v2:" if street else "") + q
+    if key in cache:
+        return cache[key]
+    ll = None
+    try:
+        for cand in (street_variants(q) if street else [q]):
+            r = _nominatim(cand)
+            # götuheimilisfang: taka bara nákvæma niðurstöðu (hús, gata, verslun), ekki miðju bæjarins
+            if r and (not street or r.get("addresstype") not in ("city", "town", "village", "postcode", "suburb", "municipality", "county")):
+                ll = [round(float(r["lat"]), 5), round(float(r["lon"]), 5)]
+                break
+    except Exception as e:
+        print(f"  staðsetning {q}: {e}", file=sys.stderr)
+        return None
+    cache[key] = ll
+    return ll
+
+
+def build_places(cars):
+    cache = json.loads(GEO_CACHE.read_text("utf-8")) if GEO_CACHE.exists() else {}
+    addrs = json.loads(ADDRS.read_text("utf-8")) if ADDRS.exists() else {}
+    by_name = {a["name"]: a["addr"] for a in addrs.values() if a.get("addr")}
+    dealers, towns = {}, {}
+    for name in sorted({c["dealer"] for c in cars if c.get("src") != "bland.is"}):
+        # Hekla/Askja/Brimborg eru líka á bilasolur.is, svo heimilisfangið finnst eftir nafni
+        addr = by_name.get(name) or by_name.get(name.split(",")[0])
+        if addr:
+            ll = geocode(addr, cache, street=True) or geocode(addr.split(",")[-1].strip(), cache)
+            if ll:
+                dealers[name] = ll + [addr]
+    for loc in sorted({c.get("loc") for c in cars if c.get("src") == "bland.is" and c.get("loc")}):
+        ll = geocode(loc, cache) or geocode(re.sub(r"^\d+\s*", "", loc), cache)
+        if ll:
+            towns[loc] = ll
+    GEO_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=0, sort_keys=True), "utf-8")
+    PLACES.write_text(json.dumps({"dealers": dealers, "towns": towns}, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    print(f"Kort: {len(dealers)} bílasölur, {len(towns)} staðir")
 
 
 # --- saga auglýsinga --------------------------------------------------------

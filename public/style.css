@@ -263,3 +263,78 @@ dialog.sheet { width: min(860px, calc(100% - 24px)); }
 .hist-line { margin: 14px 0 0; font-size: 14px; }
 .pk-tabs { margin: 4px 0 12px; }
 .pk-row b { white-space: nowrap; }
+
+/* ---------- nýtt / lækkað ---------- */
+.views { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.views button { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.views button b { font-size: 12px; color: var(--muted); margin-left: 2px; }
+.views button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.views button.on b { color: inherit; opacity: .7; }
+.loc-pill { background: #ede9fe !important; color: #5b21b6 !important; border-color: transparent !important; }
+.flags { display: flex; gap: 4px; flex-wrap: wrap; }
+.flag { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 99px; }
+.flag.new { background: #e0f2fe; color: #075985; }
+.flag.drop { background: var(--good-soft); color: var(--good); }
+@media (prefers-color-scheme: dark) { .flag.new { background: #0c2d44; color: #7dd3fc; } .loc-pill { background: #2e1f5e !important; color: #c4b5fd !important; } }
+
+/* ---------- verðmat ---------- */
+.val-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.val-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.val-form input, .val-form select { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 15px; }
+.val-form .wide { grid-column: 1 / -1; }
+.val-result { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-top: 18px; }
+.val-main { background: var(--accent-soft); border-radius: 16px; padding: 16px; }
+.val-big { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin: 2px 0 8px; }
+.val-range { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.vr-bar { flex: 1; height: 8px; border-radius: 99px; background: linear-gradient(90deg, var(--good), var(--accent)); position: relative; }
+.vr-bar i { position: absolute; left: 50%; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--text); }
+.val-side { display: flex; flex-direction: column; gap: 10px; }
+.val-tile { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.val-tile b { font-size: 18px; }
+.val-tile .note { margin: 0; }
+
+/* ---------- lán og rekstur ---------- */
+.cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cost-box { border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.cost-inputs { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.cost-inputs label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.inp-s { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); overflow: hidden; }
+.inp-s input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); padding: 7px 8px; font-size: 15px; }
+.inp-s i { font-style: normal; color: var(--muted); font-size: 12px; padding-right: 8px; }
+.cost-out { margin-top: 10px; }
+.cost-out .big { font-size: 22px; font-weight: 800; }
+.cost-out .big small { font-size: 13px; font-weight: 500; color: var(--muted); }
+.cost-rows { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 13px; margin: 6px 0; }
+.cost-rows b { text-align: right; }
+.cost-more { margin-top: 10px; }
+.cost-more summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.cost-more .cost-inputs { margin-top: 8px; }
+
+/* ---------- gröf ---------- */
+.chart-wrap { border: 1px solid var(--line); border-radius: 14px; padding: 10px 8px 4px; background: var(--card); }
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .base { stroke: var(--muted); stroke-width: 1; opacity: .6; }
+.chart .ax { fill: var(--muted); font-size: 11px; }
+.chart .bar { fill: var(--accent); }
+.chart .hit { fill: transparent; }
+.chart g:hover .bar { fill: var(--text); }
+.chart .pt { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.chart .dot { cursor: pointer; }
+.chart .dot:hover .pt { fill: var(--text); r: 6; }
+.chart-tip { position: fixed; z-index: 200; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; line-height: 1.4; padding: 6px 9px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.2); max-width: 240px; }
+
+/* ---------- kort ---------- */
+.map-box { height: 460px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--mid-soft); }
+.map-go { margin-top: 6px; background: #0f6b5c; color: #fff; border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-weight: 600; }
+.leaflet-popup-content { font-size: 13px; color: #1b1f1d; }
+
+@media (max-width: 760px) {
+  .val-form { grid-template-columns: 1fr 1fr; }
+  .val-result, .cost-grid { grid-template-columns: 1fr; }
+  .val-big { font-size: 28px; }
+  .map-box { height: 60vh; }
+}
+.desc { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.55; white-space: normal; max-height: 260px; overflow: auto; }
+.equip { display: flex; flex-wrap: wrap; gap: 6px; }
+.equip span { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: var(--mid-soft); color: var(--text); }
