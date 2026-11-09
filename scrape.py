@@ -279,6 +279,8 @@ def main():
         report[name] = len(got)
         cars += got
     cars = [c for c in cars if c.get("price") and c["price"] > 100000]
+    seen = set()  # sami bíll auglýstur af tveimur bílasölum
+    cars = [c for c in cars if not (fingerprint(c) + (c["model"],) in seen or seen.add(fingerprint(c) + (c["model"],)))]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "updated": datetime.now(timezone.utc).isoformat(timespec="minutes"),

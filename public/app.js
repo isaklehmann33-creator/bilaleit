@@ -510,7 +510,13 @@
       if (!d) throw new Error('engin gögn');
       return d;
     }).then(function (d) {
-      cars = d.cars.filter(function (c) { return c.price > 0 && c.make; }).map(prep);
+      var dup = {};
+      cars = d.cars.filter(function (c) {
+        // sami bíll auglýstur af tveimur bílasölum: sýna hann bara einu sinni
+        var k = [c.make, c.model, c.year, c.km, c.price].join('|');
+        if (!c.price || !c.make || dup[k]) return false;
+        return (dup[k] = true);
+      }).map(prep);
       model = fit(cars);
       compare = (store('compare') || []).filter(byId);
       var makes = {}, dealers = {};
