@@ -73,7 +73,14 @@
   function fuelCat(c) {
     var f = fold(c.fuel), t = fold(c.title);
     var raf = /raf|electric/.test(f), ice = /bens|dis|petrol|diesel/.test(f);
-    if (raf && ice) return /phev|plug|tengil|e-hybrid|phe\b|\bphe/.test(f + ' ' + t) || /raf\.tengill/.test(f) ? 'Tengiltvinn' : 'Tvinn';
+    if (raf && ice) {
+      if (/phev|plug|tengil|e-hybrid|phe\b|\bphe/.test(f + ' ' + t) || /raf\.tengill/.test(f)) return 'Tengiltvinn';
+      // BMW 530e, Mercedes E 300 e/de, Volvo T6/T8 Recharge, Audi TFSI e: tengiltvinn þótt það standi ekki
+      if (/\b\d{2,3} ?e\b|\b\d{3} ?de\b|recharge|tfsie?\b ?e\b|\bt8\b|\bgte\b|e-tron\b.*hybrid/.test(t)) return 'Tengiltvinn';
+      if (/hybrid|tvinn|\bhev\b|e:hev|full hybrid/.test(t) || /^(TOYOTA|LEXUS|HONDA|HYUNDAI|KIA|FORD|RENAULT|SUZUKI|NISSAN|MITSUBISHI|DACIA|MG)$/.test(c.make)) return 'Tvinn';
+      // evrópskir „Bensín/Rafmagn“-bílar án hybrid-merkingar eru mild-hybrid (48V): í raun bensín/dísel
+      return /dis|diesel/.test(f) ? 'Dísel' : 'Bensín';
+    }
     if (raf) return 'Rafmagn';
     if (/hybrid|tvinn/.test(f + ' ' + t)) return /phev|plug|e-hybrid/.test(t) ? 'Tengiltvinn' : 'Tvinn';
     if (/dis|diesel/.test(f)) return 'Dísel';
@@ -163,8 +170,9 @@
   function powerHint(c) {
     var t = ' ' + String(c.model || '').toUpperCase().replace(/-/g, ' ') + ' ', m;
     if (c.perf.t) return null;
+    if (c.fcat === 'Rafmagn') return null;  // „EQE 350“, „i4 40“ o.s.frv. segja ekkert um vélarstærð
     if (c.make === 'MERCEDES-BENZ' && (m = t.match(/ [A-Z]{0,3} ?([1-6]\d0)( ?[DECH]|CDI|CGI| BLUETEC)? /))) return +m[1] / 100;
-    if (c.make === 'BMW' && ((m = t.match(/ [1-8](\d0)[IDE]? /)) || (m = t.match(/ (?:X?DRIVE|SDRIVE) ?(\d0)[IDE]? /)))) return +m[1] / 10;
+    if (c.make === 'BMW' && ((m = t.match(/ [1-8](\d\d)[IDE]? /)) || (m = t.match(/ (?:X?DRIVE|SDRIVE) ?(\d\d)[IDE]? /)))) return +m[1] / 10;  // 520i -> 2,0; 545e -> 4,5
     if (c.make === 'AUDI' && (m = t.match(/ ([3-6]\d) (TFSI|TDI|E TRON|TFSIE|QUATTRO)/))) return +m[1] / 10;
     if (c.make === 'VOLVO' && (m = t.match(/ [TDB]([2-8]) /))) return +m[1];
     return null;
@@ -241,12 +249,12 @@
       });
     });
     for (i = 0; i < d; i++) XtX[i][i] += 0.5; // smá ridge svo fáir bílar valdi ekki rugli
+    // Forsenda um vélarafl: ~11% hærra verð á hverja einingu (100 hö eða 1 lítra) innan sömu gerðar.
+    // Fá og sundurleit gögn um afl gáfu annars ~0 („520i jafn dýr og 545e“); gögnin mega hnika forsendunni.
+    var PW_PRIOR = 0.11, PW_STRENGTH = 400;
+    XtX[FI.pw][FI.pw] += PW_STRENGTH; Xty[FI.pw] += PW_STRENGTH * PW_PRIOR;
     var beta = solve(XtX, Xty);
-    if (beta[FI.pw] < 0) {  // stærri vél á ekki að lækka verð; ef gögnin segja það (ruglingur), sleppum aflinu
-      for (i = 0; i < d; i++) { XtX[FI.pw][i] = XtX[i][FI.pw] = 0; }
-      XtX[FI.pw][FI.pw] = 1; Xty[FI.pw] = 0;
-      beta = solve(XtX, Xty);
-    }
+    if (beta[FI.pw] < 0.03) beta[FI.pw] = 0.03;  // stærri vél lækkar aldrei verð
     function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
 
     var tot = 0, makes = {}, grp = {}, grpT = {};
@@ -268,6 +276,10 @@
       c.est = Math.round(Math.exp(gi + lin(c)) / 1e4) * 1e4;
       c.peers = g.n - 1;
       c.tierPeers = groups[c.key].filter(function (o) { return o !== c && o.perf.label === c.perf.label; }).length;
+      // sambærilegir með sömu vél og eldsneyti (t.d. 520i ber sig ekki saman við 530e/545e)
+      c.enginePeers = c.pwRaw == null ? null : groups[c.key].filter(function (o) {
+        return o !== c && o.pwRaw != null && Math.abs(o.pwRaw - c.pwRaw) <= 0.35 && o.fcat === c.fcat;
+      }).length;
       c.dev = c.price / c.est - 1;
     });
     // mat fyrir bíl sem er ekki í gögnunum (t.d. „hvað er bíllinn minn virði?“), með líklegu bili
@@ -297,6 +309,7 @@
     if (c.dev <= -0.5) return { cls: 'warn', txt: 'Athugaðu verðið', unsure: true };
     // kraftútgáfa sem enginn annar sambærilegur er til af: matið byggir á almennu álagi, svo við fullyrðum ekki
     if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa', unsure: true };
+    if (c.enginePeers != null && c.enginePeers < 2 && Math.abs(c.dev) >= 0.12) return { cls: 'mid', txt: 'Fáir með sömu vél', unsure: true };
     if (c.km == null && c.age > 3) return { cls: 'mid', txt: 'Akstur óþekktur', unsure: true };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
     if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
@@ -309,7 +322,7 @@
   function similar(c, n) {
     var g = model.groups[c.key] || [];
     return g.filter(function (o) { return o !== c; }).sort(function (a, b) {
-      function d(o) { return Math.abs(o.age - c.age) + Math.abs((o.km || 0) - (c.km || 0)) / 30000 + (o.fcat === c.fcat ? 0 : 2) + 4 * Math.abs(o.perf.t - c.perf.t) + Math.abs(o.pw - c.pw); }
+      function d(o) { return Math.abs(o.age - c.age) + Math.abs((o.km || 0) - (c.km || 0)) / 30000 + (o.fcat === c.fcat ? 0 : 2) + 4 * Math.abs(o.perf.t - c.perf.t) + 3 * Math.abs(o.pw - c.pw); }
       return d(a) - d(b);
     }).slice(0, n || 8);
   }
@@ -647,6 +660,11 @@
     if (c.dev <= -0.5) return 'Meira en helmingi ódýrari en sambærilegir. Oft villa, tjón eða varahlutabíll.';
     if (c.perf.t && !c.tierPeers) return 'Enginn annar ' + name + ' ' + c.perf.label + ' á skrá til að bera saman við.';
     if (c.km == null && c.age > 3) return 'Akstur kemur ekki fram í auglýsingunni, svo ekki er hægt að meta verðið vel.';
+    if (c.enginePeers != null && c.enginePeers < 2 && Math.abs(c.dev) >= 0.12) {
+      var other = uniq(similar(c, 6).map(function (o) { return cap(o.model.split(' ').slice(0, 2).join(' ')); })).slice(0, 3).join(', ');
+      return 'Nær engir ' + cap(c.model) + ' með sömu vél (' + c.fcat.toLowerCase() + ') á skrá. Borið saman við aðrar útgáfur' + (other ? ' (' + other + ')' : '') +
+        ', svo matið (' + pct(c.dev) + ') er óvisst.';
+    }
     var sim = similar(c, 8), adj = sim.map(function (o) { return adjusted(o, c); });
     var n = sim.length, cheaper = adj.filter(function (p) { return p > c.price; }).length;
     var diff = c.est - c.price, extras = [];
