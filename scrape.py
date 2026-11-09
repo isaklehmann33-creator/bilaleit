@@ -729,10 +729,11 @@ def build_registry(cars):
     found = {}
     try:
         for i in range(0, len(plates), 80):
-            for r in pbi.query(["Fastanúmer", "Tegund", "Undirtegund", "Fyrsti skráningardagur", "Nýskráningardagur", "Innflutningsástand", "Hestöfl", "Litur"],
+            for r in pbi.query(["Fastanúmer", "Tegund", "Undirtegund", "Fyrsti skráningardagur", "Nýskráningardagur", "Innflutningsástand", "Hestöfl", "Litur",
+                                "Útblástur g/km", "Leyfð heildarþyngd"],
                                [], [pbi.isin("Fastanúmer", plates[i:i + 80])], top=200):
                 found[r["Fastanúmer"]] = {"first": r["Fyrsti skráningardagur"], "is": r["Nýskráningardagur"], "imp": r["Innflutningsástand"],
-                                          "hp": r["Hestöfl"], "col": r["Litur"]}
+                                          "hp": r["Hestöfl"], "col": r["Litur"], "co2": r["Útblástur g/km"], "kg": r["Leyfð heildarþyngd"]}
         reg["plates"] = found
     except Exception as e:
         print(f"  ökutækjaskrá (bílnúmer): {e}", file=sys.stderr)
@@ -758,6 +759,8 @@ def update_history(cars):
         if not a:
             a = ads[c["id"]] = {"m": c["make"], "o": c["model"], "y": c.get("year"), "k": c.get("km"), "d": c.get("dealer", ""),
                                 "u": c.get("url", ""), "f": today, "p": []}
+        if c.get("km") is not None and a.get("k") is not None and c["km"] != a["k"]:
+            a.setdefault("kh", [[a.get("l") or a["f"], a["k"]]]).append([today, c["km"]])  # akstursferill (fyrir akstursvörn)
         a.update({"l": today, "k": c.get("km"), "g": None, "fu": c.get("fuel", ""), "t": c.get("title", ""), "s": c.get("src", ""),
                   "tr": c.get("trans", ""), "dr": c.get("drive", "")})
         if not a["p"] or a["p"][-1][1] != c["price"]:

@@ -101,12 +101,37 @@
   }
 
   // ---------- lán og rekstrarkostnaður (í bílaglugga) ----------
+  // ---------- bifreiðagjald (Skatturinn): 21.260 kr. á hálfu ári + 154 kr./g yfir 204 g/km (WLTP) eða 188 kr./g yfir 168 g/km (NEDC) ----------
+  var BG = { base: 21260, wltp: [204, 154], nedc: [168, 188] };
+  // CO2: úr ökutækjaskrá ef bílnúmer er þekkt, annars gróf áætlun eftir eldsneyti, afli og aldri
+  function co2Of(c) {
+    var reg = window.Registry && Registry.plateInfo && Registry.plateInfo(c);
+    if (reg && reg.co2 != null) return { g: Math.round(reg.co2), src: 'ökutækjaskrá' };
+    var g;
+    if (c.fcat === 'Rafmagn') g = 0;
+    else if (c.fcat === 'Tengiltvinn') g = 35;
+    else if (c.fcat === 'Tvinn') g = 105;
+    else {
+      var hp = c.hp || (c.pwRaw ? c.pwRaw * (c.pwRaw < 10 ? 70 : 1) : null) || 150;
+      g = 110 + 0.35 * (hp - 120) + (c.fcat === 'Dísel' ? -10 : 0) + Math.max(0, 2015 - (c.year || 2015)) * 1.5;
+      if (c.suv) g += 20;
+      g = Math.max(95, Math.min(350, Math.round(g)));
+    }
+    return { g: g, src: 'áætlað' };
+  }
+  function bifreidagjald(c) {
+    var co = co2Of(c), wltp = (c.year || 2020) >= 2019, t = wltp ? BG.wltp : BG.nedc;
+    var half = BG.base + (co.g > t[0] ? (co.g - t[0]) * t[1] : 0);
+    return { year: half * 2, co2: co.g, src: co.src, std: wltp ? 'WLTP' : 'NEDC' };
+  }
+
   // Sjálfgefnar forsendur: áætlanir sem notandinn getur breytt; þær vistast í vafranum
   var DEF = { down: 30, rate: 10.5, years: 5, kmYear: 15000, petrol: 310, diesel: 315, kwh: 22, kmFee: 7, insurance: 180000, tax: 30000, upkeep: 120000 };
   var CONS = { 'Bensín': [7.0, 0], 'Dísel': [6.0, 0], 'Tvinn': [5.0, 0], 'Tengiltvinn': [3.5, 9], 'Rafmagn': [0, 18] }; // [l/100km, kWh/100km]
   function carExtras(c) {
     var el = $('carExtras'); if (!el) return;
-    var p = Object.assign({}, DEF, store('costs') || {});
+    var p = Object.assign({}, DEF, store('costs') || {}), bg = bifreidagjald(c);
+    p.tax = bg.year;  // reiknað fyrir hvern bíl, ekki vistað
     function inp(id, label, val, step, suffix) {
       return '<label>' + label + '<span class="inp-s"><input id="' + id + '" type="number" inputmode="decimal" step="' + step + '" value="' + val + '">' + (suffix ? '<i>' + suffix + '</i>' : '') + '</span></label>';
     }
@@ -116,13 +141,13 @@
       '<div class="cost-box"><div class="cost-inputs">' + inp('cKm', 'Akstur á ári', p.kmYear, 1000, 'km') + '</div><div class="cost-out" id="cRun"></div>' +
       '<details class="cost-more"><summary>Forsendur (breyttu að vild)</summary><div class="cost-inputs">' +
       inp('cPetrol', 'Bensín', p.petrol, 1, 'kr/l') + inp('cDiesel', 'Dísel', p.diesel, 1, 'kr/l') + inp('cKwh', 'Rafmagn', p.kwh, 1, 'kr/kWh') +
-      inp('cKmFee', 'Kílómetragjald', p.kmFee, 0.1, 'kr/km') + inp('cIns', 'Tryggingar', p.insurance, 5000, 'kr/ár') + inp('cTax', 'Bifreiðagjöld', p.tax, 1000, 'kr/ár') +
-      inp('cUp', 'Viðhald og dekk', p.upkeep, 5000, 'kr/ár') + '</div><p class="note">Áætlanir. Vextir, eldsneytisverð og gjöld breytast, og tryggingar og bifreiðagjöld fara eftir bíl og ökumanni.</p></details></div></div>' +
+      inp('cKmFee', 'Kílómetragjald', p.kmFee, 0.1, 'kr/km') + inp('cIns', 'Tryggingar', p.insurance, 5000, 'kr/ár') + inp('cTax', 'Bifreiðagjald', p.tax, 1000, 'kr/ár') +
+      inp('cUp', 'Viðhald og dekk', p.upkeep, 5000, 'kr/ár') + '</div><p class="note">Bifreiðagjald reiknað út frá ' + bg.co2 + ' g/km CO2 (' + bg.src + ', ' + bg.std + ') samkvæmt <a href="https://www.skatturinn.is/einstaklingar/skattar-og-gjold/bifreidagjald/" target="_blank" rel="noopener">reglum Skattsins</a>. Kílómetragjald 6,95 kr/km frá 2026. Vextir, eldsneytisverð og tryggingar eru áætlanir.</p></details></div></div>' +
       '<h4>Bílaskipti</h4><div class="cost-box" id="cTrade"></div>';
     function calc() {
       var q = { down: num('cDown'), rate: num('cRate'), years: num('cYears'), kmYear: num('cKm'), petrol: num('cPetrol'), diesel: num('cDiesel'), kwh: num('cKwh'),
         kmFee: num('cKmFee'), insurance: num('cIns'), tax: num('cTax'), upkeep: num('cUp') };
-      store('costs', q);
+      var keep = Object.assign({}, q); delete keep.tax; store('costs', keep);
       var loan = c.price * (1 - q.down / 100), n = Math.max(1, q.years * 12), r = q.rate / 100 / 12;
       var pay = r ? loan * r / (1 - Math.pow(1 + r, -n)) : loan / n;
       var interest = pay * n - loan;
@@ -140,7 +165,7 @@
       $('cRun').innerHTML = '<div class="big">' + A.kr(year / 12) + ' <small>á mán.</small></div>' +
         '<div class="cost-rows"><span>⛽ ' + (c.fcat === 'Rafmagn' ? 'Rafmagn' : 'Eldsneyti/rafmagn') + '</span><b>' + A.kr(energy / 12) + '</b>' +
         '<span>🛣️ Kílómetragjald</span><b>' + A.kr(kmFee / 12) + '</b>' +
-        '<span>🛡️ Tryggingar, gjöld, viðhald</span><b>' + A.kr(fixed / 12) + '</b>' +
+        '<span>🛡️ Tryggingar, bifreiðagjald, viðhald</span><b>' + A.kr(fixed / 12) + '</b>' +
         '<span>📉 Verðfall (~' + Math.round(lossPct * 100) + '%/ári)</span><b>' + A.kr(dep / 12) + '</b></div>' +
         '<span class="note">Með láni: ~' + A.kr(pay + year / 12 - dep / 12) + ' á mán. út úr veskinu (verðfall ekki talið með).</span>';
     }
@@ -148,6 +173,102 @@
     calc();
     trade(c);
     alternatives(c);
+    offer(c);
+  }
+
+  // ---------- tilboðsráðgjafi: hvað er sanngjarnt að bjóða ----------
+  function offer(c) {
+    var el = $('carOffer'); if (!el || !c.est || c.special) return;
+    A.loadHistory().then(function (hist) {
+      var a = (hist || []).filter(function (x) { return x.id === c.id; })[0];
+      var today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      var days = a ? A.daysBetween(a.f, today) : null, drops = a ? a.p.filter(function (x, i) { return i && x[1] < a.p[i - 1][1]; }).length : 0;
+      var room = c.priv ? 0.06 : 0.04, why = [];
+      why.push(c.priv ? 'Einstaklingur: oft meira svigrúm en hjá bílasölu' : 'Bílasala: yfirleitt 3–5% svigrúm');
+      if (c.dev <= -0.12) { room -= 0.02; why.push('Verðið er þegar undir mati, svo lítið svigrúm'); }
+      else if (c.dev >= 0.12) { room += Math.min(0.08, c.dev * 0.5); why.push('Verðið er ' + A.pct(c.dev) + ' yfir mati: rök til að prútta'); }
+      if (days != null && days > 90) { room += 0.03; why.push('Hefur verið ' + days + ' daga á skrá'); }
+      else if (days != null && days > 45) { room += 0.015; why.push('Hefur verið ' + days + ' daga á skrá'); }
+      if (drops) { room += Math.min(0.03, drops * 0.01); why.push('Seljandinn hefur lækkað verðið ' + drops + (drops === 1 ? ' sinni' : ' sinnum')); }
+      if (c.fl && c.fl.some(function (f) { return /tjon|ryd|laga|skodun/.test(f); })) { room += 0.03; why.push('Lýsingin nefnir galla: nefndu þá'); }
+      room = Math.max(0.01, Math.min(0.15, room));
+      var r10 = function (x) { return Math.round(x / 1e4) * 1e4; };
+      var likely = r10(c.price * (1 - room)), start = r10(c.price * (1 - room * 1.8)), max = r10(Math.min(c.price, Math.max(c.est * 1.03, likely)));
+      el.innerHTML = '<h4>Hvað á ég að bjóða?</h4><div class="offer"><div><span>Byrjunartilboð</span><b>' + A.kr(start) + '</b></div>' +
+        '<div class="mid"><span>Líklegt kaupverð</span><b>' + A.kr(likely) + '</b></div><div><span>Ekki borga meira en</span><b>' + A.kr(max) + '</b></div></div>' +
+        '<ul class="tc-list offer-why">' + why.map(function (t) { return '<li>' + ic('check') + '<span>' + A.esc(t) + '</span></li>'; }).join('') + '</ul>' +
+        '<p class="note">Gróf ráðgjöf út frá matinu, tíma á skrá og verðsögu. Ástand, þjónustusaga og hvort þú setur bíl upp í skipta líka máli.</p>';
+    });
+  }
+
+  // ---------- innflutningsreiknir: hvað kostar sambærilegur bíll fluttur inn ----------
+  // Vörugjald 2026 (lög 29/1993 m.br.): 0,34% á hvert g/km CO2 yfir 30, minnst 10% fyrir bíla með brunavél, mest 70%; rafbílar 0%.
+  function vorugjald(co2, ev) { return ev ? 0 : Math.max(10, Math.min(70, 0.34 * Math.max(0, co2 - 30))); }
+  var rateP = null;
+  function eurRate() {
+    if (!rateP) rateP = fetch('https://api.frankfurter.app/latest?from=EUR&to=ISK').then(function (r) { return r.json(); })
+      .then(function (j) { return (j && j.rates && j.rates.ISK) || 150; }).catch(function () { return 150; });
+    return rateP;
+  }
+  function openImport(c) {
+    var co = c ? co2Of(c) : { g: 140 }, ev = c ? c.fcat === 'Rafmagn' : false;
+    var q = encodeURIComponent(c ? A.cap(c.make) + ' ' + A.cap(c.base) : '');
+    A.openModal('<div class="m"><div class="m-head"><h2>Innflutningsreiknir</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<p class="note">Hvað kostar að kaupa ' + (c ? 'svona bíl' : 'bíl') + ' í Evrópu og flytja hann heim? Sláðu inn verðið úti.</p>' +
+      '<div class="val-form"><label>Verð úti (EUR)<input id="iEur" type="number" inputmode="decimal" value="' + (c ? Math.round(c.price / 150 * 0.75 / 500) * 500 : 20000) + '"></label>' +
+      '<label>Gengi EUR<input id="iRate" type="number" inputmode="decimal" step="0.1" value="150"></label>' +
+      '<label>Flutningur til Íslands (kr.)<input id="iShip" type="number" inputmode="numeric" step="10000" value="350000"></label>' +
+      '<label>CO2 (g/km, WLTP)<input id="iCo2" type="number" inputmode="numeric" value="' + co.g + '"></label>' +
+      '<label>Orkugjafi<select id="iEv"><option value="0"' + (ev ? '' : ' selected') + '>Brunavél / tvinn / tengiltvinn</option><option value="1"' + (ev ? ' selected' : '') + '>Rafmagn</option></select></label>' +
+      '<label>Skráning, skoðun, númer (kr.)<input id="iFees" type="number" inputmode="numeric" step="5000" value="45000"></label></div>' +
+      '<div id="iOut"></div>' +
+      '<div class="actions"><a class="sec" target="_blank" rel="noopener" href="https://suchen.mobile.de/fahrzeuge/search.html?isSearchRequest=true&s=Car&vc=Car&q=' + q + '">' + ic('external-link') + 'Leita á mobile.de</a>' +
+      '<a class="sec" target="_blank" rel="noopener" href="https://www.autoscout24.com/lst?atype=C&search_id=&q=' + q + '">' + ic('external-link') + 'Leita á AutoScout24</a></div>' +
+      '<p class="note">Vörugjald 2026: 0,34% á hvert g/km CO2 yfir 30 (minnst 10% fyrir bíla með brunavél, mest 70%, rafbílar 0%), reiknað af tollverði (verð + flutningur). VSK 24% ofan á. ' +
+      'Heimildir: <a href="https://fibfrettir.is/frettir/kilometragjald-a-alla-bila-og-breyting-vorugjalda/" target="_blank" rel="noopener">FÍB</a>, <a href="https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/10/17/Vorugjald-af-nyjum-rafmagnsbilum-fellt-nidur/" target="_blank" rel="noopener">Stjórnarráðið</a>. ' +
+      'Þetta er áætlun: staðfestu hjá tollmiðlara eða í reiknivél Skattsins áður en þú kaupir.</p></div>');
+    function calc() {
+      var eur = num('iEur'), rate = num('iRate'), ship = num('iShip'), co2 = num('iCo2'), isEv = $('iEv').value === '1', fees = num('iFees');
+      var toll = eur * rate + ship, pct = vorugjald(co2, isEv), vg = toll * pct / 100, vsk = (toll + vg) * 0.24, total = toll + vg + vsk + fees;
+      var cmp = c ? '<div class="imp-cmp ' + (total < c.price ? 'good' : 'bad') + '">' + ic(total < c.price ? 'circle-check' : 'triangle-alert') + '<span>' +
+        (total < c.price ? 'Um <b>' + A.kr(c.price - total) + ' ódýrara</b> en þessi bíll hér heima' : 'Um <b>' + A.kr(total - c.price) + ' dýrara</b> en þessi bíll hér heima') +
+        ' (' + A.kr(c.price) + '). Mundu: engin ábyrgð frá umboði, áhætta í flutningi og tími.</span></div>' : '';
+      $('iOut').innerHTML = '<div class="imp-rows"><span>Verð úti</span><b>' + A.kr(eur * rate) + '</b><span>Flutningur</span><b>' + A.kr(ship) + '</b>' +
+        '<span>Vörugjald (' + pct.toFixed(1).replace('.', ',') + '%)</span><b>' + A.kr(vg) + '</b><span>VSK (24%)</span><b>' + A.kr(vsk) + '</b>' +
+        '<span>Skráning og fleira</span><b>' + A.kr(fees) + '</b><span class="tot">Samtals á götuna</span><b class="tot">' + A.kr(total) + '</b></div>' + cmp;
+    }
+    eurRate().then(function (r) { if ($('iRate')) { $('iRate').value = r.toFixed(1); calc(); } });
+    $('modalBody').addEventListener('input', function (e) { if (/^i(Eur|Rate|Ship|Co2|Fees)$/.test(e.target.id)) calc(); });
+    $('modalBody').addEventListener('change', function (e) { if (e.target.id === 'iEv') calc(); });
+    calc();
+  }
+
+  // ---------- vikan á markaðnum ----------
+  function openWeek() {
+    A.loadHistory().then(function (hist) {
+      var cs = A.cars(), today = new Date(), wk = new Date(today - 7 * 864e5).toISOString().slice(0, 10).replace(/-/g, '');
+      var drops = cs.filter(function (c) { return c.drop && c.dropAt >= wk; }).sort(function (a, b) { return b.drop / b.price - a.drop / a.price; }).slice(0, 8);
+      var deals = cs.filter(function (c) { return c.isNew && A.verdict(c).cls === 'good' && c.dev > -0.4 && !(c.fl && c.fl.length && c.fl.some(function (f) { return /tjon|ryd|laga|serut/.test(f); })); }).sort(function (a, b) { return a.dev - b.dev; }).slice(0, 8);
+      var rare = cs.filter(function (c) { var st = c.isNew && window.Registry && Registry.stats(c.make, c.base); return st && st.n < 150; })
+        .sort(function (a, b) { return Registry.stats(a.make, a.base).n - Registry.stats(b.make, b.base).n; }).slice(0, 8);
+      var gone = (hist || []).filter(function (a) { return a.g && a.g >= wk; }), fast = {};
+      gone.forEach(function (a) { var k = A.cap(a.m) + ' ' + A.cap(a.base); (fast[k] = fast[k] || []).push(A.daysBetween(a.f, a.g)); });
+      var fastList = Object.keys(fast).filter(function (k) { return fast[k].length >= 2; }).map(function (k) { var v = fast[k].sort(function (a, b) { return a - b; }); return { k: k, n: v.length, d: v[v.length >> 1] }; })
+        .sort(function (a, b) { return a.d - b.d; }).slice(0, 8);
+      function row(c, extra) {
+        return '<button type="button" class="wk-row" data-open="' + A.esc(c.id) + '">' + (A.img(c) ? '<img src="' + A.esc(A.img(c)) + '" alt="" loading="lazy">' : '<span class="noimg"></span>') +
+          '<span class="wk-t"><b>' + A.esc(A.cap(c.make) + ' ' + A.cap(c.model)) + '</b><span>' + (c.year || '') + ' · ' + A.kmFmt(c.km) + ' · ' + A.kr(c.price) + '</span></span>' + extra + '</button>';
+      }
+      function sec(title, icon, body, empty) { return '<section class="wk"><h4>' + ic(icon) + title + '</h4>' + (body || '<p class="note">' + empty + '</p>') + '</section>'; }
+      A.openModal('<div class="m"><div class="m-head"><h2>Vikan á markaðnum</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+        '<p class="note">Síðustu 7 dagar · ' + gone.length + ' bílar fóru af skrá · ' + cs.filter(function (c) { return c.isNew; }).length + ' nýir á skrá</p>' +
+        sec('Mestu verðlækkanirnar', 'trending-down', drops.map(function (c) { return row(c, '<em class="wk-x good">−' + A.mkrShort(c.drop) + ' m.kr.</em>'); }).join(''), 'Engar verðlækkanir enn. Sagan byrjaði 9. nóv.') +
+        sec('Ný góð kaup', 'sparkles', deals.map(function (c) { return row(c, '<em class="wk-x good">' + A.pct(c.dev) + '</em>'); }).join(''), 'Engir nýir bílar á góðu verði enn.') +
+        sec('Sjaldgæfir nýir á skrá', 'flag', rare.map(function (c) { return row(c, '<em class="wk-x">' + Registry.stats(c.make, c.base).n + ' á landinu</em>'); }).join(''), 'Engir sjaldgæfir nýir bílar þessa vikuna.') +
+        sec('Seldust hraðast', 'flame', fastList.length ? '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Dagar á skrá</th><th class="num">Fóru af skrá</th></tr></thead><tbody>' +
+          fastList.map(function (x) { return '<tr><td>' + A.esc(x.k) + '</td><td class="num">' + x.d + '</td><td class="num">' + x.n + '</td></tr>'; }).join('') + '</tbody></table></div>' : '', 'Kemur þegar fleiri bílar hafa farið af skrá.') +
+        '</div>', 'sheet');
+    });
   }
 
   // bílaskipti: bíllinn þinn (úr „Hvað er bíllinn minn virði?“) upp í þennan
@@ -427,6 +548,8 @@
     x.loc = ''; A.setFilters(x); A.render();
   });
   $('openValue').addEventListener('click', function () { openValue(); });
+  $('openImport').addEventListener('click', function () { openImport(); });
+  $('openWeek').addEventListener('click', openWeek);
   $('openPlate').addEventListener('click', function () { if (window.Registry) Registry.openPlate(); });
   $('openMarket').addEventListener('click', openMarket);
   $('openMap').addEventListener('click', openMap);
@@ -527,5 +650,5 @@
     else if (n === 'me') acct('me');
   });
 
-  window.Features = { carExtras: carExtras, historyReady: historyReady, heroStats: heroStats, openValue: openValue };
+  window.Features = { carExtras: carExtras, historyReady: historyReady, heroStats: heroStats, openValue: openValue, openImport: openImport, openWeek: openWeek, bifreidagjald: bifreidagjald };
 })();

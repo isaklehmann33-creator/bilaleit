@@ -142,6 +142,22 @@
     persist(); renderHeader();
     toast('Leit vistuð. Þú færð tilkynningu þegar nýr bíll bætist við (' + ids.length + ' bílar núna).');
   }
+  // „Láttu mig vita af svipuðum ódýrari“: vöktuð leit búin til út frá bílnum
+  function saveSimilar(id, btn) {
+    if (!user) return showLogin('Skráðu þig inn til að fá tilkynningu um svipaða bíla.');
+    var c = A.byId(id); if (!c) return;
+    var f = A.readFilters(); for (var k in f) f[k] = /awd|deal|clean/.test(k) ? false : (k === 'sort' ? 'deal' : (typeof f[k] === 'number' ? null : ''));
+    f.make = c.make; f.model = c.base; f.yearMin = c.year ? c.year - 2 : null; f.yearMax = c.year ? c.year + 2 : null;
+    f.priceMax = +(c.price * 0.97 / 1e6).toFixed(2); f.fuel = c.fcat;
+    if (c.km != null) f.kmMax = Math.round(c.km * 1.3 / 1000) * 1000;
+    if (doc.searches.length >= MAX_SEARCHES) return toast('Hámark ' + MAX_SEARCHES + ' vistaðar leitir. Eyddu einni fyrst.');
+    var ids = A.filtered(f).map(function (x) { return x.id; });
+    var name = 'Svipaðir og ' + A.cap(c.make) + ' ' + A.cap(c.base) + ' ' + (c.year || '') + ', undir ' + f.priceMax.toString().replace('.', ',') + ' m.kr.';
+    doc.searches.unshift({ id: 's' + now(), name: name, f: f, q: '', seen: ids.slice(0, MAX_SEEN), created: now() });
+    persist(); renderHeader();
+    if (btn) { btn.disabled = true; btn.innerHTML = '✓ Vakta svipaða bíla'; }
+    toast('Þú færð tilkynningu þegar svipaður ' + A.cap(c.base) + ' kemur á skrá á lægra verði.');
+  }
   function openSearch(s) {
     // síurnar geyma verð í m.kr. en setFilters tekur krónur
     var f = {}; for (var k in s.f) f[k] = s.f[k];
@@ -374,7 +390,7 @@
 
   // ---------- ræsing ----------
   window.Acct = {
-    isSaved: isSaved, toggleSave: toggleSave, openWatch: openWatch,
+    isSaved: isSaved, toggleSave: toggleSave, openWatch: openWatch, saveSimilar: saveSimilar,
     dataReady: function () { dataLoaded = true; checkUpdates(); }
   };
   renderHeader();

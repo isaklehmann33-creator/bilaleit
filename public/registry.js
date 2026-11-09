@@ -201,5 +201,6 @@
   }
 
   load();
-  window.Registry = { query: query, build: build, decode: decode, where: where, plate: plate, stats: stats, load: load, renderCar: renderCar, openPlate: openPlate };
+  function plateInfo(c) { var p = plateOf(c); return p && REG && REG.plates ? REG.plates[p] || null : null; }
+  window.Registry = { plateInfo: plateInfo, query: query, build: build, decode: decode, where: where, plate: plate, stats: stats, load: load, renderCar: renderCar, openPlate: openPlate };
 })();

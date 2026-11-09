@@ -549,9 +549,11 @@
   function flagChips(c, max) {
     var fl = (c.fl || []).slice().sort(function (a, b) { return (BAD_FLAGS[b] ? 1 : 0) - (BAD_FLAGS[a] ? 1 : 0); });
     if (c.relist) fl.unshift('relist');
+    if (c.kmBack) fl.unshift('kmback');
     if (c.vis) fl.unshift('vis');
     return fl.slice(0, max || 99).map(function (f) {
       if (f === 'relist') return '<span class="flag relist">🔁 Endurskráður</span>';
+      if (f === 'kmback') return '<span class="flag bad">⚠️ Akstur lækkaði</span>';
       if (f === 'vis') return '<span class="flag bad" title="Sjálfvirkt mat út frá fyrstu mynd (' + Math.round(c.vis[1] * 100) + '% líkur). Getur skjátlast.">📷 ' +
         ({ tjon: 'Mynd: tjón?', keppni: 'Mynd: keppnisbíll?', verkefni: 'Mynd: í viðgerð?', ryd: 'Mynd: ryð?' }[c.vis[0]] || c.vis[0]) + '</span>';
       return '<span class="flag ' + (BAD_FLAGS[f] ? 'bad' : 'plus') + '">' + esc(FLAG_TXT[f] || f) + '</span>';
@@ -778,12 +780,17 @@
       spec('zap', 'Afl', c.hp ? c.hp + ' hö' : '') + spec('gauge', 'Drægni', c.rng ? c.rng + ' km' : '') + spec('car', 'Drif', c.awd ? 'Fjórhjóladrif' : '') +
       spec('store', 'Seljandi', esc(c.dealer)) + '</div>' +
       '<div id="carReg"></div>' +
+      (c.kmBack ? '<p class="warn-box">' + ic('triangle-alert') + '<span><b>Akstur lækkaði um ' + kmFmt(c.kmBack.from - c.kmBack.to) + '.</b> ' +
+        (c.kmBack.same ? 'Í þessari auglýsingu stóð ' + kmFmt(c.kmBack.from) + ' en nú ' + kmFmt(c.kmBack.to) + ' (' + dayFmt(c.kmBack.at) + ').' :
+          'Svipaður bíll hjá sömu sölu var auglýstur með ' + kmFmt(c.kmBack.from) + ' og fór af skrá ' + dayFmt(c.kmBack.at) + '.') +
+        ' Getur verið leiðrétting á innsláttarvillu, en biddu um þjónustusögu og athugaðu kílómetrastöðu í skoðunarferli.</span></p>' : '') +
       (c.relist ? '<p class="info-box">' + ic('refresh-cw') + '<span>Þessi bíll var áður á skrá hjá <b>' + esc(c.relist.d || '?') + '</b> á <b>' + kr(c.relist.price) + '</b> (tekinn af skrá ' + dayFmt(c.relist.g) + ').' +
         (c.relist.price > c.price ? ' Hann er nú ' + kr(c.relist.price - c.price) + ' ódýrari.' : c.relist.price < c.price ? ' Hann er nú ' + kr(c.price - c.relist.price) + ' dýrari.' : '') + '</span></p>' : '') +
       '<div id="carDetails"><div class="skel-line"></div><div class="skel-line short"></div></div>' +
       '<div class="actions">' +
       '<button type="button" class="sec' + (inCmp ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + ic('git-compare-arrows') + (inCmp ? 'Í samanburði' : 'Bera saman') + '</button>' +
       '<button type="button" class="sec" data-watch="' + esc(c.id) + '">' + ic('bell') + 'Verðvakt</button>' +
+      '<button type="button" class="sec" data-similar="' + esc(c.id) + '">' + ic('sparkles') + 'Láttu mig vita af svipuðum ódýrari</button>' +
       '<button type="button" class="sec" data-share="' + esc(c.id) + '">' + ic('share-2') + 'Deila</button>' +
       '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">' + ic('sparkles') + 'Spyrja Claude</a></div>' +
       '</section>' +
@@ -795,9 +802,10 @@
         'Fyrir bíl á þessum aldri og akstri lækkar verð að jafnaði um ~' + Math.max(0, kmEff).toFixed(1) + '% fyrir hverja 10.000 km og ~' + Math.max(0, yrEff).toFixed(0) + '% á ári.</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +
         rows + '</tbody></table></div>' : '') +
-      '<div id="carAlt"></div>' +
+      '<div id="carOffer"></div><div id="carAlt"></div>' +
       '</section>' +
-      '<section data-cpanel="cost" hidden><div id="carExtras"></div></section>' +
+      '<section data-cpanel="cost" hidden><div id="carExtras"></div>' +
+      '<div class="actions"><button type="button" class="sec" data-import="' + esc(c.id) + '">' + ic('car') + 'Hvað kostar að flytja svona bíl inn?</button></div></section>' +
       '<section data-cpanel="hist" hidden><div id="carHistory"><div class="skel-line"></div></div></section>' +
       '</div>' +
       // föst stika neðst
@@ -1215,6 +1223,13 @@
     $('more').addEventListener('click', function () { shown += PAGE; render(true); });
     document.addEventListener('click', function (e) {
       if (e.target.closest && e.target.closest('.mt-lab[data-tip]')) { e.stopPropagation(); return; }
+      var ti = e.target.closest ? e.target.closest('[data-import],[data-similar]') : null;
+      if (ti) {
+        e.stopPropagation();
+        if (ti.hasAttribute('data-import')) { if (window.Features) Features.openImport(byId(ti.getAttribute('data-import'))); }
+        else if (window.Acct) Acct.saveSimilar(ti.getAttribute('data-similar'), ti);
+        return;
+      }
       var t = e.target.closest ? e.target.closest('[data-legend],[data-share],[data-watch],[data-save],[data-cmp],[data-open],[data-close],.car') : null;
       if (!t) return;
       if (t.hasAttribute('data-legend')) { e.stopPropagation(); showLegend(); return; }
@@ -1355,6 +1370,20 @@
             return a.id !== c.id && a.g <= c.firstSeen && c.km != null && a.k != null && Math.abs(a.k - c.km) <= Math.max(3000, c.km * 0.03);
           });
           if (cand.length) c.relist = cand.sort(function (a, b) { return a.g < b.g ? 1 : -1; })[0];
+        });
+        // akstursvörn: akstur lækkaði í sömu auglýsingu, eða bíll birtist aftur hjá sömu sölu með mun lægri akstur
+        H.forEach(function (a) {
+          if (!a.kh || a.g) return;
+          for (var i = 1; i < a.kh.length; i++) if (a.kh[i][1] < a.kh[i - 1][1] - 1000) {
+            var cc = byId2[a.id] && byId(a.id); if (cc) cc.kmBack = { from: a.kh[i - 1][1], to: a.kh[i][1], at: a.kh[i][0], same: true };
+          }
+        });
+        cars.forEach(function (c) {
+          if (c.kmBack || !c.firstSeen || c.firstSeen <= start || c.km == null) return;
+          var cand = (gone[c.make + '|' + c.base + '|' + c.year] || []).filter(function (a) {
+            return a.d && a.d === c.dealer && a.k != null && a.k - c.km >= 5000 && a.g <= c.firstSeen && daysBetween(a.g, c.firstSeen) <= 45 && Math.abs(a.price - c.price) / c.price < 0.25;
+          });
+          if (cand.length) c.kmBack = { from: cand[0].k, to: c.km, at: cand[0].g, same: false };
         });
         if (window.Features) Features.historyReady(H, start);
         render(true);
