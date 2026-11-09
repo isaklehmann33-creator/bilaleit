@@ -25,10 +25,3 @@ jobs:
           git add public/data/cars.json
           git diff --cached --quiet || git commit -m "Uppfærð bílagögn $(date -u +%F)"
           git push
-      - name: Setja á Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: bilaleit
-          channelId: live

@@ -2,6 +2,7 @@
 (function () {
   'use strict';
 
+  var GITHUB_DATA = 'https://raw.githubusercontent.com/isaklehmann33-creator/bilaleit/main/public/data/cars.json';
   var NOW = new Date().getFullYear();
   var PAGE = 60;
   var $ = function (id) { return document.getElementById(id); };
@@ -501,7 +502,13 @@
   }
 
   function load() {
-    fetch('data/cars.json?t=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+    // Nýjustu gögnin koma af GitHub (uppfærð á hverri nóttu); afritið á síðunni sjálfri er varaleið.
+    function get(url) { return fetch(url).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).catch(function () { return null; }); }
+    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now())]).then(function (res) {
+      var d = res[0] && (!res[1] || res[0].updated >= res[1].updated) ? res[0] : res[1];
+      if (!d) throw new Error('engin gögn');
+      return d;
+    }).then(function (d) {
       cars = d.cars.filter(function (c) { return c.price > 0 && c.make; }).map(prep);
       model = fit(cars);
       compare = (store('compare') || []).filter(byId);
