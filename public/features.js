@@ -273,6 +273,18 @@
     return r;
   }
 
+  // Meðalkostnaður við að sækja bíl til Þýskalands og koma með hann heim með Norrænu (Hirtshals–Seyðisfjörður).
+  // Áætlun 2026; ferjuverð sveiflast mikið eftir árstíma. Heimildir: Smyril Line/Northferries (pakkaverð), spjallþræðir.
+  var NORRONA = [
+    ['Flug til Þýskalands (aðra leið)', 30000],
+    ['Útflutningsnúmer og trygging í Þýskalandi (~200 €)', 27000],
+    ['Akstur að Hirtshals, ~900 km (eldsneyti)', 16000],
+    ['Gisting á leiðinni (1 nótt)', 15000],
+    ['Norræna: bíll + 1 farþegi með koju, aðra leið (~600 €)', 82000],
+    ['Matur um borð (2 dagar)', 11000],
+    ['Akstur Seyðisfjörður–Reykjavík (eldsneyti + km-gjald)', 20000]
+  ];
+  var NORRONA_TOTAL = NORRONA.reduce(function (s, x) { return s + x[1]; }, 0);
   var importHome = null;
   function openImport(c, pasted) {
     importHome = null;
@@ -287,7 +299,8 @@
       '<a class="bm-btn" id="bmLink" href="#" onclick="return false" title="Dragðu upp í bókamerkjastikuna">' + ic('car') + 'Bílaleit: reikna innflutning</a></details>' +
       '<div class="val-form"><label>Verð úti (EUR)<input id="iEur" type="text" inputmode="numeric" data-fmt value="' + fmtThousands(c ? Math.round(c.price / 137 * 0.75 / 500) * 500 : 20000) + '"><small class="hint" id="iEurKr"></small></label>' +
       '<label>Gengi EUR<input id="iRate" type="text" inputmode="decimal" value="' + String(store('eurRate') || 137).replace('.', ',') + '"><small class="hint" id="iRateNote">Sæki gengi dagsins…</small></label>' +
-      '<label>Flutningur til Íslands (kr.)<input id="iShip" type="text" inputmode="numeric" data-fmt value="350.000"></label>' +
+      '<label>Flutningur til Íslands (kr.)<input id="iShip" type="text" inputmode="numeric" data-fmt value="' + fmtThousands(NORRONA_TOTAL) + '">' +
+        '<small class="hint">Miðast við meðalverð með Norrænu frá Þýskalandi. <button type="button" class="link-btn sm" id="shipWhy">Sundurliðun</button></small></label>' +
       '<label>CO2 (g/km, WLTP)<input id="iCo2" type="number" inputmode="numeric" value="' + co.g + '"></label>' +
       '<label>Orkugjafi<select id="iEv"><option value="0"' + (ev ? '' : ' selected') + '>Brunavél / tvinn / tengiltvinn</option><option value="1"' + (ev ? ' selected' : '') + '>Rafmagn</option></select></label>' +
       '<label>Skráning, skoðun, númer (kr.)<input id="iFees" type="text" inputmode="numeric" data-fmt value="45.000"></label></div>' +
@@ -334,6 +347,19 @@
       calc();
     }
     $('iPaste').addEventListener('input', function () { if (this.value.length > 30) applyAd(this.value); });
+    $('shipWhy').addEventListener('click', function () {
+      var el = $('shipBox');
+      if (el) { el.remove(); return; }
+      var box = document.createElement('div');
+      box.id = 'shipBox'; box.className = 'ship-box';
+      box.innerHTML = '<b>Meðalkostnaður: sækja bíl til Þýskalands og koma heim með Norrænu</b><div class="imp-rows">' +
+        NORRONA.map(function (x) { return '<span>' + x[0] + '</span><b>' + A.kr(x[1]) + '</b>'; }).join('') +
+        '<span class="tot">Samtals</span><b class="tot">' + A.kr(NORRONA_TOTAL) + '</b></div>' +
+        '<p class="note">Áætlun. Ferjan er dýrari á sumrin (júní–ágúst) og ódýrari á vorin og haustin. Ef bíllinn er sendur sem frakt (t.d. frá Rotterdam) og þú ferð ekki sjálfur er kostnaðurinn annar. ' +
+        'Heimildir: <a href="https://www.northferries.com/en/smyril-line/" target="_blank" rel="noopener">Northferries</a> (verð Smyril Line), ' +
+        '<a href="https://www.bmwkraftur.is/spjall/viewtopic.php?f=1&t=15417" target="_blank" rel="noopener">bmwkraftur.is</a>, <a href="https://spjall.vaktin.is/viewtopic.php?t=74053" target="_blank" rel="noopener">spjallid.is</a>.</p>';
+      $('iOut').parentNode.insertBefore(box, $('iOut'));
+    });
     if (pasted) { $('iPaste').value = pasted.slice(0, 400) + '…'; applyAd(pasted); }
     eurRate().then(function (r) {
       if (!$('iRate')) return;
