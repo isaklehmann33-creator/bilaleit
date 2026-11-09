@@ -373,6 +373,88 @@ def main():
         "sources": report, "cars": cars,
     }, ensure_ascii=False, separators=(",", ":")), "utf-8")
     print(f"Alls {len(cars)} bílar -> {OUT}")
+    update_history(cars)
+    build_catalog(cars)
+
+
+# --- saga auglýsinga --------------------------------------------------------
+# Hver auglýsing sem við höfum séð: fyrst/síðast séð, verðsaga og hvenær hún hvarf (seld eða tekin út).
+HISTORY = Path(__file__).parent / "public" / "data" / "history.json"
+KEEP_GONE_DAYS = 730
+
+
+def update_history(cars):
+    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    h = json.loads(HISTORY.read_text("utf-8")) if HISTORY.exists() else {"ads": {}}
+    ads, live = h["ads"], set()
+    for c in cars:
+        live.add(c["id"])
+        a = ads.get(c["id"])
+        if not a:
+            a = ads[c["id"]] = {"m": c["make"], "o": c["model"], "y": c.get("year"), "k": c.get("km"), "d": c.get("dealer", ""),
+                                "u": c.get("url", ""), "f": today, "p": []}
+        a.update({"l": today, "k": c.get("km"), "g": None})
+        if not a["p"] or a["p"][-1][1] != c["price"]:
+            a["p"].append([today, c["price"]])
+    cutoff = (datetime.now(timezone.utc).timestamp() - KEEP_GONE_DAYS * 86400)
+    for k in list(ads):
+        a = ads[k]
+        if k not in live and not a.get("g"):
+            a["g"] = today  # hvarf af skrá í dag
+        if a.get("g") and datetime.strptime(a["g"], "%Y%m%d").replace(tzinfo=timezone.utc).timestamp() < cutoff:
+            del ads[k]
+    h["updated"] = today
+    HISTORY.write_text(json.dumps(h, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    print(f"Saga: {len(ads)} auglýsingar, {sum(1 for a in ads.values() if a.get('g'))} horfnar")
+
+
+# --- gerðaskrá: allar gerðir hverrar tegundar, líka þær sem eru ekki á sölu núna ----------
+CATALOG = Path(__file__).parent / "public" / "data" / "catalog.json"
+# Evrópskar/asískar gerðir sem NHTSA (bandaríski listinn) þekkir ekki
+EXTRA_MODELS = {
+    "SKODA": "Citigo Fabia Rapid Scala Octavia Superb Kamiq Karoq Kodiaq Yeti Roomster Enyaq Elroq Epiq",
+    "DACIA": "Sandero Logan Duster Jogger Spring Bigster Lodgy Dokker",
+    "SEAT": "Ibiza Leon Arona Ateca Tarraco Alhambra Mii Toledo Altea",
+    "CUPRA": "Born Formentor Leon Ateca Tavascan Terramar",
+    "PEUGEOT": "108 208 2008 308 3008 408 508 5008 Partner Rifter Expert Traveller Boxer e-208 e-2008",
+    "CITROEN": "C1 C3 C3-Aircross C4 C4-Picasso C5 C5-Aircross C5-X Berlingo Jumpy Jumper SpaceTourer DS3 DS4 DS5",
+    "RENAULT": "Clio Captur Megane Scenic Kadjar Austral Arkana Koleos Zoe Twingo Talisman Kangoo Trafic Master Espace Rafale",
+    "OPEL": "Corsa Astra Insignia Mokka Crossland Grandland Zafira Meriva Adam Combo Vivaro Movano Ampera",
+    "TOYOTA": "Aygo Yaris Yaris-Cross Auris Corolla Avensis C-HR RAV4 Land-Cruiser Hilux Proace Prius Highlander bZ4X GR86 Supra Verso Urban-Cruiser Hiace Camry",
+    "KIA": "Picanto Rio Ceed XCeed ProCeed Stonic Niro Sportage Sorento Soul Optima Stinger EV3 EV4 EV5 EV6 EV9 Carens",
+    "HYUNDAI": "i10 i20 i30 i40 Bayon Kona Tucson Santa-Fe Ioniq Ioniq-5 Ioniq-6 Ioniq-9 ix35 Inster Nexo",
+    "VOLVO": "C30 C40 C70 S40 S60 S80 S90 V40 V50 V60 V70 V90 XC40 XC60 XC70 XC90 EX30 EX40 EX90 EC40",
+    "MG": "MG3 MG4 MG5 ZS HS Marvel-R Cyberster",
+    "POLESTAR": "1 2 3 4",
+    "SUZUKI": "Alto Swift Ignis Baleno Vitara S-Cross Jimny SX4 Grand-Vitara Swace Across",
+    "MITSUBISHI": "Space-Star Colt ASX Eclipse-Cross Outlander Pajero L200 Lancer",
+    "NISSAN": "Micra Note Juke Qashqai X-Trail Leaf Ariya Navara Patrol Pathfinder Townstar NV200",
+    "SMART": "Fortwo Forfour #1 #3",
+    "FIAT": "500 500e 500X Panda Tipo Doblo Ducato Punto",
+    "BYD": "Dolphin Atto-3 Seal Seal-U Han Tang Sealion-7",
+    "LAND ROVER": "Defender Discovery Discovery-Sport Range-Rover Range-Rover-Sport Range-Rover-Evoque Range-Rover-Velar Freelander",
+}
+
+
+def build_catalog(cars):
+    cat = json.loads(CATALOG.read_text("utf-8")) if CATALOG.exists() else {"nhtsa": {}, "fetched": ""}
+    month = datetime.now(timezone.utc).strftime("%Y%m")
+    if cat.get("fetched") != month:  # NHTSA-listinn sóttur einu sinni í mánuði
+        makes = sorted({c["make"] for c in cars if sum(1 for x in cars if x["make"] == c["make"]) >= 3})
+        for mk in makes:
+            try:
+                r = json.loads(get("https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/" + urllib.parse.quote(mk.lower()) + "?format=json"))
+                names = sorted({x["Model_Name"] for x in r.get("Results", [])
+                                if re.search(r"[A-Za-z]", x["Model_Name"]) and not re.fullmatch(r"[A-Z]{1,3}\d{3,4}[A-Z]?", x["Model_Name"])})
+                if names:
+                    cat["nhtsa"][mk] = names
+            except Exception as e:
+                print(f"  NHTSA {mk}: {e}", file=sys.stderr)
+            time.sleep(0.3)
+        cat["fetched"] = month
+    cat["extra"] = {k: [m.replace("-", " ") for m in v.split()] for k, v in EXTRA_MODELS.items()}
+    CATALOG.write_text(json.dumps(cat, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    print(f"Gerðaskrá: {len(cat['nhtsa'])} tegundir frá NHTSA")
 
 
 if __name__ == "__main__":

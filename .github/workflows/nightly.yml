@@ -23,6 +23,6 @@ jobs:
         run: |
           git config user.name "bilaleit-bot"
           git config user.email "bilaleit-bot@users.noreply.github.com"
-          git add public/data/cars.json dealers.json bland_cache.json
+          git add public/data/cars.json public/data/history.json public/data/catalog.json dealers.json bland_cache.json
           git diff --cached --quiet || git commit -m "Uppfærð bílagögn $(date -u +%F)"
           git pull --rebase -q && git push

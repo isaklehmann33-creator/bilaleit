@@ -248,3 +248,18 @@ dialog.sheet { width: min(860px, calc(100% - 24px)); }
 .seg button.on { background: var(--accent); color: #fff; }
 .perf { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: #fde8e8; color: #b42318; margin-right: 2px; }
 @media (prefers-color-scheme: dark) { .perf { background: #3d1a1a; color: #ff9b8f; } }
+
+/* ---------- saga og tómar niðurstöður ---------- */
+.big-empty { text-align: left; max-width: 760px; margin: 0 auto; padding: 24px 4px; color: var(--text); }
+.big-empty h3 { margin: 0 0 6px; font-size: 20px; }
+.big-empty p { color: var(--muted); margin: 0 0 14px; }
+.btn-cta { background: var(--accent); color: #fff; border: 0; border-radius: 14px; padding: 14px 20px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 18px rgba(15,107,92,.25); }
+.btn-cta:hover { filter: brightness(1.05); }
+.past { display: flex; flex-direction: column; gap: 6px; }
+.past-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); font-size: 14px; }
+.past-row > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.past-row span { color: var(--muted); font-size: 13px; }
+.past-r { text-align: right; align-items: flex-end; }
+.hist-line { margin: 14px 0 0; font-size: 14px; }
+.pk-tabs { margin: 4px 0 12px; }
+.pk-row b { white-space: nowrap; }
