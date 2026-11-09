@@ -509,7 +509,7 @@ NEG = r"(?:ekki|ekkert|engin|ekkert|aldrei|enginn|laus við|án)\W+(?:\w+\W+){0,
 FLAGS = {   # kóði: (neikvætt?, mynstur)
     "tjon": (True, r"tjón|árekstr|klesst|tjónabíl"),
     "ryd": (True, r"\bryð"),
-    "laga": (True, r"þarfnast|þarf að laga|þarf smá|þarf að skipta um|þarf nýj|bilaður|biluð|bilað|bilun|gallað|gallaður|gölluð|galli\b|gallar\b|ónýt|virkar ekki|"
+    "laga": (True, r"þarfnast|þarf að laga|þarf (?:smá |einhverja |aðeins )?athygli|þarf að kíkja á|þarf smá|þarf að skipta um|þarf nýj|bilaður|biluð|bilað|bilun|gallað|gallaður|gölluð|galli\b|gallar\b|ónýt|virkar ekki|"
                    r"lekur|leki\b|olíuleki|vélarljós|check engine|vélarvandamál|gírkassavandamál|skiptingin slær|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar"),
     "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun"),
     "serut": (True, r"rall[ýy]\w*|keppnisbíl|kvartmílu|driftbíl|sandspyrnu|torfærubíl|til niðurrifs|í varahluti|varahlutabíl|ógangfær|óökufær|verkefnabíll|verkefni fyrir"),
@@ -554,6 +554,7 @@ REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
     ("ac", "Loftkæling", 25000, 200000, r"loftkæling|\bac\b|miðstöð"),
     ("vatnsdaela", "Vatnsdæla", 60000, 150000, r"vatnsdæl"),
     ("fjodrun", "Fjöðrun / demparar", 60000, 250000, r"dempar|fjöðrun|gormar|spyrn"),
+    ("drifskaft", "Drifskaft / upphengjulega", 60000, 200000, r"drifskaft|upphengj|drifskapt"),
     ("legur", "Hjólalegur", 40000, 100000, r"hjólaleg|\blegur|\blega\b"),
     ("startari", "Startari / alternator", 80000, 200000, r"startar|alternator|altenator|hleðslutæki vélar"),
     ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð|sílsa|sílsum"),
@@ -564,7 +565,7 @@ REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
     ("vel", "Vél (mikil viðgerð eða skipti)", 600000, 2000000, r"\bvélin\b|\bvél\b|mótor"),
     ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn"),
 ]
-DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma"
+DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma"
 DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b"
 
 
@@ -578,10 +579,14 @@ def repairs(d, title=""):
         for code, name, lo, hi, pat in REPAIRS:
             if code in seen:
                 continue
-            m = re.search(pat, sent)
-            if m and not re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25]):
-                seen.add(code)
-                out.append([code, name, lo, hi])
+            for m in re.finditer(pat, sent):
+                # gallaorðið þarf að vera nálægt hlutnum (löng lýsing án punkta er annars ein „setning“)
+                near = sent[max(0, m.start() - 45):m.end() + 30]
+                if (re.search(DEFECT, near) and not re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25])
+                        and not re.match(r"\s?(laus|frí|lítið)", sent[m.end():m.end() + 8])):
+                    seen.add(code)
+                    out.append([code, name, lo, hi])
+                    break
     # „vél“ er of almennt ef annar vélarhlutur fannst í sömu lýsingu
     if "vel" in seen and len(seen) > 1:
         out = [r for r in out if r[0] != "vel"]
@@ -595,6 +600,8 @@ def tags(d):
         for m in re.finditer(pat, t):
             before = t[max(0, m.start() - 30):m.start()]
             if neg and re.search(NEG + r"$", before):  # „ekkert ryð“, „aldrei lent í tjóni“
+                continue
+            if neg and re.match(r"\s?(laus|frí|lítið|nánast ekkert)", t[m.end():m.end() + 14]):  # „ryð laus“, „ryðlaus“, „ryðfrír“
                 continue
             fl.append(code)
             break
