@@ -97,9 +97,11 @@
     c.perf = perfTier(c);
     c.pwRaw = c.hp ? c.hp / 100 : powerHint(c);  // hestöfl af auglýsingunni ef til, annars giskað út frá heitinu
     c.priv = c.src === 'bland.is';
+    c.vis = VISION[c.id] || null;
     // sérútbúnir bílar og verkefni: ekki sambærilegir við venjulega bíla af sömu gerð
     c.special = /rall[yi]|rallykross|rallycross|kvartm|drift|keppnis|sandspyrn|torfaer|track ?car|race ?car|project|verkefni|varahlut|nidurrif|\bparts\b|tjonabil|ogangfaer|ookufaer|uppgerdar|crash/
-      .test(fold(c.title + ' ' + c.model)) || (c.fl || []).indexOf('serut') >= 0;  // einkasala (bland.is); allt annað er bílasala
+      .test(fold(c.title + ' ' + c.model)) || (c.fl || []).indexOf('serut') >= 0 ||
+      !!(c.vis && (c.vis[0] === 'keppni' || c.vis[0] === 'verkefni') && c.vis[1] >= 0.8);  // einkasala (bland.is); allt annað er bílasala
     return c;
   }
 
@@ -531,8 +533,11 @@
   function flagChips(c, max) {
     var fl = (c.fl || []).slice().sort(function (a, b) { return (BAD_FLAGS[b] ? 1 : 0) - (BAD_FLAGS[a] ? 1 : 0); });
     if (c.relist) fl.unshift('relist');
+    if (c.vis) fl.unshift('vis');
     return fl.slice(0, max || 99).map(function (f) {
       if (f === 'relist') return '<span class="flag relist">🔁 Endurskráður</span>';
+      if (f === 'vis') return '<span class="flag bad" title="Sjálfvirkt mat út frá fyrstu mynd (' + Math.round(c.vis[1] * 100) + '% líkur). Getur skjátlast.">📷 ' +
+        ({ tjon: 'Mynd: tjón?', keppni: 'Mynd: keppnisbíll?', verkefni: 'Mynd: í viðgerð?', ryd: 'Mynd: ryð?' }[c.vis[0]] || c.vis[0]) + '</span>';
       return '<span class="flag ' + (BAD_FLAGS[f] ? 'bad' : 'plus') + '">' + esc(FLAG_TXT[f] || f) + '</span>';
     }).join('');
   }
@@ -810,6 +815,7 @@
     return detailP[n].then(function (s) { return s[id]; });
   }
 
+  var VISION = {};  // ástandsmat út frá mynd (vision.py): id -> [flokkur, líkur]
   var HIST = null, histP = null;  // saga: allar auglýsingar sem við höfum séð (data/history.json), sótt þegar þarf
   function loadHistory() {
     if (histP) return histP;
@@ -1138,7 +1144,11 @@
     function get(url) { return fetch(url).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).catch(function () { return null; }); }
     get('logos/index.json').then(function (l) { if (l) { LOGOS = l; if (cars.length) render(true); } });
     var catP = get(GITHUB_DATA.replace('cars.json', 'catalog.json')).then(function (c) { return c || get('data/catalog.json'); });
-    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now())]).then(function (res) {
+    var visP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'vision.json')), get('data/vision.json?t=' + Date.now())]).then(function (r) {
+      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
+    });
+    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now()), visP]).then(function (res) {
+      VISION = (res[2] && res[2].flags) || {};
       var d = res[0] && (!res[1] || res[0].updated >= res[1].updated) ? res[0] : res[1];
       if (!d) throw new Error('engin gögn');
       return d;
