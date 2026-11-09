@@ -132,7 +132,7 @@
       var x = by[order[i]], avg = S.avg[order[i]];
       if (!x || x[0] + x[1] < 40 || !avg) continue;
       var p = x[0] / (x[0] + x[1]), pa = avg[0] / (avg[0] + avg[1]), d = p - pa;
-      return { c: order[i], own: order[i] === Math.min(2010, year || 0) || (year >= order[i] && year < order[i] + 5), p: p, avg: pa, n: x[0] + x[1],
+      return { c: order[i], own: year >= order[i] && year < order[i] + 5, p: p, avg: pa, n: x[0] + x[1],
         label: d >= 0.1 ? 'Óvenju margir enn á skrá' : d >= 0.03 ? 'Fleiri enn á skrá en almennt' : d > -0.03 ? 'Svipað hlutfall enn á skrá og almennt' :
           d > -0.1 ? 'Færri enn á skrá en almennt' : 'Mun færri enn á skrá en almennt',
         cls: d >= 0.03 ? 'good' : d > -0.1 ? 'mid' : 'bad' };
