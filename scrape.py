@@ -456,7 +456,91 @@ def parse_details(c, h):
         d["hp"] = int(hp.group(1))
     if d.get("d"):
         d["d"] = d["d"][:2500]
+    rng = re.search(r"[Dd]rægni(?: allt að)?(?: \(km\))? (\d{2,3})(?: km)?", " ".join(parts))
+    if rng and 10 <= int(rng.group(1)) <= 900:
+        d["r"] = int(rng.group(1))
+    d["i"] = photos(c, h)
     return d
+
+
+def photos(c, h):
+    """Myndir þessa bíls (ekki „aðrir bílar“ neðst á síðunni), stærri útgáfur, mest 15."""
+    out, cid = [], c["id"].split("-", 1)[-1]
+    for u in re.findall(r'(?:src|href|srcSet|data-cover)="([^"]+)"', h):
+        u = html.unescape(u).split(" ")[0]
+        if "_next/image" in u:
+            m = re.search(r"url=([^&]+)", u)
+            u = urllib.parse.unquote(m.group(1)) if m else ""
+        u = u.replace(":443", "")
+        src = c.get("src")
+        if src in ("bilasolur.is", "Hekla"):
+            ok = re.search(r"/CarImage/\d+/" + re.escape(cid.split("-")[-1]) + r"/\d+/", u)
+            u = re.sub(r"/\d+(\?.*)?$", "/784", u) if ok else ""
+        elif src == "Askja":
+            u = u.replace("w=400", "w=800") if ("c=" + cid + "&") in u else ""
+        elif src == "Brimborg":
+            u = ("https://notadir.brimborg.is" + u) if u.startswith("/static/notadir/images/" + cid + "_") and "_full" in u else ""
+        elif src == "bland.is":
+            u = ("https:" + u) if "/album/img/" in u and "/m/" in u else ""
+        else:
+            u = ""
+        if u and u not in out:
+            out.append(u)
+    if c.get("src") == "Askja":  # myndanúmerin eru í gögnum síðunnar (Next.js), ekki í <img>
+        pids = sorted({int(x) for x in re.findall(r"c(?:=|%3D|\\u003d)" + re.escape(cid) + r"(?:&amp;|&|%26|\\u0026)p(?:=|%3D|\\u003d)(\d+)", h)})
+        out = [f"https://bilasolur.is/CarImage.aspx?s=81&c={cid}&p={p}&w=800" for p in pids]
+    if c.get("src") == "bland.is":  # skyldar auglýsingar neðst á síðunni eru með sínar eigin myndir
+        cut = h.find("Aðrar skyldar auglýsingar")
+        if cut > 0:
+            out = [u for u in out if h.find(u.replace("https:", "")) < cut]
+    return out[:15]
+
+
+# --- viðvaranir, plúsar og búnaður úr lýsingu og búnaðarlista -------------------
+NEG = r"(?:ekki|ekkert|engin|ekkert|aldrei|enginn|laus við|án)\W+(?:\w+\W+){0,2}"
+FLAGS = {   # kóði: (neikvætt?, mynstur)
+    "tjon": (True, r"tjón|árekstr|klesst|tjónabíl"),
+    "ryd": (True, r"\bryð"),
+    "laga": (True, r"þarfnast|þarf að laga|þarf smá|bilaður|bilun|vélarvandamál|gírkassavandamál|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar"),
+    "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun"),
+    "timareim": (False, r"(?:ný|nýleg|skipt um|nýbúið að skipta um) (?:tímareim|keðju)|tímareim (?:ný|nýleg|skipt)"),
+    "skodadur": (False, r"nýskoðaður|ný skoðun|skoðaður (?:20\d\d|til)|nýlega skoðaður"),
+    "smurbok": (False, r"smurbók|þjónustubók|þjónustusaga|full þjónustusaga|alltaf þjónustaður"),
+    "eigandi": (False, r"einn eigandi|1 eigandi|eins eiganda"),
+    "reyklaus": (False, r"reyklaus"),
+    "abyrgd": (False, r"verksmiðjuábyrgð|í ábyrgð|ábyrgð til"),
+    "dekk": (False, r"vetrardekk fylgja|nagladekk fylgja|aukadekk|tveir dekkjagangar|2 dekkjagangar|ný dekk|heilsársdekk"),
+}
+FEATURES = {
+    "krokur": r"dráttarkr[óo]k|dráttarbeisli|dráttarbúnað",
+    "sjo": r"\b7 sæta|\b7 manna|sjö sæta|\b7 farþeg",
+    "carplay": r"carplay|android auto",
+    "hitistyri": r"hiti í stýri",
+    "hitisaeti": r"hiti í (?:fram)?sætum|hiti í sæti",
+    "ledur": r"leður",
+    "topplug": r"topplúg|glerþak|panorama",
+    "myndavel": r"bakkmyndavél|360° myndavél|360 myndavél",
+    "acc": r"skynvæddur hraðastillir|aðlögunarhraðastill|adaptive cruise",
+    "varmadaela": r"varmadæl",
+    "lykill": r"lykillaus",
+    "sjonlina": r"sjónlínuskjá|head.?up",
+}
+
+
+def tags(d):
+    t = (" ".join(d.get("e", [])) + " " + d.get("d", "")).lower()
+    fl, ft = [], []
+    for code, (neg, pat) in FLAGS.items():
+        for m in re.finditer(pat, t):
+            before = t[max(0, m.start() - 30):m.start()]
+            if neg and re.search(NEG + r"$", before):  # „ekkert ryð“, „aldrei lent í tjóni“
+                continue
+            fl.append(code)
+            break
+    for code, pat in FEATURES.items():
+        if re.search(pat, t):
+            ft.append(code)
+    return fl, ft
 
 
 def update_details(cars):
@@ -485,12 +569,23 @@ def update_details(cars):
         s = {k: v for k, v in s.items() if k in live}
         (DETAILS_DIR / f"{i:02d}.json").write_text(json.dumps(s, ensure_ascii=False, separators=(",", ":")), "utf-8")
         shards[i] = s
-    hp = {k: v["hp"] for s in shards.values() for k, v in s.items() if v.get("hp")}
+    det = {k: v for s in shards.values() for k, v in s.items()}
+    hp = 0
     for c in cars:
-        if c["id"] in hp:
-            c["hp"] = hp[c["id"]]
+        d = det.get(c["id"])
+        if not d:
+            continue
+        if d.get("hp"):
+            c["hp"] = d["hp"]; hp += 1
+        if d.get("r"):
+            c["rng"] = d["r"]
+        fl, ft = tags(d)
+        if fl:
+            c["fl"] = fl
+        if ft:
+            c["ft"] = ft
     left = len(todo) - done
-    print(f"Lýsingar: sótti {done}, {left} eftir, {len(hp)} með hestöfl")
+    print(f"Lýsingar: sótti {done}, {left} eftir, {hp} með hestöfl")
 
 
 # --- staðsetningar fyrir kortið ---------------------------------------------
