@@ -104,6 +104,7 @@
     if (f.yearMax != null) p.push('árg. til ' + f.yearMax);
     if (f.kmMax != null) p.push('undir ' + A.kmFmt(f.kmMax));
     if (f.dealer) p.push(f.dealer);
+    if (f.seller) p.push(f.seller === 'private' ? 'einstaklingar' : 'bílasölur');
     if (f.text) p.push('„' + f.text + '“');
     if (f.deal) p.push('gott verð');
     return p.join(' · ') || 'Allir bílar';

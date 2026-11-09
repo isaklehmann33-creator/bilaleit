@@ -242,3 +242,6 @@ dialog.sheet { width: min(860px, calc(100% - 24px)); }
 .pk-more { margin-top: 10px; }
 .pk-more summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 6px 0; }
 .with-logo { display: flex; align-items: center; gap: 12px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--bg); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; color: var(--text); border-radius: 8px; padding: 7px 4px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.seg button.on { background: var(--accent); color: #fff; }

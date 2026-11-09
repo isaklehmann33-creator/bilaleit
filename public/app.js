@@ -94,6 +94,7 @@
     c.auto = /sjalf/.test(fold(c.trans)) ? true : /bein/.test(fold(c.trans)) ? false : (c.fcat === 'Rafmagn' ? true : null);
     c.age = Math.max(0, NOW - (c.year || NOW));
     c.ftitle = fold(c.make + ' ' + c.model);
+    c.priv = c.src === 'bland.is';  // einkasala (bland.is); allt annað er bílasala
     return c;
   }
 
@@ -246,6 +247,8 @@
     take(/beinskipt\w*|\bbsk\b|manual/g, function () { f.trans = 'bein'; });
     take(/jeppling\w*|jepp\w*|suv|sportjepp\w*|crossover/g, function () { f.body = 'suv'; });
     take(/folksbil\w*|smabil\w*|skutbil\w*|stationbil\w*/g, function () { f.body = 'car'; });
+    take(/einstakling\w*|einkasal\w*|einkaadil\w*|\bbland(\.is)?\b|beint fra eiganda/g, function () { f.seller = 'private'; });
+    take(/fra bilasol\w*|hja bilasol\w*|bilasolu\w*/g, function () { f.seller = 'dealer'; });
     take(/fjorhjoladrif\w*|aldrif\w*|4x4|\bawd\b|\b4wd\b|fjordrif\w*/g, function () { f.awd = true; });
 
     // röðun
@@ -296,6 +299,7 @@
     if (f.yearMin && f.yearMin === f.yearMax) said.push('árgerð ' + f.yearMin);
     else { if (f.yearMin) said.push('árgerð ' + f.yearMin + '+'); if (f.yearMax) said.push('árgerð til ' + f.yearMax); }
     if (f.kmMax) said.push('ekinn undir ' + kmFmt(f.kmMax));
+    if (f.seller) said.push(f.seller === 'private' ? 'einstaklingar (bland.is)' : 'bílasölur');
     if (f.deal) said.push('gott verð');
     if (f.text) said.push('„' + f.text + '“');
     if (f.sort && f.sort !== 'deal') said.push({ priceAsc: 'ódýrast fyrst', kmAsc: 'minnst ekinn fyrst', yearDesc: 'nýjast fyrst' }[f.sort]);
@@ -305,14 +309,14 @@
   function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
   // ---------- síur ----------
-  var F = ['fMake', 'fModel', 'fPriceMin', 'fPriceMax', 'fYearMin', 'fYearMax', 'fKmMax', 'fFuel', 'fTrans', 'fBody', 'fDealer', 'fText', 'fAwd', 'fDeal', 'fSort'];
+  var F = ['fMake', 'fModel', 'fPriceMin', 'fPriceMax', 'fYearMin', 'fYearMax', 'fKmMax', 'fFuel', 'fTrans', 'fBody', 'fDealer', 'fSeller', 'fText', 'fAwd', 'fDeal', 'fSort'];
   function readFilters() {
     var v = function (id) { return $(id).value; };
     var n = function (id) { var x = parseFloat(v(id)); return isNaN(x) ? null : x; };
     return {
       make: v('fMake'), model: v('fModel'), priceMin: n('fPriceMin'), priceMax: n('fPriceMax'), yearMin: n('fYearMin'),
       yearMax: n('fYearMax'), kmMax: n('fKmMax'), fuel: v('fFuel'), trans: v('fTrans'), body: v('fBody'),
-      dealer: v('fDealer'), text: fold(v('fText')).trim(), awd: $('fAwd').checked, deal: $('fDeal').checked, sort: v('fSort')
+      dealer: v('fDealer'), seller: v('fSeller'), text: fold(v('fText')).trim(), awd: $('fAwd').checked, deal: $('fDeal').checked, sort: v('fSort')
     };
   }
   function setFilters(f) {
@@ -322,7 +326,7 @@
     $('fPriceMax').value = f.priceMax ? +(f.priceMax / 1e6).toFixed(2) : '';
     $('fYearMin').value = f.yearMin || ''; $('fYearMax').value = f.yearMax || '';
     $('fKmMax').value = f.kmMax || ''; $('fFuel').value = f.fuel || ''; $('fTrans').value = f.trans || '';
-    $('fBody').value = f.body || ''; $('fDealer').value = f.dealer || ''; $('fText').value = f.text || '';
+    $('fBody').value = f.body || ''; $('fDealer').value = f.dealer || ''; setSeller(f.seller || ''); $('fText').value = f.text || '';
     $('fAwd').checked = !!f.awd; $('fDeal').checked = !!f.deal; $('fSort').value = f.sort || 'deal';
   }
   function filtered(f0) {
@@ -341,6 +345,8 @@
       if (f.body === 'suv' && !c.suv) return false;
       if (f.body === 'car' && c.suv) return false;
       if (f.dealer && c.dealer !== f.dealer) return false;
+      if (f.seller === 'private' && !c.priv) return false;
+      if (f.seller === 'dealer' && c.priv) return false;
       if (f.awd && !c.awd) return false;
       if (f.deal && !(c.peers >= 2 && c.dev <= -0.12)) return false;
       for (var i = 0; i < words.length; i++) if (c.ftitle.indexOf(words[i]) < 0) return false;
@@ -546,6 +552,10 @@
     render();
     if (thenModel && mk) openModelPicker(); else closeModal();
   }
+  function setSeller(v) {
+    $('fSeller').value = v;
+    document.querySelectorAll('#fSellerSeg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-seller') === v); });
+  }
   function chooseModel(md) { $('fModel').value = md; render(); }
 
   function openMakePicker(thenModel) {
@@ -655,6 +665,10 @@
     $('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
     $('trayOpen').addEventListener('click', showCompare);
     $('pickMake').addEventListener('click', openMakePicker);
+    $('fSellerSeg').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-seller]') : null;
+      if (b) { setSeller(b.getAttribute('data-seller')); render(); }
+    });
     $('pickModel').addEventListener('click', function () { if ($('fMake').value) openModelPicker(); else openMakePicker(true); });
     $('modelChips').addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('[data-chip]') : null;
