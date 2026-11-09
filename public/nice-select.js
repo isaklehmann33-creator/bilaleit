@@ -83,7 +83,7 @@
       var li = e.target.closest('li'); if (li) choose(+li.getAttribute('data-i'));
     });
     // listinn er oft inni í <label>: smellur í hann myndi annars virkja falda select-ið og iOS opnar sinn eigin lista
-    wrap.addEventListener('click', function (e) { if (e.target.tagName !== 'INPUT') e.preventDefault(); });
+    wrap.addEventListener('click', function (e) { if (e.target.tagName !== 'INPUT') e.preventDefault(); }, true);  // capture: listinn stöðvar smellinn
     var lab = wrap.closest('label');
     if (lab) lab.addEventListener('click', function (e) { if (!wrap.contains(e.target)) { e.preventDefault(); e.stopPropagation(); btn.click(); } });
     sel.addEventListener('change', update);
