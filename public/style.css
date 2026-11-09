@@ -738,3 +738,4 @@ dialog#consent::backdrop { background: rgba(3,6,5,.78); backdrop-filter: blur(10
 .cs-check input { width: 20px; height: 20px; accent-color: var(--accent); }
 #consentOk:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); }
 @media (max-width: 760px) { dialog#consent { top: auto !important; bottom: 0; } .consent { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); } }
+.val-form .hint, .watch-box .hint { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); font-weight: 500; text-transform: none; letter-spacing: 0; }

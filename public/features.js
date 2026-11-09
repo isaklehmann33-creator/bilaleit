@@ -11,7 +11,19 @@
   function mkr(n) { return A.mkrShort(n) + ' m.kr.'; }
   function median(a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[a.length >> 1] : 0; }
   function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
-  function num(id) { var v = parseFloat(String($(id).value).replace(',', '.')); return isNaN(v) ? 0 : v; }
+  function num(id) {
+    var el = $(id), raw = String(el.value);
+    if (el.hasAttribute('data-fmt')) raw = raw.replace(/\./g, '');  // 20.000 -> 20000
+    var v = parseFloat(raw.replace(',', '.')); return isNaN(v) ? 0 : v;
+  }
+  // verðreitir sýna þúsundaskil (20.000) meðan skrifað er
+  function fmtThousands(v) { var d = String(v).replace(/[^\d]/g, ''); return d ? (+d).toLocaleString('de-DE') : ''; }
+  document.addEventListener('input', function (e) {
+    var el = e.target; if (!el.hasAttribute || !el.hasAttribute('data-fmt')) return;
+    var fromEnd = el.value.length - (el.selectionEnd || el.value.length);
+    el.value = fmtThousands(el.value);
+    var pos = Math.max(0, el.value.length - fromEnd); try { el.setSelectionRange(pos, pos); } catch (er) {}
+  }, true);
   function today() { var d = new Date(); return '' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2); }
 
   // ---------- 🆕 Nýtt / 📉 Lækkað í verði ----------
@@ -47,7 +59,7 @@
       '<label>Tegund<select id="vMake">' + A.makes().map(function (m) { return '<option value="' + esc(m) + '"' + (m === mk ? ' selected' : '') + '>' + esc(A.cap(m)) + '</option>'; }).join('') + '</select></label>' +
       '<label>Gerð<select id="vModel"></select></label>' +
       '<label>Árgerð<input id="vYear" type="number" inputmode="numeric" min="1970" max="' + (NOW + 1) + '" value="' + (last.year || NOW - 6) + '" required></label>' +
-      '<label>Ekinn (km)<input id="vKm" type="number" inputmode="numeric" min="0" step="1000" value="' + (last.km != null ? last.km : 90000) + '" required></label>' +
+      '<label>Ekinn (km)<input id="vKm" type="text" inputmode="numeric" data-fmt value="' + fmtThousands(last.km != null ? last.km : 90000) + '" required></label>' +
       '<label>Eldsneyti<select id="vFuel">' + ['Bensín', 'Dísel', 'Tvinn', 'Tengiltvinn', 'Rafmagn'].map(function (x) { return '<option' + (x === last.fuel ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' +
       '<label>Skipting<select id="vTrans"><option value="sj"' + (last.trans !== 'bein' ? ' selected' : '') + '>Sjálfskipting</option><option value="bein"' + (last.trans === 'bein' ? ' selected' : '') + '>Beinskipting</option></select></label>' +
       '<label class="wide">Útgáfa / vél (valfrjálst)<input id="vExtra" type="text" placeholder="t.d. 500, 220 CDI, 330e, AMG 45, GTI, Performance" value="' + esc(last.extra || '') + '"></label>' +
@@ -133,7 +145,9 @@
     var p = Object.assign({}, DEF, store('costs') || {}), bg = bifreidagjald(c);
     p.tax = bg.year;  // reiknað fyrir hvern bíl, ekki vistað
     function inp(id, label, val, step, suffix) {
-      return '<label>' + label + '<span class="inp-s"><input id="' + id + '" type="number" inputmode="decimal" step="' + step + '" value="' + val + '">' + (suffix ? '<i>' + suffix + '</i>' : '') + '</span></label>';
+      var big = step >= 1000;  // krónu- og km-reitir með þúsundaskilum
+      return '<label>' + label + '<span class="inp-s"><input id="' + id + '" ' + (big ? 'type="text" inputmode="numeric" data-fmt value="' + fmtThousands(Math.round(val)) + '"' :
+        'type="number" inputmode="decimal" step="' + step + '" value="' + val + '"') + '>' + (suffix ? '<i>' + suffix + '</i>' : '') + '</span></label>';
     }
     el.innerHTML = '<div class="cost-grid">' +
       '<div class="cost-box"><div class="cost-inputs">' + inp('cDown', 'Útborgun', p.down, 5, '%') + inp('cRate', 'Vextir', p.rate, 0.1, '%') + inp('cYears', 'Lánstími', p.years, 1, 'ár') + '</div>' +
@@ -208,9 +222,14 @@
   // Vörugjald 2026 (lög 29/1993 m.br.): 0,34% á hvert g/km CO2 yfir 30, minnst 10% fyrir bíla með brunavél, mest 70%; rafbílar 0%.
   function vorugjald(co2, ev) { return ev ? 0 : Math.max(10, Math.min(70, 0.34 * Math.max(0, co2 - 30))); }
   var rateP = null;
+  // gengi dagsins: ECB birtir ekki ISK, svo notuð er opin gengisskrá (uppfærð daglega), önnur til vara
   function eurRate() {
-    if (!rateP) rateP = fetch('https://api.frankfurter.app/latest?from=EUR&to=ISK').then(function (r) { return r.json(); })
-      .then(function (j) { return (j && j.rates && j.rates.ISK) || 150; }).catch(function () { return 150; });
+    if (!rateP) rateP = fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json')
+      .then(function (r) { return r.json(); }).then(function (j) { if (!j.eur || !j.eur.isk) throw 0; return { rate: j.eur.isk, date: j.date }; })
+      .catch(function () {
+        return fetch('https://open.er-api.com/v6/latest/EUR').then(function (r) { return r.json(); })
+          .then(function (j) { if (!j.rates || !j.rates.ISK) throw 0; return { rate: j.rates.ISK, date: (j.time_last_update_utc || '').slice(5, 16) }; });
+      }).catch(function () { return { rate: 150, date: null }; });
     return rateP;
   }
   function openImport(c) {
@@ -218,12 +237,12 @@
     var q = encodeURIComponent(c ? A.cap(c.make) + ' ' + A.cap(c.base) : '');
     A.openModal('<div class="m"><div class="m-head"><h2>Innflutningsreiknir</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       '<p class="note">Hvað kostar að kaupa ' + (c ? 'svona bíl' : 'bíl') + ' í Evrópu og flytja hann heim? Sláðu inn verðið úti.</p>' +
-      '<div class="val-form"><label>Verð úti (EUR)<input id="iEur" type="number" inputmode="decimal" value="' + (c ? Math.round(c.price / 150 * 0.75 / 500) * 500 : 20000) + '"></label>' +
-      '<label>Gengi EUR<input id="iRate" type="number" inputmode="decimal" step="0.1" value="150"></label>' +
-      '<label>Flutningur til Íslands (kr.)<input id="iShip" type="number" inputmode="numeric" step="10000" value="350000"></label>' +
+      '<div class="val-form"><label>Verð úti (EUR)<input id="iEur" type="text" inputmode="numeric" data-fmt value="' + fmtThousands(c ? Math.round(c.price / 137 * 0.75 / 500) * 500 : 20000) + '"><small class="hint" id="iEurKr"></small></label>' +
+      '<label>Gengi EUR<input id="iRate" type="text" inputmode="decimal" value=""><small class="hint" id="iRateNote">Sæki gengi dagsins…</small></label>' +
+      '<label>Flutningur til Íslands (kr.)<input id="iShip" type="text" inputmode="numeric" data-fmt value="350.000"></label>' +
       '<label>CO2 (g/km, WLTP)<input id="iCo2" type="number" inputmode="numeric" value="' + co.g + '"></label>' +
       '<label>Orkugjafi<select id="iEv"><option value="0"' + (ev ? '' : ' selected') + '>Brunavél / tvinn / tengiltvinn</option><option value="1"' + (ev ? ' selected' : '') + '>Rafmagn</option></select></label>' +
-      '<label>Skráning, skoðun, númer (kr.)<input id="iFees" type="number" inputmode="numeric" step="5000" value="45000"></label></div>' +
+      '<label>Skráning, skoðun, númer (kr.)<input id="iFees" type="text" inputmode="numeric" data-fmt value="45.000"></label></div>' +
       '<div id="iOut"></div>' +
       '<div class="actions"><a class="sec" target="_blank" rel="noopener" href="https://suchen.mobile.de/fahrzeuge/search.html?isSearchRequest=true&s=Car&vc=Car&q=' + q + '">' + ic('external-link') + 'Leita á mobile.de</a>' +
       '<a class="sec" target="_blank" rel="noopener" href="https://www.autoscout24.com/lst?atype=C&search_id=&q=' + q + '">' + ic('external-link') + 'Leita á AutoScout24</a></div>' +
@@ -233,6 +252,7 @@
     function calc() {
       var eur = num('iEur'), rate = num('iRate'), ship = num('iShip'), co2 = num('iCo2'), isEv = $('iEv').value === '1', fees = num('iFees');
       var toll = eur * rate + ship, pct = vorugjald(co2, isEv), vg = toll * pct / 100, vsk = (toll + vg) * 0.24, total = toll + vg + vsk + fees;
+      $('iEurKr').textContent = eur ? '≈ ' + A.kr(eur * rate) : '';
       var cmp = c ? '<div class="imp-cmp ' + (total < c.price ? 'good' : 'bad') + '">' + ic(total < c.price ? 'circle-check' : 'triangle-alert') + '<span>' +
         (total < c.price ? 'Um <b>' + A.kr(c.price - total) + ' ódýrara</b> en þessi bíll hér heima' : 'Um <b>' + A.kr(total - c.price) + ' dýrara</b> en þessi bíll hér heima') +
         ' (' + A.kr(c.price) + '). Mundu: engin ábyrgð frá umboði, áhætta í flutningi og tími.</span></div>' : '';
@@ -240,7 +260,13 @@
         '<span>Vörugjald (' + pct.toFixed(1).replace('.', ',') + '%)</span><b>' + A.kr(vg) + '</b><span>VSK (24%)</span><b>' + A.kr(vsk) + '</b>' +
         '<span>Skráning og fleira</span><b>' + A.kr(fees) + '</b><span class="tot">Samtals á götuna</span><b class="tot">' + A.kr(total) + '</b></div>' + cmp;
     }
-    eurRate().then(function (r) { if ($('iRate')) { $('iRate').value = r.toFixed(1); calc(); } });
+    eurRate().then(function (r) {
+      if (!$('iRate')) return;
+      $('iRate').value = r.rate.toFixed(2).replace('.', ',');
+      var dd = r.date && !isNaN(new Date(r.date)) ? A.dateIs(new Date(r.date)) : r.date;
+      $('iRateNote').textContent = r.date ? 'Gengi ' + dd + ', uppfært sjálfkrafa' : 'Náði ekki í gengi: áætlað 150';
+      calc();
+    });
     $('modalBody').addEventListener('input', function (e) { if (/^i(Eur|Rate|Ship|Co2|Fees)$/.test(e.target.id)) calc(); });
     $('modalBody').addEventListener('change', function (e) { if (e.target.id === 'iEv') calc(); });
     calc();

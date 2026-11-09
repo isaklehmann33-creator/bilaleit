@@ -99,13 +99,13 @@
     if (btn.parentNode.parentNode.querySelector('.watch-box')) return;
     var box = document.createElement('div');
     box.className = 'watch-box';
-    box.innerHTML = '<label>Láttu mig vita ef verðið fer niður í<span class="inp-s"><input id="wTarget" type="number" inputmode="numeric" step="50000" value="' +
-      (w ? w.target : Math.round(c.price * 0.9 / 5e4) * 5e4) + '"><i>kr.</i></span></label>' +
+    box.innerHTML = '<label>Láttu mig vita ef verðið fer niður í<span class="inp-s"><input id="wTarget" type="text" inputmode="numeric" data-fmt value="' +
+      (w ? w.target : Math.round(c.price * 0.9 / 5e4) * 5e4).toLocaleString('de-DE') + '"><i>kr.</i></span></label>' +
       '<button type="button" class="primary" id="wSave">Vista verðvakt</button>' + (w ? '<button type="button" class="link" id="wDel">Hætta að vakta</button>' : '');
     btn.parentNode.parentNode.insertBefore(box, btn.parentNode.nextSibling);
     btn.disabled = true;
     $('wSave').addEventListener('click', function () {
-      var target = +$('wTarget').value;
+      var target = +String($('wTarget').value).replace(/\./g, '');
       if (!(target > 0)) return;
       doc.watch[id] = { target: target, title: A.cap(c.make) + ' ' + A.cap(c.model), price: c.price, t: now(), hit: c.price <= target };
       if (!doc.saved[id]) doc.saved[id] = snap(c);
