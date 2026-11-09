@@ -678,10 +678,35 @@
       '<div><span class="mt-lab warn">Sérútbúinn / verkefni</span><span>rallý-, keppnis-, tjóna- eða varahlutabíll: ekki borinn saman</span></div></div>' +
       '<p class="note">Mælirinn sýnir hvar verðið lendir: grænt = ódýrara en sambærilegir, rautt = dýrara. Matið er vísbending, ekki ástandsskoðun: ástand, búnaður og þjónustusaga skipta líka máli.</p></div>');
   }
-  // sveimtexti á verðmerkinu: ástæða fyrir þennan tiltekna bíl
+  // sveimgluggi á verðmerkinu: lítið kort með ástæðum fyrir þennan tiltekna bíl
+  function reasons(c) {
+    var v = verdict(c), out = [];
+    if (v.unsure) return [{ ic: 'info', t: why(c) }];
+    var sim = similar(c, 8), adj = sim.map(function (o) { return adjusted(o, c); }), n = sim.length;
+    var cheaper = adj.filter(function (p) { return p > c.price; }).length;
+    if (c.est) out.push({ ic: v.cls === 'bad' ? 'triangle-alert' : 'wallet', t: '~' + thous(c.est - c.price) + (c.price <= c.est ? ' undir' : ' yfir') + ' áætluðu markaðsverði', warn: v.cls === 'bad' });
+    if (n) out.push({ ic: v.cls === 'bad' ? 'trending-down' : 'check', t: v.cls === 'bad' ? 'Dýrari en ' + (n - cheaper) + ' af ' + n + ' líkustu bílunum' : 'Ódýrari en ' + cheaper + ' af ' + n + ' líkustu bílunum' });
+    var kms = sim.filter(function (o) { return o.km != null; }).map(function (o) { return o.km; });
+    if (c.km != null && kms.length >= 3) {
+      var mk = med(kms);
+      if (c.km < mk * 0.75) out.push({ ic: 'route', t: 'Minna ekinn: ' + kmFmt(c.km) + ' en flestir ~' + Math.round(mk / 1000) + ' þ. km' });
+      else if (c.km > mk * 1.35) out.push({ ic: 'route', t: 'Meira ekinn: ' + kmFmt(c.km) + ' en flestir ~' + Math.round(mk / 1000) + ' þ. km' });
+    }
+    var yrs = sim.map(function (o) { return o.year || 0; });
+    if (c.year && yrs.length >= 3 && c.year > med(yrs)) out.push({ ic: 'calendar', t: 'Nýrri en flestir sambærilegir (' + c.year + ')' });
+    if (c.drop) out.push({ ic: 'trending-down', t: 'Lækkaði nýlega um ' + thous(c.drop) });
+    if (c.perf.t) out.push({ ic: 'zap', t: c.perf.label + ': borinn saman með tilliti til útgáfu' });
+    if (c.fl && c.fl.some(function (f) { return BAD_FLAGS[f]; })) out.push({ ic: 'triangle-alert', t: 'Lýsingin nefnir galla: ' + c.fl.filter(function (f) { return BAD_FLAGS[f]; }).map(function (f) { return FLAG_TXT[f].replace('⚠️ ', ''); }).join(', '), warn: true });
+    if (c.vis) out.push({ ic: 'triangle-alert', t: 'Myndin bendir til ' + ({ tjon: 'tjóns', keppni: 'keppnisbíls', verkefni: 'viðgerðar', ryd: 'ryðs' }[c.vis[0]] || c.vis[0]), warn: true });
+    return out;
+  }
   function tipHtml(c, v) {
-    return '<b>' + esc(v.txt) + '</b>' + (c.est && !c.special ? ' · mat ' + esc(kr(c.est)) : '') + '<br>' + esc(why(c, true)) +
-      '<br><span class="tip-note">' + esc(LEGEND_TXT[v.cls] || '') + '</span>';
+    var p = v.unsure ? null : Math.max(0, Math.min(1, (c.dev + 0.3) / 0.6));
+    return '<div class="tc"><div class="tc-head"><span class="tc-badge ' + v.cls + '">' + esc(v.txt) + '</span></div>' +
+      (c.est && !c.special ? '<div class="tc-prices"><div><span>Ásett verð</span><b>' + esc(kr(c.price)) + '</b></div><div><span>Áætlað mat</span><b>' + esc(kr(c.est)) + '</b></div></div>' +
+        (p == null ? '' : '<div class="tc-meter"><i style="left:' + (p * 100).toFixed(1) + '%"></i></div><div class="tc-scale"><span>Ódýrt</span><span>Dýrt</span></div>') : '') +
+      '<ul class="tc-list">' + reasons(c).map(function (r) { return '<li' + (r.warn ? ' class="w"' : '') + '>' + ic(r.ic) + '<span>' + esc(r.t) + '</span></li>'; }).join('') + '</ul>' +
+      (c.peers >= 2 && !c.special ? '<div class="tc-foot">Borið saman við ' + c.peers + ' ' + esc(cap(c.make) + ' ' + cap(c.base)) + ' á skrá, leiðrétt fyrir aldri, akstri og eldsneyti.</div>' : '') + '</div>';
   }
   function spec(icon, label, val) { return val ? '<div class="spec">' + ic(icon) + '<span>' + label + '</span><b>' + val + '</b></div>' : ''; }
 
