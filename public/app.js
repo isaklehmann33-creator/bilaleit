@@ -565,7 +565,7 @@
         (c.auto === true ? '<span>Sjálfsk.</span>' : c.auto === false ? '<span>Beinsk.</span>' : '') + (c.hp ? '<span>' + c.hp + ' hö</span>' : '') + (c.rng ? '<span>' + c.rng + ' km</span>' : '') + '</div>' +
       (c.fl || c.relist ? '<div class="flags">' + flagChips(c, 2) + '</div>' : '') +
       '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span></div>' +
-      meter(c) + '</div></article>';
+      meter(c) + '<p class="why">' + esc(why(c)) + '</p></div></article>';
   }
   function isSaved(id) { return !!(window.Acct && Acct.isSaved(id)); }
   function saveBtn(id) {
@@ -635,6 +635,37 @@
       '<div class="mt-track">' + (p == null ? '' : '<i style="left:' + (p * 100).toFixed(1) + '%"></i>') + '</div>' +
       '<span class="mt-lab ' + v.cls + '">' + esc(v.txt) + '</span></div>';
   }
+  // stutt skýring á matinu: miðað við sambærilega bíla (leiðrétt fyrir aldri og akstri)
+  function thous(n) { n = Math.abs(n); return n >= 1e6 ? mkrShort(n) + ' m.kr.' : Math.round(n / 1e4) * 10 + ' þús.'; }
+  function med(a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[a.length >> 1] : 0; }
+  function why(c, long) {
+    var v = verdict(c), name = cap(c.base);
+    if (c.special) return 'Sérútbúinn eða verkefni, ekki sambærilegur við venjulega ' + name + '.';
+    if (c.peers < 2) return 'Fáir ' + name + ' á skrá, svo matið byggir á tegundinni í heild.';
+    if (c.dev <= -0.5) return 'Meira en helmingi ódýrari en sambærilegir. Oft villa, tjón eða varahlutabíll.';
+    if (c.perf.t && !c.tierPeers) return 'Enginn annar ' + name + ' ' + c.perf.label + ' á skrá til að bera saman við.';
+    if (c.km == null && c.age > 3) return 'Akstur kemur ekki fram í auglýsingunni, svo ekki er hægt að meta verðið vel.';
+    var sim = similar(c, 8), adj = sim.map(function (o) { return adjusted(o, c); });
+    var n = sim.length, cheaper = adj.filter(function (p) { return p > c.price; }).length;
+    var diff = c.est - c.price, extras = [];
+    var kms = sim.filter(function (o) { return o.km != null; }).map(function (o) { return o.km; });
+    if (c.km != null && kms.length >= 3) {
+      var mk = med(kms);
+      if (c.km < mk * 0.75) extras.push('minna ekinn en flestir');
+      else if (c.km > mk * 1.35) extras.push('meira ekinn en flestir');
+    }
+    var yrs = sim.map(function (o) { return o.year || 0; });
+    if (c.year && yrs.length >= 3) { var my = med(yrs); if (c.year > my) extras.push('nýrri en flestir'); }
+    if (c.drop) extras.push('lækkaði nýlega um ' + thous(c.drop));
+    if (c.fl && c.fl.some(function (f) { return BAD_FLAGS[f]; })) extras.push('en lýsingin nefnir galla');
+    var base;
+    if (v.cls === 'good') base = '~' + thous(diff) + ' undir mati' + (n ? ' · ódýrari en ' + cheaper + ' af ' + n + ' sambærilegum' : '');
+    else if (v.cls === 'bad') base = '~' + thous(diff) + ' yfir mati' + (n ? ' · dýrari en ' + (n - cheaper) + ' af ' + n + ' sambærilegum' : '');
+    else base = 'Nálægt mati (' + pct(c.dev) + ')' + (n ? ' miðað við ' + n + ' sambærilega' : '');
+    var out = base + (extras.length ? ' · ' + extras.slice(0, long ? 4 : 1).join(' · ') : '');
+    if (long) out += '. Borið saman við ' + c.peers + ' ' + cap(c.make) + ' ' + name + ' á skrá, leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ' og útgáfu' : '') + '.';
+    return out;
+  }
   function spec(icon, label, val) { return val ? '<div class="spec">' + ic(icon) + '<span>' + label + '</span><b>' + val + '</b></div>' : ''; }
 
   function showCar(c) {
@@ -691,7 +722,7 @@
       '<section data-cpanel="price" hidden>' +
       '<div class="est"><div class="est-top"><div><span class="note">Áætlað markaðsverð</span><div class="big">' + kr(c.est) + '</div></div>' +
       '<div class="est-ask"><span class="note">Ásett verð</span><div class="big">' + kr(c.price) + '</div>' + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</div></div>' +
-      meter(c, true) + estText + '</div>' +
+      meter(c, true) + '<p class="why big">' + esc(why(c, true)) + '</p>' + estText + '</div>' +
       (sim.length ? '<h4>Sambærilegir bílar</h4><p class="note">„Leiðrétt verð“ = hvað hinn bíllinn myndi kosta ef hann væri jafn gamall og jafn mikið ekinn og þessi. ' +
         'Fyrir bíl á þessum aldri og akstri lækkar verð að jafnaði um ~' + Math.max(0, kmEff).toFixed(1) + '% fyrir hverja 10.000 km og ~' + Math.max(0, yrEff).toFixed(0) + '% á ári.</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +

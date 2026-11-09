@@ -607,3 +607,6 @@ dialog.sheet { width: min(860px, calc(100% - 24px)); }
 .plate-tag { flex: none; font: 700 20px/1 var(--display); letter-spacing: .1em; padding: 10px 12px; border-radius: 8px; background: #fff; color: #10306b; border: 2px solid #10306b; }
 dialog:has(.m.narrow) { width: min(520px, calc(100% - 24px)); }
 .m.narrow { max-width: none; }
+.why { margin: 0; font-size: 12px; line-height: 1.35; color: var(--muted); }
+.why.big { margin: 12px 0 0; font-size: 14px; color: var(--text); }
+@media (max-width: 760px) { .car .why { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11px; } }
