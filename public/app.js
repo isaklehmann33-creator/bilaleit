@@ -24,7 +24,7 @@
   function kmFmt(n) { return n == null ? '–' : n.toLocaleString('de-DE') + ' km'; }
   function pct(x) { return (x > 0 ? '+' : '') + Math.round(x * 100) + '%'; }
   // Hástafir eins og bílaframleiðendur skrifa: skammstafanir og gerðir með tölum (GLE, EQC, X5, ID.4) haldast, annars Sprinter, Kia
-  var CAP_EXC = { KIA: 'Kia', RAM: 'Ram', UP: 'up!', NEW: 'New', VAN: 'Van' };
+  var CAP_EXC = { KIA: 'Kia', RAM: 'Ram', UP: 'up!', NEW: 'New', VAN: 'Van', PHEV: 'PHEV', MHEV: 'MHEV', BEV: 'BEV', HSE: 'HSE', AMG: 'AMG', GTI: 'GTI', TDI: 'TDI', TSI: 'TSI', CDI: 'CDI', GTE: 'GTE', GTX: 'GTX', SUV: 'SUV' };
   function cap(s) {
     return String(s || '').split(/(\s+|-)/).map(function (w) {
       var u = w.toUpperCase();
@@ -668,6 +668,7 @@
       spec('fuel', 'Eldsneyti', esc(c.fcat)) + spec('cog', 'Skipting', c.auto === true ? 'Sjálfskipt' : c.auto === false ? 'Beinskipt' : '') +
       spec('zap', 'Afl', c.hp ? c.hp + ' hö' : '') + spec('gauge', 'Drægni', c.rng ? c.rng + ' km' : '') + spec('car', 'Drif', c.awd ? 'Fjórhjóladrif' : '') +
       spec('store', 'Seljandi', esc(c.dealer)) + '</div>' +
+      '<div id="carReg"></div>' +
       (c.relist ? '<p class="info-box">' + ic('refresh-cw') + '<span>Þessi bíll var áður á skrá hjá <b>' + esc(c.relist.d || '?') + '</b> á <b>' + kr(c.relist.price) + '</b> (tekinn af skrá ' + dayFmt(c.relist.g) + ').' +
         (c.relist.price > c.price ? ' Hann er nú ' + kr(c.relist.price - c.price) + ' ódýrari.' : c.relist.price < c.price ? ' Hann er nú ' + kr(c.price - c.relist.price) + ' dýrari.' : '') + '</span></p>' : '') +
       '<div id="carDetails"><div class="skel-line"></div><div class="skel-line short"></div></div>' +
@@ -702,6 +703,7 @@
       });
     });
     if (window.Features) Features.carExtras(c);
+    if (window.Registry) Registry.renderCar(c);
     // lýsing seljanda, búnaður og myndir (sótt eftir þörfum, eitt brot af 64)
     loadDetails(c.id).then(function (d) {
       var el = $('carDetails'); if (!el) return;
@@ -1040,7 +1042,13 @@
   }
 
   function bind() {
-    $('searchForm').addEventListener('submit', function (e) { e.preventDefault(); $('q').blur(); runSearch($('q').value); });
+    $('searchForm').addEventListener('submit', function (e) {
+      e.preventDefault(); $('q').blur();
+      var v = $('q').value.trim().toUpperCase().replace(/[\s-]/g, '');
+      // íslenskt bílnúmer (t.d. AB123, ABC12): fletta upp í ökutækjaskrá í stað þess að leita
+      if (/^[A-ZÞÆÖÐ]{2}[A-Z0-9]\d{2}$/.test(v) && window.Registry) { Registry.openPlate(v); return; }
+      runSearch($('q').value);
+    });
     $('examples').addEventListener('click', function (e) {
       if (e.target.tagName !== 'BUTTON') return;
       $('q').value = e.target.textContent; runSearch(e.target.textContent);
@@ -1210,7 +1218,7 @@
     render: render, refreshSaved: refreshSaved, openModal: openModal, closeModal: closeModal, showCar: showCar,
     query: function () { return $('q').value; }, setQuery: function (t) { $('q').value = t || ''; $('understood').hidden = true; },
     esc: esc, kr: kr, kmFmt: kmFmt, cap: cap, img: img, fold: fold, pct: pct, mkrShort: mkrShort, monoHtml: monoHtml,
-    prep: prep, model: function () { return model; }, ageSlope: ageSlope, kmSlope: kmSlope, similar: similar, adjusted: adjusted, verdict: verdict,
+    prep: prep, baseModel: baseModel, model: function () { return model; }, ageSlope: ageSlope, kmSlope: kmSlope, similar: similar, adjusted: adjusted, verdict: verdict,
     catalogBases: catalogBases, loadHistory: loadHistory, hist: function () { return HIST; }, dayFmt: dayFmt, daysBetween: daysBetween,
     pastRow: pastRow, dateIs: dateIs, details: loadDetails, makes: function () { return uniq(cars.map(function (c) { return c.make; })).sort(); },
     setView: function (v) { $('fView').value = v; render(); }

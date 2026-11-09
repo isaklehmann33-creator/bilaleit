@@ -37,7 +37,8 @@
     A.catalogBases(mk).forEach(function (b) { if (!cnt[b]) cnt[b] = 0; });
     return Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a] || (a < b ? -1 : 1); }).map(function (b) { return { b: b, n: cnt[b] }; });
   }
-  function openValue() {
+  function openValue(prefill) {
+    if (prefill && prefill.make) store('valuation', Object.assign({ km: 150000 }, store('valuation') || {}, prefill));
     var last = store('valuation') || {}, f = A.readFilters();
     var mk = last.make || f.make || 'TOYOTA';
     A.openModal('<div class="m"><div class="m-head"><h2>💰 Hvað er bíllinn minn virði?</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
@@ -155,7 +156,7 @@
     if (!v || !v.make) {
       el.innerHTML = '<p class="note" style="margin:0">Viltu setja bílinn þinn upp í? Verðmettu hann fyrst, þá reiknast milligjöfin hér.</p>' +
         '<div class="actions"><button type="button" class="sec" id="tValue">💰 Verðmeta bílinn minn</button></div>';
-      $('tValue').addEventListener('click', openValue);
+      $('tValue').addEventListener('click', function () { openValue(); });
       return;
     }
     var m = estimateMine(v), tradeIn = m.r.est * 0.85, diff = c.price - tradeIn;
@@ -166,7 +167,7 @@
       '<div class="trade-sum"><div><span class="note">Milligjöf</span><b>' + (diff > 0 ? A.kr(diff) : 'Þú færð ~' + A.kr(-diff) + ' til baka') + '</b></div>' +
       (diff > 0 ? '<div><span class="note">Ef milligjöfin er öll tekin að láni (' + q.rate + '%, ' + q.years + ' ár)</span><b>' + A.kr(pay) + ' á mán.</b></div>' : '') + '</div>' +
       '<p class="note">Uppítökuverð er áætlað 15% undir markaðsverði; bílasölur meta bílinn sjálfar. <button type="button" class="link" id="tEdit">Breyta bílnum mínum</button></p>';
-    $('tEdit').addEventListener('click', openValue);
+    $('tEdit').addEventListener('click', function () { openValue(); });
   }
 
   // valkostir: aðrar gerðir í sama verð- og stærðarflokki, besti bíllinn af hverri
@@ -424,7 +425,8 @@
     if (x.priceMax != null) x.priceMax *= 1e6;
     x.loc = ''; A.setFilters(x); A.render();
   });
-  $('openValue').addEventListener('click', openValue);
+  $('openValue').addEventListener('click', function () { openValue(); });
+  $('openPlate').addEventListener('click', function () { if (window.Registry) Registry.openPlate(); });
   $('openMarket').addEventListener('click', openMarket);
   $('openMap').addEventListener('click', openMap);
 
@@ -524,5 +526,5 @@
     else if (n === 'me') acct('me');
   });
 
-  window.Features = { carExtras: carExtras, historyReady: historyReady, heroStats: heroStats };
+  window.Features = { carExtras: carExtras, historyReady: historyReady, heroStats: heroStats, openValue: openValue };
 })();

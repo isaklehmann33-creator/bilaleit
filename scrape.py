@@ -395,6 +395,7 @@ def main():
     update_history(cars)
     build_catalog(cars)
     build_places(cars)
+    build_registry(cars)
 
 
 # --- lýsingar seljanda, hestöfl og búnaður (af síðu hverrar auglýsingar) -------------
@@ -665,6 +666,71 @@ def build_places(cars):
     GEO_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=0, sort_keys=True), "utf-8")
     PLACES.write_text(json.dumps({"updated": datetime.now(timezone.utc).isoformat(timespec="minutes"), "dealers": dealers, "towns": towns}, ensure_ascii=False, separators=(",", ":")), "utf-8")
     print(f"Kort: {len(dealers)} bílasölur, {len(towns)} staðir")
+
+
+# --- ökutækjaskrá Samgöngustofu (Power BI, með leyfi) ------------------------------
+# Fyrir hverja tegund/gerð: fjöldi í umferð, meðalaldur og hlutfall fluttra inn notaðra.
+# Fyrir bíla með bílnúmeri í auglýsingunni (Brimborg): fyrsta skráning, innflutningur, hestöfl, litur.
+REGISTRY = Path(__file__).parent / "public" / "data" / "registry.json"
+USED_IMPORT = ("Notað", "Notað gvk.", "Notað skv. mæli")
+
+
+def norm_make(s):
+    return re.sub(r"[^A-Z0-9]", "", (s or "").split(",")[0].upper().replace("MERCEDES BENZ", "MERCEDESBENZ"))
+
+
+def build_registry(cars):
+    import pbi
+    reg = json.loads(REGISTRY.read_text("utf-8")) if REGISTRY.exists() else {"makes": {}, "plates": {}}
+    try:
+        tegundir = pbi.query(["Tegund"], ["Talning fastanúmera"], pbi.IN_TRAFFIC, top=600)
+        by_norm = {}
+        for r in tegundir:
+            if r["Tegund"]:
+                by_norm.setdefault(norm_make(r["Tegund"]), []).append(r["Tegund"])
+        counts = {}
+        for c in cars:
+            counts[c["make"]] = counts.get(c["make"], 0) + 1
+        makes = {}
+        for mk in sorted(m for m, n in counts.items() if n >= 3):
+            names = by_norm.get(norm_make(mk))
+            if not names:
+                continue
+            where = pbi.IN_TRAFFIC + [pbi.isin("Tegund", names)]
+            q1 = pbi.query(["Undirtegund"], ["Talning fastanúmera", "Meðalaldur"], where, top=3000)
+            q2 = pbi.query(["Undirtegund", "Innflutningsástand"], ["Talning fastanúmera"], where, top=6000)
+            used = {}
+            for r in q2:
+                if r["Innflutningsástand"] in USED_IMPORT:
+                    used[r["Undirtegund"]] = used.get(r["Undirtegund"], 0) + (r["Talning fastanúmera"] or 0)
+            models = {}
+            for r in q1:
+                if not r["Undirtegund"] or not r["Talning fastanúmera"]:
+                    continue
+                try:
+                    age = round(float(r["Meðalaldur"]), 1)
+                except (TypeError, ValueError):
+                    age = None
+                models[r["Undirtegund"]] = [r["Talning fastanúmera"], age, used.get(r["Undirtegund"], 0)]
+            makes[mk] = models
+        reg["makes"] = makes
+    except Exception as e:  # skráin er aukaupplýsingar; gömul gögn haldast ef Power BI bregst
+        print(f"  ökutækjaskrá (tegundir): {e}", file=sys.stderr)
+    # bílnúmer úr auglýsingum (Brimborg notar bílnúmerið sem auðkenni)
+    plates = sorted({c["id"].split("-", 1)[1] for c in cars if c.get("src") == "Brimborg" and re.fullmatch(r"[A-Z]{2}[A-Z0-9]\d{2}", c["id"].split("-", 1)[1])})
+    found = {}
+    try:
+        for i in range(0, len(plates), 80):
+            for r in pbi.query(["Fastanúmer", "Tegund", "Undirtegund", "Fyrsti skráningardagur", "Nýskráningardagur", "Innflutningsástand", "Hestöfl", "Litur"],
+                               [], [pbi.isin("Fastanúmer", plates[i:i + 80])], top=200):
+                found[r["Fastanúmer"]] = {"first": r["Fyrsti skráningardagur"], "is": r["Nýskráningardagur"], "imp": r["Innflutningsástand"],
+                                          "hp": r["Hestöfl"], "col": r["Litur"]}
+        reg["plates"] = found
+    except Exception as e:
+        print(f"  ökutækjaskrá (bílnúmer): {e}", file=sys.stderr)
+    reg["updated"] = datetime.now(timezone.utc).isoformat(timespec="minutes")
+    REGISTRY.write_text(json.dumps(reg, ensure_ascii=False, separators=(",", ":")), "utf-8")
+    print(f"Ökutækjaskrá: {len(reg['makes'])} tegundir, {len(reg.get('plates', {}))} bílnúmer")
 
 
 # --- saga auglýsinga --------------------------------------------------------
