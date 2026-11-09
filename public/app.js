@@ -177,8 +177,8 @@
   // Aldur og akstur sem „brotnar línur“: verðfallið má hægja á sér (eða snúast við) fyrir gamla og mikið ekna bíla.
   // Án þess féllu 20 ára bílar endalaust ~7% á ári og voru metnir allt of lágt.
   var AGE_KNOTS = [4, 9, 14, 19], KM_KNOTS = [100000, 200000];
-  var F = { age: 0, km: AGE_KNOTS.length + 1 };  // stöður í feats(): aldur, aldurshnútar, akstur, aksturshnútar, eldsneyti, útgáfa, afl, útgáfa×aldur
-  F.fuel = F.km + 1 + KM_KNOTS.length; F.perf1 = F.fuel + FUELS.length; F.perf2 = F.perf1 + 1; F.pw = F.perf2 + 1; F.perfAge = F.pw + 1;
+  var FI = { age: 0, km: AGE_KNOTS.length + 1 };  // stöður í feats(): aldur, aldurshnútar, akstur, aksturshnútar, eldsneyti, útgáfa, afl, útgáfa×aldur
+  FI.fuel = FI.km + 1 + KM_KNOTS.length; FI.perf1 = FI.fuel + FUELS.length; FI.perf2 = FI.perf1 + 1; FI.pw = FI.perf2 + 1; FI.perfAge = FI.pw + 1;
   function feats(c) {
     var km = c.km != null ? c.km : 15000 * c.age; // vantar akstur: gerum ráð fyrir meðalakstri
     var x = [c.age];
@@ -191,13 +191,13 @@
   }
   // verðfall á ári við tiltekinn aldur (halli brotnu línunnar þar)
   function ageSlope(age, perf) {
-    var b = model.beta, s = b[F.age];
-    AGE_KNOTS.forEach(function (k, i) { if (age > k) s += b[F.age + 1 + i]; });
-    return s + (perf ? b[F.perfAge] : 0);
+    var b = model.beta, s = b[FI.age];
+    AGE_KNOTS.forEach(function (k, i) { if (age > k) s += b[FI.age + 1 + i]; });
+    return s + (perf ? b[FI.perfAge] : 0);
   }
   function kmSlope(km) {
-    var b = model.beta, s = b[F.km];
-    KM_KNOTS.forEach(function (k, i) { if (km > k) s += b[F.km + 1 + i]; });
+    var b = model.beta, s = b[FI.km];
+    KM_KNOTS.forEach(function (k, i) { if (km > k) s += b[FI.km + 1 + i]; });
     return s;
   }
   function solve(A, b) {
@@ -242,9 +242,9 @@
     });
     for (i = 0; i < d; i++) XtX[i][i] += 0.5; // smá ridge svo fáir bílar valdi ekki rugli
     var beta = solve(XtX, Xty);
-    if (beta[F.pw] < 0) {  // stærri vél á ekki að lækka verð; ef gögnin segja það (ruglingur), sleppum aflinu
-      for (i = 0; i < d; i++) { XtX[F.pw][i] = XtX[i][F.pw] = 0; }
-      XtX[F.pw][F.pw] = 1; Xty[F.pw] = 0;
+    if (beta[FI.pw] < 0) {  // stærri vél á ekki að lækka verð; ef gögnin segja það (ruglingur), sleppum aflinu
+      for (i = 0; i < d; i++) { XtX[FI.pw][i] = XtX[i][FI.pw] = 0; }
+      XtX[FI.pw][FI.pw] = 1; Xty[FI.pw] = 0;
       beta = solve(XtX, Xty);
     }
     function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
@@ -633,7 +633,7 @@
     if (v.unsure) p = null;  // óvisst mat: enginn punktur á mælinum
     return '<div class="meter' + (big ? ' big' : '') + '" title="' + esc(v.txt + (c.est ? ' · mat ' + kr(c.est) : '')) + '">' +
       '<div class="mt-track">' + (p == null ? '' : '<i style="left:' + (p * 100).toFixed(1) + '%"></i>') + '</div>' +
-      '<span class="mt-lab ' + v.cls + '">' + esc(v.txt) + '</span></div>';
+      '<button type="button" class="mt-lab ' + v.cls + '" data-legend title="' + esc(LEGEND_TXT[v.cls] || '') + ' · smelltu til að sjá meira">' + esc(v.txt) + '</button></div>';
   }
   // stutt skýring á matinu: miðað við sambærilega bíla (leiðrétt fyrir aldri og akstri)
   function thous(n) { n = Math.abs(n); return n >= 1e6 ? mkrShort(n) + ' m.kr.' : Math.round(n / 1e4) * 10 + ' þús.'; }
@@ -666,6 +666,18 @@
     if (long) out += '. Borið saman við ' + c.peers + ' ' + cap(c.make) + ' ' + name + ' á skrá, leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ' og útgáfu' : '') + '.';
     return out;
   }
+  var LEGEND_TXT = { good: 'Gott verð: a.m.k. 12% undir mati', mid: 'Eðlilegt verð: innan við 12% frá mati', bad: 'Hátt verð: a.m.k. 12% yfir mati', warn: 'Athugaðu: óvenjulegt verð eða bíll' };
+  function showLegend() {
+    openModal('<div class="m narrow"><div class="m-head"><h2>Hvernig er verðið metið?</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<p>Hver bíll er borinn saman við alla aðra bíla af <b>sömu gerð</b> á skrá. Verð þeirra er leiðrétt fyrir aldri, akstri, eldsneyti, útgáfu og vélarafli, og úr því fæst <b>áætlað markaðsverð</b>.</p>' +
+      '<div class="legend"><div><span class="mt-lab good">Gott verð</span><span>a.m.k. 12% undir mati</span></div>' +
+      '<div><span class="mt-lab mid">Eðlilegt verð</span><span>innan við 12% frá mati</span></div>' +
+      '<div><span class="mt-lab bad">Hátt verð</span><span>a.m.k. 12% yfir mati</span></div>' +
+      '<div><span class="mt-lab warn">Athugaðu verðið</span><span>meira en helmingi undir mati: oft villa, tjón eða varahlutabíll</span></div>' +
+      '<div><span class="mt-lab mid">Fáir sambærilegir / Sjaldgæf útgáfa</span><span>of fáir sambærilegir bílar til að meta vel</span></div>' +
+      '<div><span class="mt-lab warn">Sérútbúinn / verkefni</span><span>rallý-, keppnis-, tjóna- eða varahlutabíll: ekki borinn saman</span></div></div>' +
+      '<p class="note">Mælirinn sýnir hvar verðið lendir: grænt = ódýrara en sambærilegir, rautt = dýrara. Matið er vísbending, ekki ástandsskoðun: ástand, búnaður og þjónustusaga skipta líka máli.</p></div>');
+  }
   function spec(icon, label, val) { return val ? '<div class="spec">' + ic(icon) + '<span>' + label + '</span><b>' + val + '</b></div>' : ''; }
 
   function showCar(c) {
@@ -687,7 +699,7 @@
       '<p class="note">' + (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
         'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ', útgáfu' : '') + (c.pwRaw != null ? ', vélarafli' : '') + '.') +
       (c.perf.t ? ' ' + esc(c.perf.label) + ' er ' + (c.perf.t === 2 ? 'toppútgáfa' : 'sportútgáfa') + ': slíkar útgáfur kosta að jafnaði ~' +
-        Math.round((Math.exp(model.beta[c.perf.t === 2 ? F.perf2 : F.perf1]) - 1) * 100) + '% meira. ' +
+        Math.round((Math.exp(model.beta[c.perf.t === 2 ? FI.perf2 : FI.perf1]) - 1) * 100) + '% meira. ' +
         (c.tierPeers ? c.tierPeers + ' aðrir í sömu útgáfu eru á skrá.' : 'Enginn annar í sömu útgáfu er á skrá, svo matið er óvissara.') : '') + '</p>';
     openModal(
       '<div class="car-m">' +
@@ -1108,8 +1120,9 @@
     });
     $('more').addEventListener('click', function () { shown += PAGE; render(true); });
     document.addEventListener('click', function (e) {
-      var t = e.target.closest ? e.target.closest('[data-share],[data-watch],[data-save],[data-cmp],[data-open],[data-close],.car') : null;
+      var t = e.target.closest ? e.target.closest('[data-legend],[data-share],[data-watch],[data-save],[data-cmp],[data-open],[data-close],.car') : null;
       if (!t) return;
+      if (t.hasAttribute('data-legend')) { e.stopPropagation(); showLegend(); return; }
       if (t.hasAttribute('data-share')) {
         var sc = byId(t.getAttribute('data-share')), link = shareLink(sc.id);
         if (navigator.share) navigator.share({ title: cap(sc.make) + ' ' + cap(sc.model), text: kr(sc.price), url: link }).catch(function () {});
