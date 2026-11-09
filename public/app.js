@@ -167,6 +167,8 @@
   }
   function verdict(c) {
     if (c.peers < 2) return { cls: 'mid', txt: 'Fáir sambærilegir' };
+    // meira en helmingi undir mati: oftast innsláttarvilla, varahlutabíll, tjónabíll eða svindl
+    if (c.dev <= -0.5) return { cls: 'warn', txt: 'Athugaðu verðið' };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
     if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
     return { cls: 'mid', txt: 'Eðlilegt verð' };
@@ -348,12 +350,12 @@
       if (f.seller === 'private' && !c.priv) return false;
       if (f.seller === 'dealer' && c.priv) return false;
       if (f.awd && !c.awd) return false;
-      if (f.deal && !(c.peers >= 2 && c.dev <= -0.12)) return false;
+      if (f.deal && !(c.peers >= 2 && c.dev <= -0.12 && c.dev > -0.5)) return false;
       for (var i = 0; i < words.length; i++) if (c.ftitle.indexOf(words[i]) < 0) return false;
       return true;
     });
     var by = {
-      deal: function (a, b) { return (a.peers < 2) - (b.peers < 2) || a.dev - b.dev; },
+      deal: function (a, b) { return (a.peers < 2 || a.dev <= -0.5) - (b.peers < 2 || b.dev <= -0.5) || a.dev - b.dev; },
       priceAsc: function (a, b) { return a.price - b.price; },
       priceDesc: function (a, b) { return b.price - a.price; },
       kmAsc: function (a, b) { return (a.km || 0) - (b.km || 0); },
@@ -455,6 +457,7 @@
       '<dt>Bílasala</dt><dd>' + esc(c.dealer) + '</dd></dl>' +
       '<div class="est"><div>Áætlað markaðsverð</div><div class="big">' + kr(c.est) + '</div>' +
       '<div><span class="badge ' + v.cls + '">' + v.txt + '</span> ' +
+      (c.peers >= 2 && c.dev <= -0.5 ? '<b>Verðið er meira en helmingi undir sambærilegum bílum.</b> Það getur verið innsláttarvilla, tjónabíll, bíll til niðurrifs eða jafnvel svindl. Lestu auglýsinguna vel og borgaðu aldrei fyrirfram. ' : '') +
       (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
         'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri og eldsneyti.') + '</div></div>' +
       '<div class="actions"><a class="primary" href="' + esc(c.url) + '" target="_blank" rel="noopener">Opna auglýsingu hjá ' + esc(c.dealer) + '</a>' +

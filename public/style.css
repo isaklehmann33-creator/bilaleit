@@ -60,6 +60,7 @@ button, input, select { font: inherit; color: inherit; }
 .badge.good { background: var(--good-soft); color: var(--good); }
 .badge.bad { background: var(--bad-soft); color: var(--bad); }
 .badge.mid { background: var(--mid-soft); color: var(--mid); }
+.badge.warn { background: #fff4d6; color: #8a5a00; }
 .more { display: block; margin: 18px auto 0; padding: 10px 22px; }
 .foot { color: var(--muted); font-size: 13px; margin-top: 30px; border-top: 1px solid var(--line); padding-top: 10px; }
 .empty { padding: 40px 10px; text-align: center; color: var(--muted); grid-column: 1 / -1; }
