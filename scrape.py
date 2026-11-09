@@ -54,6 +54,9 @@ def year_of(s):
 def car(**kw):
     kw["make"], kw["model"] = split_title(kw.pop("title_for_split"))
     kw["price"] = kw.get("price") or None
+    # "107 km" á 15 ára bíl þýðir nær örugglega 107 þúsund km
+    if kw.get("km") is not None and kw["km"] < 1000 and kw.get("year") and kw["year"] <= datetime.now().year - 3:
+        kw["km"] *= 1000
     return kw
 
 
@@ -152,25 +155,127 @@ def parse_askja(h):
     return out
 
 
+# --- bilasolur.is (með leyfi bilasolur.is) ----------------------------------
+# Leitin er ASP.NET-form: póstum flokkunum einu sinni, fáum SearchResults.aspx?id=<guid> og flettum svo.
+BS = "https://bilasolur.is/"
+BS_CATS = [0, 1, 2, 3, 8, 14, 28]  # fólksbíll, skutbíll, jeppi, pallbíll, sportbíll, fjölnotabíll, sportjeppi
+DEALERS = Path(__file__).parent / "dealers.json"  # bid -> nafn bílasölu, geymt milli keyrslna
+
+
+def bs_opener():
+    import http.cookiejar
+    op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    op.addheaders = [("User-Agent", UA), ("Accept-Language", "is")]
+    return op
+
+
+def parse_bilasolur(h):
+    out = []
+    for block in h.split('<div class="sr-item">')[1:]:
+        m = re.search(r'href="CarDetails\.aspx\?bid=(\d+)&amp;cid=(\d+)&amp;sid=(\d+)', block)
+        mk = re.search(r'<span class="car-make">(.*?)</span>(.*?)</div>', block, re.S)
+        if not m or not mk:
+            continue
+        tech = [text(t) for t in re.findall(r"<div>(.*?)</div>", block.split('class="tech-details"', 1)[-1].split('class="car-section"')[0])]
+        first = tech[0] if tech else ""
+        km = re.search(r"([\d.]+)\s*km", first)
+        rest = " · ".join(tech[1:])
+        prices = [num(p) for p in re.findall(r"<span[^>]*>([\d.]+)</span>", block.split('class="car-price"', 1)[-1])]
+        img = re.search(r'<img class="swiper-slide" src="([^"]+)"', block)
+        title = f"{text(mk.group(1))} {text(mk.group(2))}"
+        bid, cid, sid = m.groups()
+        out.append(car(
+            id=f"bs-{bid}-{cid}", bid=bid, dealer="", url=f"{BS}CarDetails.aspx?bid={bid}&cid={cid}&sid={sid}",
+            title=title, title_for_split=title,
+            price=min([p for p in prices if p] or [0]) or None,
+            oldPrice=(max(prices) if len([p for p in prices if p]) > 1 else None),
+            year=year_of(first), km=num(km.group(1)) if km else None,
+            fuel=tech[1] if len(tech) > 1 else "",
+            trans=next((x for x in rest.split(" · ") if "skipt" in x.lower()), ""),
+            drive=next((x for x in rest.split(" · ") if "drif" in x.lower()), ""),
+            img=img.group(1).replace(":443", "") if img else "",
+        ))
+    return out
+
+
+def fetch_bilasolur():
+    op = bs_opener()
+    h = op.open(BS + "SearchCars.aspx", timeout=30).read().decode("utf-8", "replace")
+    form = {}
+    for tag in re.findall(r'<input[^>]*type="hidden"[^>]*>', h):
+        n, v = re.search(r'name="([^"]+)"', tag), re.search(r'value="([^"]*)"', tag)
+        if n:
+            form[html.unescape(n.group(1))] = html.unescape(v.group(1)) if v else ""
+    for name, opts in re.findall(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', h, re.S):
+        sel = re.search(r'<option[^>]*selected[^>]*value="([^"]*)"', opts) or re.search(r'<option[^>]*value="([^"]*)"', opts)
+        form[html.unescape(name)] = html.unescape(sel.group(1)) if sel else ""
+    pre = "ctl00$contentSearchEngine$searchCars$"
+    for c in BS_CATS:
+        form[f"{pre}search_cat_{c}"] = "on"
+    form[pre + "btnSearch"] = "Leita"
+    r = op.open(BS + "SearchCars.aspx", urllib.parse.urlencode(form).encode(), timeout=30)
+    sid = re.search(r"id=([0-9a-f-]{36})", r.geturl())
+    if not sid:
+        raise RuntimeError("fékk ekki leitarniðurstöður frá bilasolur.is")
+    page_html, seen, out = r.read().decode("utf-8", "replace"), set(), []
+    for page in range(2, 400):
+        new = [c for c in parse_bilasolur(page_html) if c["id"] not in seen]
+        seen.update(c["id"] for c in new)
+        out += new
+        if not new or "pagingCell" not in page_html.split('paginator-previous', 1)[-1]:
+            break
+        time.sleep(2)
+        page_html = op.open(f"{BS}SearchResults.aspx?page={page}&id={sid.group(1)}", timeout=30).read().decode("utf-8", "replace")
+
+    # nöfn bílasala: ein auglýsing á hverja nýja bílasölu, svo geymt í dealers.json
+    names = json.loads(DEALERS.read_text("utf-8")) if DEALERS.exists() else {}
+    for c in out:
+        if c["bid"] not in names:
+            try:
+                d = op.open(c["url"], timeout=30).read().decode("utf-8", "replace")
+                m = re.search(r'class="seller-name-and-address[^"]*"[^>]*>(.*?)<div class="seller-address', d, re.S)
+                names[c["bid"]] = text(m.group(1)) if m else ""
+            except Exception as e:
+                print(f"  náði ekki nafni sölu {c['bid']}: {e}", file=sys.stderr)
+            time.sleep(2)
+        c["dealer"] = names.get(c["bid"]) or f"Bílasala #{c['bid']}"
+    DEALERS.write_text(json.dumps(names, ensure_ascii=False, indent=0, sort_keys=True), "utf-8")
+    return out
+
+
 SOURCES = [
     ("Hekla", lambda: paged("https://www.hekla.is/is/bilar/notadir-bilar", "?", parse_hekla, 5)),
     ("Brimborg", lambda: paged("https://notadir.brimborg.is/is/notadir-bilar", "?", parse_brimborg, 5)),
     ("Askja", lambda: paged("https://www.notadir.is/soluskra", "?", parse_askja, 2)),
+    ("bilasolur.is", fetch_bilasolur),
 ]
+
+
+def fingerprint(c):
+    return (c["make"], c.get("year"), c.get("km"), c.get("price"))
 
 
 def main():
     old = {}
-    if OUT.exists():  # halda gömlum gögnum frá sölu sem klikkar í kvöld
+    if OUT.exists():  # halda gömlum gögnum frá heimild sem klikkar í kvöld
         for c in json.loads(OUT.read_text("utf-8")).get("cars", []):
-            old.setdefault(c["dealer"], []).append(c)
+            old.setdefault(c.get("src") or c["dealer"], []).append(c)
     cars, report = [], {}
     for name, fetch in SOURCES:
-        got = fetch()
-        print(f"{name}: {len(got)} bílar")
+        try:
+            got = fetch()
+        except Exception as e:
+            print(f"  villa í {name}: {e}", file=sys.stderr)
+            got = []
         if not got and old.get(name):
             got = old[name]
             print(f"  nota gömul gögn ({len(got)})")
+        for c in got:
+            c["src"] = name
+        if name == "bilasolur.is":  # sami bíll er oft líka á síðu umboðsins; höldum honum bara einu sinni
+            have = {fingerprint(c) for c in cars}
+            got = [c for c in got if fingerprint(c) not in have]
+        print(f"{name}: {len(got)} bílar")
         report[name] = len(got)
         cars += got
     cars = [c for c in cars if c.get("price") and c["price"] > 100000]

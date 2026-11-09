@@ -73,7 +73,8 @@
   // Hallatölur eru metnar *innan* hverrar gerðar (sami bíll, mismikið ekinn), svo dýrar tegundir rugla þær ekki.
   var FUELS = ['Rafmagn', 'Tengiltvinn', 'Tvinn', 'Dísel'];
   function feats(c) {
-    var x = [c.age, (c.km || 0) / 1e4];
+    var km = c.km != null ? c.km : 15000 * c.age; // vantar akstur: gerum ráð fyrir meðalakstri
+    var x = [c.age, km / 1e4];
     for (var i = 0; i < FUELS.length; i++) x.push(c.fcat === FUELS[i] ? 1 : 0);
     return x;
   }
