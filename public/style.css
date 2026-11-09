@@ -118,7 +118,7 @@ h1, h2, h3, h4 { font-family: var(--display); letter-spacing: -.01em; }
 .res-tools { display: flex; gap: 8px; }
 .sort { position: relative; }
 .sort select { appearance: none; -webkit-appearance: none; padding: 10px 38px 10px 14px; border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--card); color: var(--text); font-weight: 600; cursor: pointer; }
-.sort .ic { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+.sort > .ic { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 16px; }
 
 /* ---------- bílaspjöld ---------- */
@@ -664,6 +664,7 @@ button.mt-lab { background: none; border: 0; padding: 0; cursor: help; font-fami
 .ns-search input { flex: 1; border: 0; background: transparent; color: var(--text); font-size: 14px; outline: none; padding: 4px 0; }
 .sort .ns { width: auto; }
 .sort .ns-btn { background: var(--card); border-color: var(--line2); font-weight: 600; padding: 10px 14px; }
+.sort .ns-btn .ns-chev { color: var(--text); opacity: .7; }
 .sort .ns-pop { right: 0; left: auto; }
 .val-form .ns-btn { padding: 10px 12px; }
 /* talnareitir án kerfispíla */

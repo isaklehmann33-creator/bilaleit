@@ -10,6 +10,7 @@ Skyndiminni: phash_cache.json {id: [mynd-slóð, fingrafar]} svo hver mynd sé b
 import io
 import json
 import os
+import re
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -46,7 +47,15 @@ def fetch_hash(c):
         return c, None
 
 
+def model_key(c):
+    w = re.sub(r"[^A-Z0-9 ]", "", (c.get("model") or "").upper().replace(c["make"].upper(), " ")).split()
+    return w[0] if w else ""
+
+
 def same_car(a, b):
+    ma, mb = model_key(a), model_key(b)  # „3“ og „330E“ passa, „SUPERB“ og „OCTAVIA“ ekki
+    if ma and mb and not (ma.startswith(mb) or mb.startswith(ma)):
+        return False
     if a["make"] != b["make"] or not a.get("year") or not b.get("year") or abs(a["year"] - b["year"]) > 1:
         return False
     ka, kb = a.get("km"), b.get("km")
