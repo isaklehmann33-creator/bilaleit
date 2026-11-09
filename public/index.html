@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bílaleit</title>
+<meta name="description" content="Allar bílasölur á einum stað – snjöll leit og verðmat miðað við sambærilega bíla og akstur.">
+<meta name="theme-color" content="#0f6b5c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><img src="icon.svg" alt=""><span>Bílaleit</span></div>
+    <form id="searchForm" class="search" autocomplete="off">
+      <input id="q" type="search" placeholder="t.d. „sjálfskiptur jepplingur undir 4 milljónum, ekinn minna en 80 þús km“" aria-label="Leit">
+      <button type="submit">Leita</button>
+    </form>
+    <p id="understood" class="understood" hidden></p>
+    <div class="examples" id="examples">
+      <button type="button">Rafbíll undir 4 m.kr. 2021 eða nýrri</button>
+      <button type="button">Kia Sportage sjálfskiptur</button>
+      <button type="button">Dísel jeppi fjórhjóladrif undir 6 milljónum</button>
+      <button type="button">Ódýrasti bíllinn ekinn minna en 60 þús km</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap layout">
+  <aside class="filters" id="filters">
+    <button type="button" class="filters-toggle" id="filtersToggle" aria-expanded="false">Síur ▾</button>
+    <div class="filters-body">
+      <label>Tegund<select id="fMake"><option value="">Allar</option></select></label>
+      <label>Gerð<select id="fModel"><option value="">Allar</option></select></label>
+      <div class="pair">
+        <label>Verð frá (m.kr.)<input id="fPriceMin" type="number" inputmode="decimal" step="0.1" min="0"></label>
+        <label>Verð til (m.kr.)<input id="fPriceMax" type="number" inputmode="decimal" step="0.1" min="0"></label>
+      </div>
+      <div class="pair">
+        <label>Árgerð frá<input id="fYearMin" type="number" inputmode="numeric" min="1990" max="2030"></label>
+        <label>Árgerð til<input id="fYearMax" type="number" inputmode="numeric" min="1990" max="2030"></label>
+      </div>
+      <label>Ekinn mest (km)<input id="fKmMax" type="number" inputmode="numeric" step="1000" min="0"></label>
+      <label>Eldsneyti<select id="fFuel"><option value="">Allt</option><option>Rafmagn</option><option>Tengiltvinn</option><option>Tvinn</option><option>Dísel</option><option>Bensín</option></select></label>
+      <label>Skipting<select id="fTrans"><option value="">Allar</option><option value="sj">Sjálfskipting</option><option value="bein">Beinskipting</option></select></label>
+      <label>Gerð yfirbyggingar<select id="fBody"><option value="">Allar</option><option value="suv">Jeppi / jepplingur</option><option value="car">Fólksbíll</option></select></label>
+      <label>Bílasala<select id="fDealer"><option value="">Allar</option></select></label>
+      <label>Orð í heiti<input id="fText" type="text" placeholder="t.d. 4matic, gt line"></label>
+      <label class="check"><input id="fAwd" type="checkbox"> Fjórhjóladrif</label>
+      <label class="check"><input id="fDeal" type="checkbox"> Aðeins gott verð</label>
+      <label>Raða eftir<select id="fSort">
+        <option value="deal">Besta verð miðað við mat</option>
+        <option value="priceAsc">Ódýrast fyrst</option>
+        <option value="priceDesc">Dýrast fyrst</option>
+        <option value="kmAsc">Minnst ekinn</option>
+        <option value="yearDesc">Nýjasta árgerð</option>
+      </select></label>
+      <button type="button" id="reset" class="ghost">Hreinsa allt</button>
+    </div>
+  </aside>
+
+  <section>
+    <div class="status"><span id="count">Hleð inn…</span><span id="updated"></span></div>
+    <div id="results" class="grid"></div>
+    <button type="button" id="more" class="ghost more" hidden>Sýna fleiri</button>
+    <footer class="foot">
+      <p id="sources"></p>
+      <p>Verðmatið er tölfræðilíkan sem lærir af öllum auglýsingum: það ber hvern bíl saman við sömu gerð og leiðréttir fyrir árgerð, akstri og eldsneyti. Það er vísbending, ekki ástandsskoðun. Smelltu alltaf á upprunalegu auglýsinguna.</p>
+      <p>bilasolur.is leyfir ekki sjálfvirka gagnasöfnun og er því ekki með.</p>
+    </footer>
+  </section>
+</main>
+
+<div class="tray" id="tray" hidden>
+  <span id="trayText"></span>
+  <button type="button" id="trayOpen">Bera saman</button>
+  <button type="button" id="trayClear" class="ghost">Hreinsa</button>
+</div>
+
+<dialog id="modal"><div id="modalBody"></div></dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,532 @@
+/* Bílaleit – leit, verðmat og samanburður. Allt keyrir í vafranum, engin greidd gervigreind. */
+(function () {
+  'use strict';
+
+  var NOW = new Date().getFullYear();
+  var PAGE = 60;
+  var $ = function (id) { return document.getElementById(id); };
+  var cars = [], model = null, shown = PAGE, compare = [];
+
+  // ---------- hjálparföll ----------
+  function fold(s) {
+    return String(s || '').toLowerCase()
+      .replace(/[áà]/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/[óö]/g, 'o')
+      .replace(/ú/g, 'u').replace(/ý/g, 'y').replace(/þ/g, 'th').replace(/ð/g, 'd').replace(/æ/g, 'ae');
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function kr(n) { return n == null ? '–' : Math.round(n).toLocaleString('de-DE') + ' kr.'; }
+  function mkr(n) { return (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m.kr.'; }
+  function kmFmt(n) { return n == null ? '–' : n.toLocaleString('de-DE') + ' km'; }
+  function pct(x) { return (x > 0 ? '+' : '') + Math.round(x * 100) + '%'; }
+  function cap(s) { return String(s || '').toLowerCase().replace(/(^|[\s-])\S/g, function (c) { return c.toUpperCase(); }); }
+  function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
+
+  // ---------- flokkun ----------
+  var SUV = ('SPORTAGE SORENTO XCEED EV9 EV5 NIRO E-NIRO TUCSON SANTA KONA IONIQ5 RAV4 LAND C-HR YARIS-CROSS HIGHLANDER ' +
+    'GLC GLE GLA GLB GLS EQA EQB EQC G Q2 Q3 Q4 Q5 Q7 Q8 E-TRON X1 X2 X3 X4 X5 X6 X7 IX IX1 IX3 XC40 XC60 XC90 EX30 EX40 EX90 C40 ' +
+    'KODIAQ KAROQ KAMIQ ENYAQ ELROQ TIGUAN TOUAREG T-ROC T-CROSS TAIGO ID.4 ID.5 RANGE DISCOVERY DEFENDER OUTLANDER ECLIPSE ASX ' +
+    'QASHQAI X-TRAIL JUKE ARIYA CX-3 CX-30 CX-5 CX-60 CX-80 MX-30 KUGA PUMA EXPLORER MUSTANG ECOSPORT EDGE 2008 3008 5008 E-2008 E-3008 ' +
+    'C5 C3 MOKKA GRANDLAND CROSSLAND CR-V HR-V ZR-V MODEL ZS MARVEL EHS HS 3 4 WRANGLER COMPASS RENEGADE CHEROKEE GRAND VITARA ' +
+    'S-CROSS JIMNY DUSTER CAPTUR KADJAR AUSTRAL ARKANA BZ4X UX NX RX MACAN CAYENNE ATTO SEAL-U TONGAN TOYOTA HILUX F-150 RANGER AMAROK').split(' ');
+
+  function baseModel(m) {
+    var w = String(m || '').toUpperCase().split(/\s+/);
+    if (w[0] === 'RANGE' && w[1] === 'ROVER') return /^(SPORT|EVOQUE|VELAR)$/.test(w[2] || '') ? 'RANGE ROVER ' + w[2] : 'RANGE ROVER';
+    if (/^(MODEL|GRAND|SANTA|LAND|C3|C4|C5)$/.test(w[0]) && w[1]) return w[0] + ' ' + w[1];
+    if (w[0] === 'DISCOVERY' && w[1] === 'SPORT') return 'DISCOVERY SPORT';
+    return w[0] || '';
+  }
+  function fuelCat(c) {
+    var f = fold(c.fuel), t = fold(c.title);
+    var raf = /raf|electric/.test(f), ice = /bens|dis|petrol|diesel/.test(f);
+    if (raf && ice) return /phev|plug|tengil|e-hybrid|phe\b|\bphe/.test(f + ' ' + t) || /raf\.tengill/.test(f) ? 'Tengiltvinn' : 'Tvinn';
+    if (raf) return 'Rafmagn';
+    if (/hybrid|tvinn/.test(f + ' ' + t)) return /phev|plug|e-hybrid/.test(t) ? 'Tengiltvinn' : 'Tvinn';
+    if (/dis|diesel/.test(f)) return 'Dísel';
+    if (/bens|petrol/.test(f)) return 'Bensín';
+    if (/\b(tdi|cdi|crdi|dci|hdi|bluehdi|d4|d5)\b/.test(t)) return 'Dísel';
+    return 'Bensín';
+  }
+  function isAwd(c) {
+    return /fjorhjol|aldrif/.test(fold(c.drive)) || /\b(awd|4wd|4x4|4matic|quattro|xdrive|4motion|allrad|e-four|all4)\b/i.test(c.title);
+  }
+
+  function prep(c) {
+    c.base = baseModel(c.model);
+    c.key = c.make + '|' + c.base;
+    c.fcat = fuelCat(c);
+    c.awd = isAwd(c);
+    c.suv = SUV.indexOf(c.base.split(' ')[0]) >= 0 || /\b(jeppi|jepplingur)\b/i.test(c.title);
+    c.auto = /sjalf/.test(fold(c.trans)) ? true : /bein/.test(fold(c.trans)) ? false : (c.fcat === 'Rafmagn' ? true : null);
+    c.age = Math.max(0, NOW - (c.year || NOW));
+    c.ftitle = fold(c.make + ' ' + c.model);
+    return c;
+  }
+
+  // ---------- verðmatslíkan ----------
+  // log(verð) = fasti gerðar + b·aldur + c·akstur + eldsneytisáhrif.
+  // Hallatölur eru metnar *innan* hverrar gerðar (sami bíll, mismikið ekinn), svo dýrar tegundir rugla þær ekki.
+  var FUELS = ['Rafmagn', 'Tengiltvinn', 'Tvinn', 'Dísel'];
+  function feats(c) {
+    var x = [c.age, (c.km || 0) / 1e4];
+    for (var i = 0; i < FUELS.length; i++) x.push(c.fcat === FUELS[i] ? 1 : 0);
+    return x;
+  }
+  function solve(A, b) {
+    var n = b.length, M = A.map(function (r, i) { return r.concat([b[i]]); });
+    for (var i = 0; i < n; i++) {
+      var p = i;
+      for (var r = i + 1; r < n; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r;
+      var t = M[i]; M[i] = M[p]; M[p] = t;
+      if (Math.abs(M[i][i]) < 1e-12) continue;
+      for (r = 0; r < n; r++) {
+        if (r === i) continue;
+        var f = M[r][i] / M[i][i];
+        for (var k = i; k <= n; k++) M[r][k] -= f * M[i][k];
+      }
+    }
+    return M.map(function (r, i) { return Math.abs(r[i]) < 1e-12 ? 0 : r[n] / r[i]; });
+  }
+  function fit(list) {
+    var groups = {};
+    list.forEach(function (c) { (groups[c.key] = groups[c.key] || []).push(c); });
+    var d = feats(list[0]).length, XtX = [], Xty = [], i, j;
+    for (i = 0; i < d; i++) { XtX.push(new Array(d).fill(0)); Xty.push(0); }
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k];
+      if (g.length < 2) return;
+      var mx = new Array(d).fill(0), my = 0;
+      g.forEach(function (c) { var x = feats(c); for (i = 0; i < d; i++) mx[i] += x[i] / g.length; my += Math.log(c.price) / g.length; });
+      g.forEach(function (c) {
+        var x = feats(c), y = Math.log(c.price) - my;
+        for (i = 0; i < d; i++) {
+          var xi = x[i] - mx[i];
+          Xty[i] += xi * y;
+          for (j = 0; j < d; j++) XtX[i][j] += xi * (x[j] - mx[j]);
+        }
+      });
+    });
+    for (i = 0; i < d; i++) XtX[i][i] += 0.5; // smá ridge svo fáir bílar valdi ekki rugli
+    var beta = solve(XtX, Xty);
+    function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
+
+    var tot = 0, makes = {}, grp = {};
+    list.forEach(function (c) {
+      c._r = Math.log(c.price) - lin(c);
+      tot += c._r;
+      var m = makes[c.make] = makes[c.make] || { s: 0, n: 0 }; m.s += c._r; m.n++;
+      var g = grp[c.key] = grp[c.key] || { s: 0, n: 0 }; g.s += c._r; g.n++;
+    });
+    var glob = tot / list.length;
+    // Mat fyrir hvern bíl án hans sjálfs (leave-one-out), svo bíllinn hafi ekki áhrif á eigið mat
+    list.forEach(function (c) {
+      var m = makes[c.make], g = grp[c.key];
+      var mk = (m.s - c._r + 3 * glob) / (m.n - 1 + 3);
+      var gi = (g.s - c._r + 1.5 * mk) / (g.n - 1 + 1.5);
+      c.est = Math.round(Math.exp(gi + lin(c)) / 1e4) * 1e4;
+      c.peers = g.n - 1;
+      c.dev = c.price / c.est - 1;
+    });
+    return { beta: beta, lin: lin, groups: groups };
+  }
+  function verdict(c) {
+    if (c.peers < 2) return { cls: 'mid', txt: 'Fáir sambærilegir' };
+    if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
+    if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
+    return { cls: 'mid', txt: 'Eðlilegt verð' };
+  }
+  function adjusted(other, target) {
+    // verð hins bílsins ef hann væri jafn gamall og jafn mikið ekinn og target
+    return other.price * Math.exp(model.lin(target) - model.lin(other));
+  }
+  function similar(c, n) {
+    var g = model.groups[c.key] || [];
+    return g.filter(function (o) { return o !== c; }).sort(function (a, b) {
+      function d(o) { return Math.abs(o.age - c.age) + Math.abs((o.km || 0) - (c.km || 0)) / 30000 + (o.fcat === c.fcat ? 0 : 2); }
+      return d(a) - d(b);
+    }).slice(0, n || 8);
+  }
+
+  // ---------- snjöll leit (íslenskt mál -> síur) ----------
+  var MAKE_ALIAS = { benz: 'MERCEDES-BENZ', bens: 'MERCEDES-BENZ', mercedes: 'MERCEDES-BENZ', merc: 'MERCEDES-BENZ', vw: 'VOLKSWAGEN',
+    volkswagen: 'VOLKSWAGEN', volksvagen: 'VOLKSWAGEN', landrover: 'LAND ROVER', citroen: 'CITROEN', skoda: 'SKODA' };
+  var UNIT = '(m\\.?\\s?kr\\.?|millj\\w*|milljon\\w*|m\\b|thus\\w*|th\\b|k\\b|kr\\.?)?';
+  var NUM = '(\\d+(?:[.,]\\d+)*)';
+
+  function toNum(s) {
+    s = String(s);
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) return +s.replace(/\./g, '');
+    return parseFloat(s.replace(',', '.'));
+  }
+  function money(n, unit) {
+    n = toNum(n); unit = unit || '';
+    if (/^(m|millj|milljon)/.test(unit)) return n * 1e6;
+    if (/^(thus|th|k)/.test(unit)) return n * 1e3;
+    return n < 200 ? n * 1e6 : n;
+  }
+  function kmVal(n, unit) {
+    n = toNum(n);
+    return /^(thus|th|k)/.test(unit || '') || n < 1000 ? n * 1000 : n;
+  }
+
+  function parseQuery(raw) {
+    var q = ' ' + fold(raw).replace(/[„“"!?]/g, ' ') + ' ', f = {}, said = [];
+    function take(re, fn) { q = q.replace(re, function () { fn.apply(null, arguments); return ' '; }); }
+
+    // akstur
+    take(new RegExp('(?:ekinn?|ekid|akstur|keyrd\\w*)?\\s*(?:undir|minna en|innan vid|max|mest|ekki meira en|<)\\s*' + NUM + '\\s*(thus\\w*|th\\b|k\\b)?\\s*(?:km|kilometr\\w*)', 'g'),
+      function (m, n, u) { f.kmMax = kmVal(n, u); });
+    take(new RegExp('(?:ekinn?|ekid|keyrd\\w*)\\s*(?:undir|minna en|innan vid|max|mest|ekki meira en)\\s*' + NUM + '\\s*(thus\\w*|th\\b|k\\b)?', 'g'),
+      function (m, n, u) { f.kmMax = kmVal(n, u); });
+    take(/litid ekinn\w*|lítid ekinn/g, function () { f.kmMax = f.kmMax || 60000; });
+
+    // árgerð
+    take(/((?:19|20)\d\d)\s*(?:-|–|til)\s*((?:19|20)\d\d)/g, function (m, a, b) { f.yearMin = +a; f.yearMax = +b; });
+    take(/(?:argerd\w*\s*)?((?:19|20)\d\d)\s*(?:eda|og)?\s*(?:nyrri|yngri|\+)/g, function (m, y) { f.yearMin = +y; });
+    take(/(?:nyrri|yngri) en\s*((?:19|20)\d\d)/g, function (m, y) { f.yearMin = +y + 1; });
+    take(/(?:eldri en|fyrir)\s*((?:19|20)\d\d)/g, function (m, y) { f.yearMax = +y - 1; });
+    take(/(?:fra|eftir|argerd|argerdar?)\s*((?:19|20)\d\d)/g, function (m, y) { f.yearMin = +y; });
+    take(/(?:ekki eldri en|yngri en|mest)\s*(\d{1,2})\s*ara/g, function (m, n) { f.yearMin = NOW - +n; });
+    take(/(?:^|\s)((?:19|20)\d\d)(?=\s)/g, function (m, y) { f.yearMin = +y; f.yearMax = +y; });
+
+    // verð
+    take(new RegExp(NUM + '\\s*' + UNIT + '\\s*(?:-|–|til)\\s*' + NUM + '\\s*' + UNIT, 'g'), function (m, a, ua, b, ub) {
+      f.priceMin = money(a, ua || ub); f.priceMax = money(b, ub);
+    });
+    take(new RegExp('(?:undir|minna en|innan vid|max|hamark|upp ad|upp i|ekki meira en|ekki yfir|i mesta lagi|<|fyrir)\\s*' + NUM + '\\s*' + UNIT, 'g'),
+      function (m, n, u) { f.priceMax = money(n, u); });
+    take(new RegExp('(?:yfir|meira en|minnst|fra|>)\\s*' + NUM + '\\s*' + UNIT, 'g'), function (m, n, u) { f.priceMin = money(n, u); });
+    take(new RegExp('(?:um|ca\\.?|sirka|c\\.a\\.?)\\s*' + NUM + '\\s*' + UNIT, 'g'), function (m, n, u) {
+      var v = money(n, u); f.priceMin = v * 0.85; f.priceMax = v * 1.15;
+    });
+    take(new RegExp(NUM + '\\s*(m\\.?\\s?kr\\.?|millj\\w*|milljon\\w*)', 'g'), function (m, n, u) { f.priceMax = money(n, u); });
+
+    // eldsneyti, skipting, gerð
+    take(/tengiltvinn\w*|plug.?in|phev|hledslu\w*/g, function () { f.fuel = 'Tengiltvinn'; });
+    take(/rafmagns\w*|rafbil\w*|rafknu\w*|\bev\b|rafdrif\w*|\braf\b/g, function () { f.fuel = 'Rafmagn'; });
+    take(/hybrid|tvinn\w*|blendings\w*/g, function () { f.fuel = f.fuel || 'Tvinn'; });
+    take(/dis[ie]l\w*/g, function () { f.fuel = 'Dísel'; });
+    take(/bensin\w*/g, function () { f.fuel = 'Bensín'; });
+    take(/sjalfskipt\w*|sjalfsk\w*|automat\w*|\bssk\b/g, function () { f.trans = 'sj'; });
+    take(/beinskipt\w*|\bbsk\b|manual/g, function () { f.trans = 'bein'; });
+    take(/jeppling\w*|jepp\w*|suv|sportjepp\w*|crossover/g, function () { f.body = 'suv'; });
+    take(/folksbil\w*|smabil\w*|skutbil\w*|stationbil\w*/g, function () { f.body = 'car'; });
+    take(/fjorhjoladrif\w*|aldrif\w*|4x4|\bawd\b|\b4wd\b|fjordrif\w*/g, function () { f.awd = true; });
+
+    // röðun
+    take(/odyr(ast|asti|astan|ustu)\w*/g, function () { f.sort = 'priceAsc'; });
+    take(/minnst ekin\w*/g, function () { f.sort = 'kmAsc'; });
+    take(/nyjast\w*|nyjust\w*|yngst\w*/g, function () { f.sort = 'yearDesc'; });
+    take(/gott verd|godu verdi|besta verd\w*|godum kaup\w*|kjarakaup|tilbod\w*/g, function () { f.deal = true; f.sort = 'deal'; });
+
+    // tegund og gerð
+    Object.keys(MAKE_ALIAS).sort(function (a, b) { return b.length - a.length; }).forEach(function (a) {
+      take(new RegExp('(^|\\s)' + a + '(?=\\s)', 'g'), function () { f.make = MAKE_ALIAS[a]; });
+    });
+    var makes = uniq(cars.map(function (c) { return c.make; })).sort(function (a, b) { return b.length - a.length; });
+    makes.forEach(function (mk) {
+      take(new RegExp('(^|\\s)' + escRe(fold(mk)) + '(?=\\s)', 'g'), function () { f.make = mk; });
+    });
+    var bases = uniq(cars.filter(function (c) { return !f.make || c.make === f.make; }).map(function (c) { return c.make + '|' + c.base; }));
+    bases.sort(function (a, b) { return b.length - a.length; });
+    bases.some(function (kb) {
+      var b = kb.split('|')[1], fb = fold(b);
+      if (!f.model && fb.length > 1 && new RegExp('(^|\\s)' + escRe(fb).replace(/\\\.|-/g, '[.\\- ]?') + '(?=\\s)').test(q)) {
+        f.model = b; f.make = kb.split('|')[0];
+        q = q.replace(new RegExp('(^|\\s)' + escRe(fb).replace(/\\\.|-/g, '[.\\- ]?') + '(?=\\s)'), ' ');
+        return true;
+      }
+      return false;
+    });
+
+    // önnur orð sem koma fyrir í heitum bíla (t.d. "gt", "4matic") verða textasía
+    var vocab = {};
+    cars.forEach(function (c) { c.ftitle.split(/\s+/).forEach(function (w) { vocab[w] = 1; }); });
+    var STOP = { og: 1, i: 1, a: 1, med: 1, sem: 1, er: 1, en: 1, um: 1, til: 1, ad: 1, bil: 1, bill: 1, eda: 1, fyrir: 1, ekki: 1 };
+    var words = q.split(/\s+/).filter(function (w) { return w.length > 1 && vocab[w] && !STOP[w] && !/^\d+$/.test(w); });
+    if (words.length) f.text = words.join(' ');
+
+    if (f.make) said.push(cap(f.make) + (f.model ? ' ' + cap(f.model) : ''));
+    if (f.fuel) said.push(f.fuel.toLowerCase());
+    if (f.body) said.push(f.body === 'suv' ? 'jeppi/jepplingur' : 'fólksbíll');
+    if (f.trans) said.push(f.trans === 'sj' ? 'sjálfskiptur' : 'beinskiptur');
+    if (f.awd) said.push('fjórhjóladrif');
+    if (f.priceMin && f.priceMax) said.push(mkr(f.priceMin) + '–' + mkr(f.priceMax));
+    else if (f.priceMax) said.push('undir ' + mkr(f.priceMax));
+    else if (f.priceMin) said.push('yfir ' + mkr(f.priceMin));
+    if (f.yearMin && f.yearMin === f.yearMax) said.push('árgerð ' + f.yearMin);
+    else { if (f.yearMin) said.push('árgerð ' + f.yearMin + '+'); if (f.yearMax) said.push('árgerð til ' + f.yearMax); }
+    if (f.kmMax) said.push('ekinn undir ' + kmFmt(f.kmMax));
+    if (f.deal) said.push('gott verð');
+    if (f.text) said.push('„' + f.text + '“');
+    if (f.sort && f.sort !== 'deal') said.push({ priceAsc: 'ódýrast fyrst', kmAsc: 'minnst ekinn fyrst', yearDesc: 'nýjast fyrst' }[f.sort]);
+    return { f: f, said: said };
+  }
+  function uniq(a) { var s = {}; return a.filter(function (x) { return s[x] ? false : (s[x] = 1); }); }
+  function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // ---------- síur ----------
+  var F = ['fMake', 'fModel', 'fPriceMin', 'fPriceMax', 'fYearMin', 'fYearMax', 'fKmMax', 'fFuel', 'fTrans', 'fBody', 'fDealer', 'fText', 'fAwd', 'fDeal', 'fSort'];
+  function readFilters() {
+    var v = function (id) { return $(id).value; };
+    var n = function (id) { var x = parseFloat(v(id)); return isNaN(x) ? null : x; };
+    return {
+      make: v('fMake'), model: v('fModel'), priceMin: n('fPriceMin'), priceMax: n('fPriceMax'), yearMin: n('fYearMin'),
+      yearMax: n('fYearMax'), kmMax: n('fKmMax'), fuel: v('fFuel'), trans: v('fTrans'), body: v('fBody'),
+      dealer: v('fDealer'), text: fold(v('fText')).trim(), awd: $('fAwd').checked, deal: $('fDeal').checked, sort: v('fSort')
+    };
+  }
+  function setFilters(f) {
+    $('fMake').value = f.make || ''; fillModels();
+    $('fModel').value = f.model || '';
+    $('fPriceMin').value = f.priceMin ? +(f.priceMin / 1e6).toFixed(2) : '';
+    $('fPriceMax').value = f.priceMax ? +(f.priceMax / 1e6).toFixed(2) : '';
+    $('fYearMin').value = f.yearMin || ''; $('fYearMax').value = f.yearMax || '';
+    $('fKmMax').value = f.kmMax || ''; $('fFuel').value = f.fuel || ''; $('fTrans').value = f.trans || '';
+    $('fBody').value = f.body || ''; $('fDealer').value = f.dealer || ''; $('fText').value = f.text || '';
+    $('fAwd').checked = !!f.awd; $('fDeal').checked = !!f.deal; $('fSort').value = f.sort || 'deal';
+  }
+  function filtered() {
+    var f = readFilters(), words = f.text ? f.text.split(/\s+/) : [];
+    var out = cars.filter(function (c) {
+      if (f.make && c.make !== f.make) return false;
+      if (f.model && c.base !== f.model) return false;
+      if (f.priceMin != null && c.price < f.priceMin * 1e6) return false;
+      if (f.priceMax != null && c.price > f.priceMax * 1e6) return false;
+      if (f.yearMin != null && (c.year || 0) < f.yearMin) return false;
+      if (f.yearMax != null && (c.year || 9999) > f.yearMax) return false;
+      if (f.kmMax != null && (c.km || 0) > f.kmMax) return false;
+      if (f.fuel && c.fcat !== f.fuel) return false;
+      if (f.trans === 'sj' && c.auto === false) return false;
+      if (f.trans === 'bein' && c.auto !== false) return false;
+      if (f.body === 'suv' && !c.suv) return false;
+      if (f.body === 'car' && c.suv) return false;
+      if (f.dealer && c.dealer !== f.dealer) return false;
+      if (f.awd && !c.awd) return false;
+      if (f.deal && !(c.peers >= 2 && c.dev <= -0.12)) return false;
+      for (var i = 0; i < words.length; i++) if (c.ftitle.indexOf(words[i]) < 0) return false;
+      return true;
+    });
+    var by = {
+      deal: function (a, b) { return (a.peers < 2) - (b.peers < 2) || a.dev - b.dev; },
+      priceAsc: function (a, b) { return a.price - b.price; },
+      priceDesc: function (a, b) { return b.price - a.price; },
+      kmAsc: function (a, b) { return (a.km || 0) - (b.km || 0); },
+      yearDesc: function (a, b) { return (b.year || 0) - (a.year || 0) || a.price - b.price; }
+    }[f.sort] || null;
+    if (by) out.sort(by);
+    return out;
+  }
+
+  // ---------- birting ----------
+  function img(c) { return c.img && c.img.indexOf('/__thumb') < 0 ? c.img : ''; }
+  function card(c) {
+    var v = verdict(c), on = compare.indexOf(c.id) >= 0;
+    return '<article class="car" data-id="' + esc(c.id) + '">' +
+      '<div class="ph" style="' + (img(c) ? "background-image:url('" + esc(img(c)) + "')" : '') + '">' +
+      '<span class="dealer">' + esc(c.dealer) + '</span>' +
+      '<button type="button" class="cmp' + (on ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + (on ? '✓ Í samanburði' : '+ Bera saman') + '</button></div>' +
+      '<div class="body"><h3>' + esc(cap(c.make) + ' ' + cap(c.model)) + '</h3>' +
+      '<div class="meta">' + (c.year || '–') + ' · ' + kmFmt(c.km) + ' · ' + esc(c.fcat) + (c.auto === true ? ' · ssk.' : c.auto === false ? ' · bsk.' : '') + '</div>' +
+      '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span>' +
+      '<span class="badge ' + v.cls + '">' + v.txt + '</span></div></div></article>';
+  }
+  function render(keepShown) {
+    if (!keepShown) shown = PAGE;
+    var list = filtered();
+    $('count').textContent = list.length.toLocaleString('de-DE') + ' bílar';
+    $('results').innerHTML = list.length ? list.slice(0, shown).map(card).join('') :
+      '<div class="empty">Engir bílar fundust. Prófaðu að víkka leitina eða smelltu á „Hreinsa allt“.</div>';
+    $('more').hidden = list.length <= shown;
+    renderTray();
+  }
+  function renderTray() {
+    $('tray').hidden = !compare.length;
+    $('trayText').textContent = compare.length + ' í samanburði';
+    $('trayOpen').disabled = compare.length < 2;
+  }
+  function byId(id) { for (var i = 0; i < cars.length; i++) if (cars[i].id === id) return cars[i]; return null; }
+  function toggleCompare(id) {
+    var i = compare.indexOf(id);
+    if (i >= 0) compare.splice(i, 1);
+    else { if (compare.length >= 4) compare.shift(); compare.push(id); }
+    store('compare', compare);
+  }
+
+  function openModal(html) {
+    $('modalBody').innerHTML = html;
+    var d = $('modal');
+    if (d.showModal) { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
+    d.scrollTop = 0;
+  }
+  function closeModal() { var d = $('modal'); if (d.close) d.close(); else d.removeAttribute('open'); }
+
+  function describe(c) {
+    return cap(c.make) + ' ' + cap(c.model) + ', árg. ' + (c.year || '?') + ', ' + kmFmt(c.km) + ', ' + c.fcat +
+      (c.auto === true ? ', sjálfskiptur' : c.auto === false ? ', beinskiptur' : '') + (c.awd ? ', fjórhjóladrif' : '') +
+      ', verð ' + kr(c.price) + ' hjá ' + c.dealer + ' (' + c.url + ')';
+  }
+  function claudeLink(prompt) { return 'https://claude.ai/new?q=' + encodeURIComponent(prompt.slice(0, 6000)); }
+
+  function showCar(c) {
+    var v = verdict(c), sim = similar(c, 8), b = model.beta;
+    var kmEff = (1 - Math.exp(b[1])) * 100, yrEff = (1 - Math.exp(b[0])) * 100;
+    var rows = sim.map(function (o) {
+      return '<tr class="click" data-open="' + esc(o.id) + '"><td>' + esc(cap(o.model)) + '<br><span class="note">' + esc(o.dealer) + '</span></td>' +
+        '<td class="num">' + (o.year || '–') + '</td><td class="num">' + kmFmt(o.km) + '</td><td>' + esc(o.fcat) + '</td>' +
+        '<td class="num">' + kr(o.price) + '</td><td class="num"><b>' + kr(adjusted(o, c)) + '</b></td></tr>';
+    }).join('');
+    var prompt = 'Ég er að íhuga að kaupa notaðan bíl á Íslandi:\n' + describe(c) +
+      '\n\nVerðmat út frá sambærilegum auglýsingum: ' + kr(c.est) + ' (' + pct(c.dev) + ' frá mati, ' + c.peers + ' sambærilegir).' +
+      (sim.length ? '\n\nSambærilegir bílar til sölu núna:\n' + sim.map(function (o) { return '- ' + describe(o); }).join('\n') : '') +
+      '\n\nEr þetta gott verð miðað við akstur og aldur? Hvað ætti ég að skoða sérstaklega á þessari tegund/árgerð (algengir gallar, viðhald), ' +
+      'og hvaða spurningar ætti ég að spyrja seljandann? Svaraðu á íslensku.';
+    openModal('<div class="m"><div class="m-head"><h2>' + esc(cap(c.make) + ' ' + cap(c.model)) + '</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<div class="m-top"><div>' + (img(c) ? '<img src="' + esc(img(c)) + '" alt="">' : '') + '</div><div>' +
+      '<dl class="facts"><dt>Verð</dt><dd><b>' + kr(c.price) + '</b>' + (c.oldPrice && c.oldPrice > c.price ? ' <span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</dd>' +
+      '<dt>Árgerð</dt><dd>' + (c.year || '–') + '</dd><dt>Ekinn</dt><dd>' + kmFmt(c.km) + (c.age > 0 && c.km ? ' (≈' + Math.round(c.km / c.age).toLocaleString('de-DE') + ' km/ári)' : '') + '</dd>' +
+      '<dt>Eldsneyti</dt><dd>' + esc(c.fcat) + '</dd><dt>Skipting</dt><dd>' + (c.auto === true ? 'Sjálfskipting' : c.auto === false ? 'Beinskipting' : 'Óþekkt') + '</dd>' +
+      (c.awd ? '<dt>Drif</dt><dd>Fjórhjóladrif</dd>' : '') + (c.color ? '<dt>Litur</dt><dd>' + esc(c.color) + '</dd>' : '') +
+      '<dt>Bílasala</dt><dd>' + esc(c.dealer) + '</dd></dl>' +
+      '<div class="est"><div>Áætlað markaðsverð</div><div class="big">' + kr(c.est) + '</div>' +
+      '<div><span class="badge ' + v.cls + '">' + v.txt + '</span> ' +
+      (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
+        'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri og eldsneyti.') + '</div></div>' +
+      '<div class="actions"><a class="primary" href="' + esc(c.url) + '" target="_blank" rel="noopener">Opna auglýsingu hjá ' + esc(c.dealer) + '</a>' +
+      '<button type="button" class="sec" data-cmp="' + esc(c.id) + '">' + (compare.indexOf(c.id) >= 0 ? '✓ Í samanburði' : '+ Bera saman') + '</button>' +
+      '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">Spyrja Claude um bílinn</a></div></div></div>' +
+      (sim.length ? '<h4>Sambærilegir bílar</h4><p class="note">„Leiðrétt verð“ er hvað hinn bíllinn myndi kosta ef hann væri jafn gamall og jafn mikið ekinn og þessi. ' +
+        'Á markaðnum lækkar verð að jafnaði um ~' + kmEff.toFixed(1) + '% fyrir hverja 10.000 km og ~' + yrEff.toFixed(0) + '% á ári.</p>' +
+        '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt verð</th></tr></thead><tbody>' +
+        rows + '</tbody></table></div>' : '') +
+      '<p class="note" style="margin-top:14px">Claude-hnappurinn opnar þinn eigin Claude-aðgang með upplýsingunum tilbúnum. Það kostar ekkert hér.</p></div>');
+  }
+
+  function showCompare() {
+    var list = compare.map(byId).filter(Boolean);
+    if (list.length < 2) return;
+    function best(vals, low) {
+      var ok = vals.filter(function (x) { return x != null; });
+      var t = low ? Math.min.apply(null, ok) : Math.max.apply(null, ok);
+      return function (x) { return x === t && ok.length > 1; };
+    }
+    function row(label, fn, raw, low) {
+      var vals = raw ? list.map(raw) : null, isBest = vals ? best(vals, low) : function () { return false; };
+      return '<tr><th>' + label + '</th>' + list.map(function (c, i) {
+        return '<td' + (vals && isBest(vals[i]) ? ' class="best"' : '') + '>' + fn(c) + '</td>';
+      }).join('') + '</tr>';
+    }
+    var prompt = 'Ég er að velja á milli þessara notuðu bíla á Íslandi:\n' + list.map(function (c, i) {
+      return (i + 1) + '. ' + describe(c) + ' – áætlað markaðsverð ' + kr(c.est) + ' (' + pct(c.dev) + ')';
+    }).join('\n') + '\n\nBerðu þá saman: verð miðað við akstur og aldur, áreiðanleika tegundanna, rekstrarkostnað, endursöluverð og algenga galla. ' +
+      'Hvern myndirðu velja og af hverju? Svaraðu á íslensku.';
+    openModal('<div class="m"><div class="m-head"><h2>Samanburður</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<div class="tbl-wrap" style="margin-top:12px"><table class="cmp-table"><tbody>' +
+      '<tr><th></th>' + list.map(function (c) { return '<td>' + (img(c) ? '<img src="' + esc(img(c)) + '" alt="">' : '') + '<b>' + esc(cap(c.make) + ' ' + cap(c.model)) + '</b></td>'; }).join('') + '</tr>' +
+      row('Verð', function (c) { return kr(c.price); }, function (c) { return c.price; }, true) +
+      row('Áætlað verð', function (c) { return kr(c.est); }) +
+      row('Frávik frá mati', function (c) { var v = verdict(c); return '<span class="badge ' + v.cls + '">' + pct(c.dev) + '</span>'; }, function (c) { return c.dev; }, true) +
+      row('Árgerð', function (c) { return c.year || '–'; }, function (c) { return c.year; }, false) +
+      row('Ekinn', function (c) { return kmFmt(c.km); }, function (c) { return c.km; }, true) +
+      row('Km á ári', function (c) { return c.age > 0 && c.km ? Math.round(c.km / c.age).toLocaleString('de-DE') : '–'; }) +
+      row('Eldsneyti', function (c) { return esc(c.fcat); }) +
+      row('Skipting', function (c) { return c.auto === true ? 'Sjálfsk.' : c.auto === false ? 'Beinsk.' : '–'; }) +
+      row('Fjórhjóladrif', function (c) { return c.awd ? 'Já' : '–'; }) +
+      row('Bílasala', function (c) { return esc(c.dealer); }) +
+      row('', function (c) { return '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">Auglýsing ↗</a> · <a href="#" data-open="' + esc(c.id) + '">Nánar</a>'; }) +
+      '</tbody></table></div>' +
+      '<p class="note" style="margin-top:10px">Grænt = best í línunni. Frávik frá mati sýnir hve mikið bíllinn er dýrari eða ódýrari en sambærilegir bílar með sama akstur og aldur.</p>' +
+      '<div class="actions"><a class="primary" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">Spyrja Claude hvern ég ætti að velja</a></div></div>');
+  }
+
+  // ---------- atburðir ----------
+  function runSearch(text) {
+    var r = parseQuery(text);
+    setFilters(r.f);
+    $('understood').hidden = !text.trim();
+    $('understood').innerHTML = r.said.length ? 'Skildi leitina svona: <b>' + r.said.map(esc).join(' · ') + '</b> (hægt að breyta í síunum)' :
+      'Fann engin leitarskilyrði – sýni alla bíla.';
+    render();
+  }
+
+  function fillModels() {
+    var mk = $('fMake').value, sel = $('fModel'), cur = sel.value;
+    var cnt = {};
+    cars.forEach(function (c) { if (!mk || c.make === mk) cnt[c.base] = (cnt[c.base] || 0) + 1; });
+    sel.innerHTML = '<option value="">Allar</option>' + Object.keys(cnt).sort().map(function (b) {
+      return '<option value="' + esc(b) + '">' + esc(cap(b)) + ' (' + cnt[b] + ')</option>';
+    }).join('');
+    sel.value = cnt[cur] ? cur : '';
+  }
+
+  function bind() {
+    $('searchForm').addEventListener('submit', function (e) { e.preventDefault(); $('q').blur(); runSearch($('q').value); });
+    $('examples').addEventListener('click', function (e) {
+      if (e.target.tagName !== 'BUTTON') return;
+      $('q').value = e.target.textContent; runSearch(e.target.textContent);
+    });
+    F.forEach(function (id) {
+      $(id).addEventListener(/fText|fPrice|fYear|fKm/.test(id) ? 'input' : 'change', function () {
+        if (id === 'fMake') fillModels();
+        render();
+      });
+    });
+    $('reset').addEventListener('click', function () { $('q').value = ''; $('understood').hidden = true; setFilters({}); render(); });
+    $('filtersToggle').addEventListener('click', function () {
+      var open = $('filters').classList.toggle('open');
+      this.setAttribute('aria-expanded', open);
+    });
+    $('more').addEventListener('click', function () { shown += PAGE; render(true); });
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest ? e.target.closest('[data-cmp],[data-open],[data-close],.car') : null;
+      if (!t) return;
+      if (t.hasAttribute('data-cmp')) {
+        e.stopPropagation(); toggleCompare(t.getAttribute('data-cmp'));
+        var on = compare.indexOf(t.getAttribute('data-cmp')) >= 0;
+        document.querySelectorAll('[data-cmp="' + t.getAttribute('data-cmp') + '"]').forEach(function (b) {
+          b.classList.toggle('on', on); b.textContent = on ? '✓ Í samanburði' : '+ Bera saman';
+        });
+        renderTray();
+      } else if (t.hasAttribute('data-close')) closeModal();
+      else if (t.hasAttribute('data-open')) { e.preventDefault(); var c = byId(t.getAttribute('data-open')); if (c) showCar(c); }
+      else if (t.classList.contains('car')) { var c2 = byId(t.getAttribute('data-id')); if (c2) showCar(c2); }
+    });
+    $('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    $('trayOpen').addEventListener('click', showCompare);
+    $('trayClear').addEventListener('click', function () { compare = []; store('compare', compare); render(true); });
+  }
+
+  function load() {
+    fetch('data/cars.json?t=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+      cars = d.cars.filter(function (c) { return c.price > 0 && c.make; }).map(prep);
+      model = fit(cars);
+      compare = (store('compare') || []).filter(byId);
+      var makes = {}, dealers = {};
+      cars.forEach(function (c) { makes[c.make] = (makes[c.make] || 0) + 1; dealers[c.dealer] = 1; });
+      $('fMake').innerHTML = '<option value="">Allar</option>' + Object.keys(makes).sort().map(function (m) {
+        return '<option value="' + esc(m) + '">' + esc(cap(m)) + ' (' + makes[m] + ')</option>';
+      }).join('');
+      $('fDealer').innerHTML = '<option value="">Allar</option>' + Object.keys(dealers).sort().map(function (m) {
+        return '<option>' + esc(m) + '</option>';
+      }).join('');
+      fillModels();
+      var u = new Date(d.updated);
+      $('updated').textContent = 'Uppfært ' + u.toLocaleDateString('is-IS', { day: 'numeric', month: 'long' }) + ' kl. ' +
+        ('0' + u.getHours()).slice(-2) + ':' + ('0' + u.getMinutes()).slice(-2);
+      $('sources').textContent = 'Heimildir: ' + Object.keys(d.sources).map(function (k) { return k + ' (' + d.sources[k] + ')'; }).join(' · ');
+      var q = new URLSearchParams(location.search).get('q');
+      if (q) { $('q').value = q; runSearch(q); } else render();
+    }).catch(function (e) {
+      $('count').textContent = 'Tókst ekki að sækja gögn.';
+      console.error(e);
+    });
+  }
+
+
+  bind();
+  load();
+})();

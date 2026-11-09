@@ -1,0 +1,9 @@
+{
+  "name": "Bílaleit",
+  "short_name": "Bílaleit",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f4",
+  "theme_color": "#0f6b5c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
