@@ -243,11 +243,97 @@ def fetch_bilasolur():
     return out
 
 
+# --- bland.is (einkasala) ----------------------------------------------------
+BLAND = "https://bland.is"
+BLAND_CACHE = Path(__file__).parent / "bland_cache.json"  # auglýsing -> [tegund, gerð], svo hver sé bara sótt einu sinni
+KNOWN_MAKES = ("ALFA ROMEO|ASTON MARTIN|LAND ROVER|MERCEDES-BENZ|MERCEDES BENZ|ROLLS ROYCE|ABARTH|AUDI|BMW|BYD|CADILLAC|CHEVROLET|"
+               "CHRYSLER|CITROEN|CITROËN|CUPRA|DACIA|DAEWOO|DAIHATSU|DODGE|DS|FIAT|FORD|GMC|HONDA|HUMMER|HYUNDAI|ISUZU|IVECO|JAGUAR|"
+               "JEEP|KIA|LADA|LEXUS|LYNK|MAN|MAXUS|MAZDA|MERCEDES|MG|MINI|MITSUBISHI|NISSAN|OPEL|PEUGEOT|POLESTAR|PORSCHE|RAM|RENAULT|"
+               "SAAB|SEAT|SKODA|SMART|SSANGYONG|SUBARU|SUZUKI|TESLA|TOYOTA|VOLKSWAGEN|VOLVO|VW|XPENG|ZEEKR").split("|")
+TITLE_ALIAS = {"BENZ": "MERCEDES-BENZ", "BENS": "MERCEDES-BENZ", "MERCEDES": "MERCEDES-BENZ", "MERCEDES BENZ": "MERCEDES-BENZ",
+               "SKODI": "SKODA", "CITROËN": "CITROEN", "LANDROVER": "LAND ROVER", "RANGE": "LAND ROVER", "LANDCRUISER": "TOYOTA",
+               "YARIS": "TOYOTA", "RAV4": "TOYOTA", "COROLLA": "TOYOTA", "HILUX": "TOYOTA", "PATROL": "NISSAN", "GOLF": "VOLKSWAGEN",
+               "POLO": "VOLKSWAGEN", "PASSAT": "VOLKSWAGEN", "OUTLANDER": "MITSUBISHI", "PAJERO": "MITSUBISHI", "SPORTAGE": "KIA",
+               "CHEROKEE": "JEEP", "WRANGLER": "JEEP", "OCTAVIA": "SKODA", "FORESTER": "SUBARU", "IMPREZA": "SUBARU"}
+FLUFF = re.compile(r"\b(til|sölu|solu|selst|tilboð|tilbod|skipti|ódýr|odyr|ekinn|árg|arg|góður|godur|flottur|nýskoðaður)\b.*", re.I)
+
+
+NOT_CARS = {"SCANIA", "CAN-AM", "CAMP-LET", "KOENIGSEGG", "MAN", "IVECO", "DAF", "VOLVO TRUCKS", "POLARIS", "HOBBY", "ADRIA", "KNAUS"}  # vörubílar, tæki og rangflokkað
+MAKE_SYNONYMS = {"BENZ", "BENS", "MERCEDES", "MERCEDES BENZ", "SKODI", "CITROËN", "LANDROVER"}
+
+
+def make_from_title(t):
+    """Reynir að finna tegund og gerð út frá frjálsum titli, t.d. 'Audi A4 2006' -> ('AUDI', 'A4')."""
+    u = re.sub(r"\s+", " ", re.sub(r"[!,()*]+|\s-\s|\.(?!\d)", " ", t.upper())).strip()
+    for mk in sorted(KNOWN_MAKES + list(TITLE_ALIAS), key=len, reverse=True):
+        m = re.match(r"(.*?)\b" + re.escape(mk) + r"\b(.*)", u)
+        if not m:
+            continue
+        make = TITLE_ALIAS.get(mk, MAKE_ALIAS.get(mk, mk))
+        rest = m.group(2) if mk in KNOWN_MAKES or mk in MAKE_SYNONYMS else mk + m.group(2)
+        rest = re.sub(r"\b(19|20)\d\d\b|\bEK\b.*", " ", FLUFF.sub("", rest)).split()
+        if rest and (rest[0] == make or rest[0] in MAKE_SYNONYMS):
+            rest = rest[1:]
+        return make, " ".join(rest[:3])
+    return None, None
+
+
+def parse_bland(h):
+    out = []
+    for e in h.split("classifiedentry")[1:]:
+        m = re.search(r'<h3>\s*<a href="(/til-solu/[^"]+/(\d+)/)"[^>]*title="([^"]*)"', e)
+        if not m:
+            continue
+        flat = [text(x) for x in re.split(r"<[^>]+>", e)]
+        flat = [x for x in flat if x]
+        attrs = {flat[i]: flat[i + 1] for i in range(len(flat) - 1) if flat[i] in ("Ár", "Skipting", "Akstur", "Eldsneyti")}
+        price = next((x for x in flat if re.fullmatch(r"[\d.]+ kr\.?", x)), None)
+        cover = re.search(r'data-cover="([^"]+)"', e)
+        out.append({"id": "bland-" + m.group(2), "dealer": "Bland.is (einstaklingur)", "url": BLAND + m.group(1),
+                    "title": text(m.group(3)), "price": num(price), "oldPrice": None,
+                    "year": year_of(attrs.get("Ár", "")), "km": num(attrs.get("Akstur", "")),
+                    "fuel": attrs.get("Eldsneyti", ""), "trans": attrs.get("Skipting", ""),
+                    "img": ("https:" + cover.group(1)) if cover else ""})
+    return out
+
+
+def fetch_bland():
+    ads = paged(f"{BLAND}/solutorg/farartaeki/nyir-notadir-bilar-til-solu/?categoryId=17&sub=1", "&", parse_bland, 2)
+    cache = json.loads(BLAND_CACHE.read_text("utf-8")) if BLAND_CACHE.exists() else {}
+    out = []
+    for a in ads:
+        make, model = make_from_title(a["title"])
+        if not make:
+            if a["id"] not in cache:  # tegund ekki í titlinum: lesa „Framleiðandi“/„Undirtegund“ úr auglýsingunni
+                try:
+                    d = text(get(a["url"]).replace("<", " <"))
+                    mk = re.search(r"Framleiðandi (.+?) (?:Undirtegund|Tegund) ", d)
+                    md = re.search(r"Undirtegund (.+?) (?:Tegund|Ár) ", d)
+                    cache[a["id"]] = [mk.group(1) if mk else "", md.group(1) if md else ""]
+                except Exception as e:
+                    print(f"  náði ekki {a['url']}: {e}", file=sys.stderr)
+                    cache[a["id"]] = ["", ""]
+                time.sleep(1)
+            mk, md = cache[a["id"]]
+            if not mk:
+                continue
+            mk = re.sub(r"\(.*?\)", "", mk).strip().upper().replace("MERCEDESBENZ", "MERCEDES-BENZ")
+            if mk in NOT_CARS or not md:  # tóm gerð = sjálfgefið gildi, oftast "kaupi bíla" auglýsing
+                continue
+            make, model = MAKE_ALIAS.get(mk, mk), md.upper()
+        a["make"], a["model"] = make, model or ""
+        out.append(a)
+    live = {a["id"] for a in ads}
+    BLAND_CACHE.write_text(json.dumps({k: v for k, v in cache.items() if k in live}, ensure_ascii=False), "utf-8")
+    return out
+
+
 SOURCES = [
     ("Hekla", lambda: paged("https://www.hekla.is/is/bilar/notadir-bilar", "?", parse_hekla, 5)),
     ("Brimborg", lambda: paged("https://notadir.brimborg.is/is/notadir-bilar", "?", parse_brimborg, 5)),
     ("Askja", lambda: paged("https://www.notadir.is/soluskra", "?", parse_askja, 2)),
     ("bilasolur.is", fetch_bilasolur),
+    ("bland.is", fetch_bland),
 ]
 
 
@@ -272,7 +358,7 @@ def main():
             print(f"  nota gömul gögn ({len(got)})")
         for c in got:
             c["src"] = name
-        if name == "bilasolur.is":  # sami bíll er oft líka á síðu umboðsins; höldum honum bara einu sinni
+        if name in ("bilasolur.is", "bland.is"):  # sami bíll er oft líka á síðu umboðsins; höldum honum bara einu sinni
             have = {fingerprint(c) for c in cars}
             got = [c for c in got if fingerprint(c) not in have]
         print(f"{name}: {len(got)} bílar")
