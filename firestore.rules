@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Stjórnandi = eigandi síðunnar (sama auðkenni og window.ADMIN_UID í firebase-config.js)
-    function isAdmin() { return request.auth != null && request.auth.uid == 'ADMIN_UID_HER'; }
+    function isAdmin() { return request.auth != null && request.auth.uid == 'bbalHMP0dtRWhU1dGsKQXUN8h2k2'; }
 
     // Stillingar síðunnar: allir lesa, bara stjórnandi skrifar (t.d. „uppfæra allar opnar síður“)
     match /config/{id} {

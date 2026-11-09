@@ -8,7 +8,7 @@ window.FIREBASE_CONFIG = {
   appId: "1:378734713893:web:6586daf4125b4660b173cc",
 };
 // Aðgangur stjórnanda (eigandans). Sama auðkenni er í firestore.rules, sem er það sem gildir.
-window.ADMIN_UID = "";
+window.ADMIN_UID = "bbalHMP0dtRWhU1dGsKQXUN8h2k2";
 
 // Útgáfa síðunnar (deploy.sh uppfærir)
-window.APP_VERSION = '1794236292';
+window.APP_VERSION = '1794236350';
