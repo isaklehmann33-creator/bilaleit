@@ -27,7 +27,8 @@ UA = "Bilaleit/1.0 (+https://bilaleit.web.app)"
 # Lýsingar á ensku (CLIP skilur ensku best). Hver flokkur hefur nokkrar orðanir; líkur flokks = summa.
 PROMPTS = {
     "ok": ["a photo of a clean used car for sale", "a shiny car parked at a car dealership", "a car in good condition photographed outdoors",
-           "a car photographed in a showroom"],
+           "a car photographed in a showroom", "a studio photo of a new car on a plain white background", "a manufacturer press photo of a new car",
+           "a car photographed indoors in a clean bright hall", "a car at a car auction inspection hall", "a clean car parked in a garage"],
     "tjon": ["a damaged car with dents and crash damage", "a wrecked car after a traffic accident", "a car with a smashed front bumper"],
     "keppni": ["a rally car with racing stickers and numbers", "a race car prepared for motorsport", "a drift car with mismatched body panels"],
     "verkefni": ["a car being repaired in a garage with parts missing", "a car without bumper or with body panels removed", "a car on jack stands in a workshop",
@@ -36,7 +37,7 @@ PROMPTS = {
     "annad": ["a photo of a car interior and dashboard", "a photo of an engine bay", "a photo of a document or text", "a blurry photo", "a photo of a truck or heavy machinery"],
 }
 # merkja bara þegar flokkurinn er líklegri en þetta og mun líklegri en „ok“
-THRESH = {"tjon": 0.55, "keppni": 0.55, "verkefni": 0.7, "ryd": 0.6}
+THRESH = {"tjon": 0.6, "keppni": 0.6, "verkefni": 0.85, "ryd": 0.65}
 
 
 def fetch(url):
@@ -98,7 +99,7 @@ def main(limit=None, ids=None):
             for lab, p in zip(labels, pr.tolist()):
                 g[lab] = g.get(lab, 0) + p
             best = max((k for k in THRESH), key=lambda k: g[k])
-            flagged = g[best] >= THRESH[best] and g[best] > 2 * g["ok"]
+            flagged = g[best] >= THRESH[best] and g[best] > 4 * g["ok"]
             cache[c["id"]] = [c["img"], best if flagged else "ok", round(g[best], 3)]
             done += 1
     live = {c["id"] for c in cars}
