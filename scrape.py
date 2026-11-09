@@ -504,6 +504,7 @@ FLAGS = {   # kóði: (neikvætt?, mynstur)
     "ryd": (True, r"\bryð"),
     "laga": (True, r"þarfnast|þarf að laga|þarf smá|bilaður|bilun|vélarvandamál|gírkassavandamál|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar"),
     "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun"),
+    "serut": (True, r"rall[ýy]\w*|keppnisbíl|kvartmílu|driftbíl|sandspyrnu|torfærubíl|til niðurrifs|í varahluti|varahlutabíl|ógangfær|óökufær|verkefnabíll|verkefni fyrir"),
     "timareim": (False, r"(?:ný|nýleg|skipt um|nýbúið að skipta um) (?:tímareim|keðju)|tímareim (?:ný|nýleg|skipt)"),
     "skodadur": (False, r"nýskoðaður|ný skoðun|skoðaður (?:20\d\d|til)|nýlega skoðaður"),
     "smurbok": (False, r"smurbók|þjónustubók|þjónustusaga|full þjónustusaga|alltaf þjónustaður"),

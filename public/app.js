@@ -96,7 +96,10 @@
     c.ftitle = fold(c.make + ' ' + c.model);
     c.perf = perfTier(c);
     c.pwRaw = c.hp ? c.hp / 100 : powerHint(c);  // hestöfl af auglýsingunni ef til, annars giskað út frá heitinu
-    c.priv = c.src === 'bland.is';  // einkasala (bland.is); allt annað er bílasala
+    c.priv = c.src === 'bland.is';
+    // sérútbúnir bílar og verkefni: ekki sambærilegir við venjulega bíla af sömu gerð
+    c.special = /rall[yi]|rallykross|rallycross|kvartm|drift|keppnis|sandspyrn|torfaer|track ?car|race ?car|project|verkefni|varahlut|nidurrif|\bparts\b|tjonabil|ogangfaer|ookufaer|uppgerdar|crash/
+      .test(fold(c.title + ' ' + c.model)) || (c.fl || []).indexOf('serut') >= 0;  // einkasala (bland.is); allt annað er bílasala
     return c;
   }
 
@@ -286,11 +289,13 @@
     return { beta: beta, lin: lin, groups: groups, estimate: estimate };
   }
   function verdict(c) {
-    if (c.peers < 2) return { cls: 'mid', txt: 'Fáir sambærilegir' };
+    if (c.special) return { cls: 'warn', txt: 'Sérútbúinn / verkefni', unsure: true };
+    if (c.peers < 2) return { cls: 'mid', txt: 'Fáir sambærilegir', unsure: true };
     // meira en helmingi undir mati: oftast innsláttarvilla, varahlutabíll, tjónabíll eða svindl
-    if (c.dev <= -0.5) return { cls: 'warn', txt: 'Athugaðu verðið' };
+    if (c.dev <= -0.5) return { cls: 'warn', txt: 'Athugaðu verðið', unsure: true };
     // kraftútgáfa sem enginn annar sambærilegur er til af: matið byggir á almennu álagi, svo við fullyrðum ekki
-    if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa ' + pct(c.dev) };
+    if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa', unsure: true };
+    if (c.km == null && c.age > 3) return { cls: 'mid', txt: 'Akstur óþekktur', unsure: true };
     if (c.dev <= -0.12) return { cls: 'good', txt: 'Gott verð ' + pct(c.dev) };
     if (c.dev >= 0.12) return { cls: 'bad', txt: 'Hátt verð ' + pct(c.dev) };
     return { cls: 'mid', txt: 'Eðlilegt verð' };
@@ -489,7 +494,7 @@
       if (f.seller === 'private' && !c.priv) return false;
       if (f.seller === 'dealer' && c.priv) return false;
       if (f.awd && !c.awd) return false;
-      if (f.deal && !(c.peers >= 2 && c.dev <= -0.12 && c.dev > -0.5)) return false;
+      if (f.deal && !(verdict(c).cls === 'good')) return false;
       for (var i = 0; i < words.length; i++) if (c.ftitle.indexOf(words[i]) < 0) return false;
       if (f.loc && c.loc !== f.loc) return false;
       if (fts.length && !fts.every(function (x) { return c.ft && c.ft.indexOf(x) >= 0; })) return false;
@@ -500,7 +505,7 @@
       return true;
     });
     var by = {
-      deal: function (a, b) { return (a.peers < 2 || a.dev <= -0.5) - (b.peers < 2 || b.dev <= -0.5) || a.dev - b.dev; },
+      deal: function (a, b) { return (verdict(a).unsure ? 1 : 0) - (verdict(b).unsure ? 1 : 0) || a.dev - b.dev; },
       priceAsc: function (a, b) { return a.price - b.price; },
       priceDesc: function (a, b) { return b.price - a.price; },
       kmAsc: function (a, b) { return (a.km || 0) - (b.km || 0); },
@@ -518,8 +523,8 @@
   // ---------- viðvaranir, plúsar og búnaður (úr lýsingu seljanda, reiknað í söfnuninni) ----------
   var FLAG_TXT = { tjon: '⚠️ Nefnir tjón', ryd: '⚠️ Ryð', laga: '⚠️ Þarfnast viðgerðar', skodun: '⚠️ Endurskoðun',
     timareim: '✅ Ný tímareim', skodadur: '✅ Nýskoðaður', smurbok: '✅ Smurbók', eigandi: '✅ Einn eigandi', reyklaus: '✅ Reyklaus',
-    abyrgd: '✅ Í ábyrgð', dekk: '✅ Aukadekk' };
-  var BAD_FLAGS = { tjon: 1, ryd: 1, laga: 1, skodun: 1 };
+    abyrgd: '✅ Í ábyrgð', dekk: '✅ Aukadekk', serut: '⚠️ Sérútbúinn / verkefni' };
+  var BAD_FLAGS = { tjon: 1, ryd: 1, laga: 1, skodun: 1, serut: 1 };
   var FEAT_TXT = { krokur: 'Dráttarkrókur', sjo: '7 sæta', carplay: 'CarPlay / Android Auto', hitistyri: 'Hiti í stýri', hitisaeti: 'Hiti í sætum',
     ledur: 'Leður', topplug: 'Topplúga / glerþak', myndavel: 'Bakkmyndavél', acc: 'Skynvæddur hraðastillir', varmadaela: 'Varmadæla',
     lykill: 'Lyklalaust aðgengi', sjonlina: 'Sjónlínuskjár' };
@@ -620,7 +625,7 @@
   // verðmælir: hvar verðið lendir miðað við mat (vinstri = ódýrt, hægri = dýrt)
   function meter(c, big) {
     var v = verdict(c), p = Math.max(0, Math.min(1, (c.dev + 0.3) / 0.6));
-    if (c.peers < 2 || c.dev <= -0.5) p = null;
+    if (v.unsure) p = null;  // óvisst mat: enginn punktur á mælinum
     return '<div class="meter' + (big ? ' big' : '') + '" title="' + esc(v.txt + (c.est ? ' · mat ' + kr(c.est) : '')) + '">' +
       '<div class="mt-track">' + (p == null ? '' : '<i style="left:' + (p * 100).toFixed(1) + '%"></i>') + '</div>' +
       '<span class="mt-lab ' + v.cls + '">' + esc(v.txt) + '</span></div>';
@@ -1145,7 +1150,11 @@
         if (!c.price || !c.make || dup[k]) return false;
         return (dup[k] = true);
       }).map(prep);
-      model = fit(cars);
+      model = fit(cars.filter(function (c) { return !c.special; }));
+      cars.forEach(function (c) {  // sérútbúnir: mat út frá líkaninu án þeirra (bara til upplýsinga)
+        if (!c.special) return;
+        var r = model.estimate(c); c.est = Math.round(r.est / 1e4) * 1e4; c.peers = r.peers; c.tierPeers = 0; c.dev = c.price / c.est - 1;
+      });
       setCatalog({});
       compare = (store('compare') || []).filter(byId);
       var makes = {}, dealers = {};
