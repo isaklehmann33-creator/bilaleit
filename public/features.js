@@ -25,6 +25,7 @@
     var nNew = cs.filter(function (c) { return c.isNew; }).length, nDrop = cs.filter(function (c) { return c.drop; }).length;
     $('nNew').textContent = nNew || '';
     $('nDrop').textContent = nDrop || '';
+    heroStats();
     if (!nNew && !nDrop) $('views').title = 'Sagan byrjaði ' + A.dayFmt(start) + '. Nýir bílar og verðlækkanir birtast hér eftir næstu uppfærslur (á hverri nóttu).';
   }
 
@@ -108,7 +109,7 @@
     function inp(id, label, val, step, suffix) {
       return '<label>' + label + '<span class="inp-s"><input id="' + id + '" type="number" inputmode="decimal" step="' + step + '" value="' + val + '">' + (suffix ? '<i>' + suffix + '</i>' : '') + '</span></label>';
     }
-    el.innerHTML = '<h4>Fjármögnun og rekstur</h4><div class="cost-grid">' +
+    el.innerHTML = '<div class="cost-grid">' +
       '<div class="cost-box"><div class="cost-inputs">' + inp('cDown', 'Útborgun', p.down, 5, '%') + inp('cRate', 'Vextir', p.rate, 0.1, '%') + inp('cYears', 'Lánstími', p.years, 1, 'ár') + '</div>' +
       '<div class="cost-out" id="cLoan"></div></div>' +
       '<div class="cost-box"><div class="cost-inputs">' + inp('cKm', 'Akstur á ári', p.kmYear, 1000, 'km') + '</div><div class="cost-out" id="cRun"></div>' +
@@ -116,7 +117,7 @@
       inp('cPetrol', 'Bensín', p.petrol, 1, 'kr/l') + inp('cDiesel', 'Dísel', p.diesel, 1, 'kr/l') + inp('cKwh', 'Rafmagn', p.kwh, 1, 'kr/kWh') +
       inp('cKmFee', 'Kílómetragjald', p.kmFee, 0.1, 'kr/km') + inp('cIns', 'Tryggingar', p.insurance, 5000, 'kr/ár') + inp('cTax', 'Bifreiðagjöld', p.tax, 1000, 'kr/ár') +
       inp('cUp', 'Viðhald og dekk', p.upkeep, 5000, 'kr/ár') + '</div><p class="note">Áætlanir. Vextir, eldsneytisverð og gjöld breytast, og tryggingar og bifreiðagjöld fara eftir bíl og ökumanni.</p></details></div></div>' +
-      '<h4>🔄 Bílaskipti</h4><div class="cost-box" id="cTrade"></div><div id="cAlt"></div>';
+      '<h4>Bílaskipti</h4><div class="cost-box" id="cTrade"></div>';
     function calc() {
       var q = { down: num('cDown'), rate: num('cRate'), years: num('cYears'), kmYear: num('cKm'), petrol: num('cPetrol'), diesel: num('cDiesel'), kwh: num('cKwh'),
         kmFee: num('cKmFee'), insurance: num('cIns'), tax: num('cTax'), upkeep: num('cUp') };
@@ -179,7 +180,8 @@
     pool.forEach(function (o) { var k = o.make + '|' + o.base; if (!best[k] || o.dev < best[k].dev) best[k] = o; });
     var list = Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return a.dev - b.dev; }).slice(0, 6);
     if (!list.length) return;
-    $('cAlt').innerHTML = '<h4>💡 Valkostir á svipuðu verði</h4><p class="note">Aðrar ' + (c.suv ? 'jepplinga/jeppa' : 'gerðir') + (ev ? ' (rafmagn)' : '') +
+    var target = $('carAlt') || $('cAlt'); if (!target) return;
+    target.innerHTML = '<h4>Valkostir á svipuðu verði</h4><p class="note">Aðrar ' + (c.suv ? 'jepplinga/jeppa' : 'gerðir') + (ev ? ' (rafmagn)' : '') +
       ' á ' + mkr(c.price * 0.8) + '–' + mkr(c.price * 1.2) + ', árgerð ' + ((c.year || 0) - 2) + '–' + ((c.year || 0) + 2) + '. Besta verðið af hverri gerð.</p>' +
       '<div class="alt-grid">' + list.map(function (o) {
         var vd = A.verdict(o);
@@ -428,7 +430,7 @@
 
   // ---------- ljóst / dökkt útlit ----------
   $('themeBtn').addEventListener('click', function () {
-    var cur = document.documentElement.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var cur = document.documentElement.getAttribute('data-theme') || 'dark';  // dökkt er sjálfgefið („sýningarsalur“)
     var next = cur === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     try { localStorage.setItem('theme', next); } catch (e) {}
@@ -448,5 +450,79 @@
   });
   window.addEventListener('appinstalled', function () { $('installBtn').hidden = true; });
 
-  window.Features = { carExtras: carExtras, historyReady: historyReady };
+  // ---------- forsíða: tölur sem telja upp og dæmi sem skrifa sig sjálf ----------
+  function countUp(el, to) {
+    var t0 = performance.now(), dur = 1100;
+    (function step(t) {
+      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(to * e).toLocaleString('de-DE');
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function heroStats() {
+    var cs = A.cars(); if (!cs.length) return;
+    var dealers = {}; cs.forEach(function (c) { if (!c.priv) dealers[c.dealer] = 1; });
+    countUp($('hsCars'), cs.length); countUp($('hsDealers'), Object.keys(dealers).length);
+    $('hsUpdated').textContent = ($('updated').textContent || '').replace('Uppfært ', '') || '–';
+  }
+  var TYPE = ['sjálfskiptur jepplingur undir 4 milljónum', 'rafbíll með 400 km drægni', 'land cruiser með dráttarkrók', 'tesla model y frá einstaklingi',
+    'ódýrasti bíllinn ekinn minna en 60 þús km', 'bmw 5 series dísel 2019 eða nýrri', 'clk500'];
+  (function typewriter() {
+    var q = $('q'), i = 0, j = 0, del = false;
+    function tick() {
+      if (document.activeElement === q || q.value) { q.placeholder = 'Leitaðu eins og þú talar…'; return setTimeout(tick, 1500); }
+      var w = TYPE[i];
+      j += del ? -1 : 1;
+      q.placeholder = w.slice(0, j) + (del ? '' : '▏');
+      if (!del && j >= w.length) { del = true; return setTimeout(tick, 1600); }
+      if (del && j <= 0) { del = false; i = (i + 1) % TYPE.length; return setTimeout(tick, 300); }
+      setTimeout(tick, del ? 25 : 55);
+    }
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setTimeout(tick, 800);
+  })();
+
+  // ---------- myndir fletta á spjaldi þegar músin er yfir því ----------
+  var hoverT = null;
+  document.addEventListener('mouseover', function (e) {
+    var ph = e.target.closest ? e.target.closest('.car .ph') : null;
+    if (!ph || ph._cyc) return;
+    ph._cyc = true;
+    var card = ph.closest('.car'), id = card.getAttribute('data-id'), first = ph.style.backgroundImage;
+    A.details(id).then(function (d) {
+      if (!d || !d.i || d.i.length < 2 || !ph._cyc) return;
+      var k = 0, dots = ph.querySelector('.ph-dots');
+      dots.innerHTML = d.i.slice(0, 6).map(function () { return '<i></i>'; }).join('');
+      d.i.slice(1, 6).forEach(function (u) { var im = new Image(); im.src = u; });
+      function show() { ph.style.backgroundImage = "url('" + d.i[k].replace(/'/g, '%27') + "')"; [].forEach.call(dots.children, function (x, n) { x.classList.toggle('on', n === k); }); }
+      show();
+      ph._timer = setInterval(function () { k = (k + 1) % Math.min(6, d.i.length); show(); }, 1100);
+    });
+    ph.addEventListener('mouseleave', function out() {
+      ph.removeEventListener('mouseleave', out);
+      clearInterval(ph._timer); ph._cyc = false; ph.style.backgroundImage = first;
+      var dots = ph.querySelector('.ph-dots'); if (dots) dots.innerHTML = '';
+    });
+  });
+
+  // ---------- síma-valmynd neðst og síuspjald ----------
+  function openFilters(open) {
+    $('filters').classList.toggle('open', open);
+    document.body.classList.toggle('sheet-open', open);
+    $('filtersToggle').setAttribute('aria-expanded', open);
+  }
+  $('filtersToggle').addEventListener('click', function () { openFilters(!$('filters').classList.contains('open')); });
+  $('filtersClose').addEventListener('click', function () { openFilters(false); });
+  $('filtersDone').addEventListener('click', function () { openFilters(false); window.scrollTo({ top: $('views').offsetTop - 80, behavior: 'smooth' }); });
+  $('bnav').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-nav]') : null; if (!b) return;
+    var n = b.getAttribute('data-nav');
+    function acct(a) { var t = document.querySelector('[data-acct="' + a + '"]') || document.querySelector('[data-acct="login"]'); if (t) t.click(); }
+    if (n === 'search') { A.closeModal(); openFilters(false); window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(function () { $('q').focus(); }, 350); }
+    else if (n === 'saved') acct('saved');
+    else if (n === 'map') openMap();
+    else if (n === 'market') openMarket();
+    else if (n === 'me') acct('me');
+  });
+
+  window.Features = { carExtras: carExtras, historyReady: historyReady, heroStats: heroStats };
 })();

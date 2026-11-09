@@ -4,39 +4,65 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bílaleit</title>
-<meta name="description" content="Bílasölur landsins á einum stað – snjöll leit og verðmat miðað við sambærilega bíla og akstur.">
-<meta name="theme-color" content="#0f6b5c">
+<meta name="description" content="Allir notaðir bílar landsins á einum stað – snjöll leit og verðmat miðað við sambærilega bíla og akstur.">
+<meta name="theme-color" content="#0b0f0e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script>try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
 </head>
 <body>
-<header class="top">
-  <div class="wrap">
-    <div class="brand-row"><div class="brand"><img src="icon.svg" alt=""><span>Bílaleit</span></div><div class="head-r"><button type="button" class="icon-btn" id="themeBtn" aria-label="Skipta um útlit" title="Ljóst / dökkt">🌓</button><button type="button" class="pill-btn" id="installBtn" hidden>📲 Setja á heimaskjá</button><div class="acct" id="acct"></div></div></div>
+<header class="hero">
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="wrap hero-in">
+    <div class="brand-row">
+      <a class="brand" href="./"><img src="icon.svg" alt=""><span>Bílaleit</span></a>
+      <div class="head-r">
+        <button type="button" class="icon-btn" id="installBtn" hidden title="Setja á heimaskjá" aria-label="Setja á heimaskjá"><i data-ic="smartphone"></i></button>
+        <button type="button" class="icon-btn" id="themeBtn" aria-label="Skipta um útlit" title="Ljóst / dökkt"><i data-ic="sun-moon"></i></button>
+        <div class="acct" id="acct"></div>
+      </div>
+    </div>
+    <h1 class="hero-title">Allir notaðir bílar landsins.<br><span class="grad">Ein leit.</span></h1>
     <form id="searchForm" class="search" autocomplete="off">
-      <input id="q" type="search" placeholder="t.d. „sjálfskiptur jepplingur undir 4 milljónum, ekinn minna en 80 þús km“" aria-label="Leit">
-      <button type="submit">Leita</button>
+      <i data-ic="search" data-cls="search-ic"></i>
+      <input id="q" type="search" placeholder="Prófaðu að skrifa eins og þú talar…" aria-label="Leit">
+      <button type="submit"><span>Leita</span><i data-ic="arrow-up-right"></i></button>
     </form>
     <p id="understood" class="understood" hidden></p>
     <div class="examples" id="examples">
       <button type="button">Rafbíll undir 4 m.kr. 2021 eða nýrri</button>
       <button type="button">Kia Sportage sjálfskiptur</button>
       <button type="button">Dísel jeppi fjórhjóladrif undir 6 milljónum</button>
-      <button type="button">Ódýrasti bíllinn ekinn minna en 60 þús km</button>
+      <button type="button">7 sæta með dráttarkrók</button>
+    </div>
+    <div class="hero-stats" id="heroStats">
+      <div><b data-count="0" id="hsCars">–</b><span>bílar á skrá</span></div>
+      <div><b data-count="0" id="hsDealers">–</b><span>bílasölur</span></div>
+      <div><b id="hsUpdated">–</b><span>síðast uppfært</span></div>
     </div>
   </div>
 </header>
 
+<nav class="quick wrap" aria-label="Aðgerðir">
+  <button type="button" id="openValue" class="qa"><span class="qa-ic g1"><i data-ic="wallet"></i></span><span><b>Hvað er bíllinn minn virði?</b><small>Verðmat á sekúndu</small></span></button>
+  <button type="button" id="openMarket" class="qa"><span class="qa-ic g2"><i data-ic="chart-column"></i></span><span><b>Markaðurinn</b><small>Verð eftir árgerð og akstri</small></span></button>
+  <button type="button" id="openMap" class="qa"><span class="qa-ic g3"><i data-ic="map"></i></span><span><b>Kort</b><small>Bílasölur nálægt þér</small></span></button>
+  <button type="button" id="saveSearch" class="qa"><span class="qa-ic g4"><i data-ic="bell"></i></span><span><b>Vakta leitina</b><small>Tilkynning um nýja bíla</small></span></button>
+</nav>
+
 <main class="wrap layout">
   <aside class="filters" id="filters">
-    <button type="button" class="filters-toggle" id="filtersToggle" aria-expanded="false">Síur ▾</button>
     <div class="filters-body">
-      <div class="pick-field"><span>Tegund</span><button type="button" class="picker-btn" id="pickMake"><span class="pb-mono" id="pickMakeMono">∗</span><span class="pb-text" id="pickMakeText">Allar tegundir</span><span class="pb-caret">▾</span></button></div>
-      <div class="pick-field"><span>Gerð</span><button type="button" class="picker-btn" id="pickModel"><span class="pb-text" id="pickModelText">Allar gerðir</span><span class="pb-caret">▾</span></button></div>
+      <div class="fb-head"><h3><i data-ic="sliders-horizontal"></i> Síur</h3><button type="button" class="icon-btn sm" id="filtersClose" aria-label="Loka síum"><i data-ic="x"></i></button></div>
+      <div class="pick-field"><span>Tegund</span><button type="button" class="picker-btn" id="pickMake"><span class="pb-mono" id="pickMakeMono">∗</span><span class="pb-text" id="pickMakeText">Allar tegundir</span><span class="pb-caret"><i data-ic="chevron-down"></i></span></button></div>
+      <div class="pick-field"><span>Gerð</span><button type="button" class="picker-btn" id="pickModel"><span class="pb-text" id="pickModelText">Allar gerðir</span><span class="pb-caret"><i data-ic="chevron-down"></i></span></button></div>
       <select id="fMake" hidden><option value="">Allar</option></select>
       <select id="fModel" hidden><option value="">Allar</option></select>
       <div class="pair">
@@ -54,38 +80,44 @@
       <div class="pick-field"><span>Seljandi</span><div class="seg" id="fSellerSeg"><button type="button" data-seller="" class="on">Allir</button><button type="button" data-seller="dealer">Bílasölur</button><button type="button" data-seller="private">Einstaklingar</button></div></div>
       <input type="hidden" id="fSeller" value="">
       <label>Bílasala<select id="fDealer"><option value="">Allar</option></select></label>
-      <label>Orð í heiti<input id="fText" type="text" placeholder="t.d. 4matic, gt line"></label>
-      <label class="check"><input id="fAwd" type="checkbox"> Fjórhjóladrif</label>
-      <label class="check"><input id="fDeal" type="checkbox"> Aðeins gott verð</label>
-      <label class="check"><input id="fClean" type="checkbox"> Án viðvarana (tjón, ryð …)</label>
       <div class="pick-field"><span>Búnaður</span><div class="ft-chips" id="ftChips"></div></div>
       <input type="hidden" id="fFt" value="">
       <label>Rafdrægni minnst (km)<input id="fRange" type="number" inputmode="numeric" step="50" min="0" placeholder="t.d. 400"></label>
-      <label>Raða eftir<select id="fSort">
-        <option value="deal">Besta verð miðað við mat</option>
-        <option value="priceAsc">Ódýrast fyrst</option>
-        <option value="priceDesc">Dýrast fyrst</option>
-        <option value="kmAsc">Minnst ekinn</option>
-        <option value="yearDesc">Nýjasta árgerð</option>
-        <option value="hpPerKr">Mest afl fyrir peninginn</option>
-        <option value="kmPerKr">Mest drægni fyrir peninginn</option>
-      </select></label>
-      <button type="button" id="reset" class="ghost">Hreinsa allt</button>
+      <label>Orð í heiti<input id="fText" type="text" placeholder="t.d. 4matic, gt line"></label>
+      <label class="check"><input id="fAwd" type="checkbox"><span>Fjórhjóladrif</span></label>
+      <label class="check"><input id="fDeal" type="checkbox"><span>Aðeins gott verð</span></label>
+      <label class="check"><input id="fClean" type="checkbox"><span>Án viðvarana (tjón, ryð …)</span></label>
+      <button type="button" id="reset" class="ghost wide">Hreinsa allt</button>
+      <button type="button" id="filtersDone" class="btn-cta wide only-mobile">Sýna bíla</button>
     </div>
   </aside>
 
-  <section>
-    <div class="status"><span id="count">Hleð inn…</span><span id="updated"></span></div>
-    <div class="views" id="views"><button type="button" class="on" data-view="">Allir bílar</button><button type="button" data-view="new">🆕 Nýtt <b id="nNew"></b></button><button type="button" data-view="drop">📉 Lækkað í verði <b id="nDrop"></b></button><button type="button" id="locPill" class="loc-pill" hidden></button></div>
+  <section class="results-col">
+    <div class="res-head">
+      <div class="res-count"><span id="count">Hleð inn…</span><span id="updated"></span></div>
+      <div class="res-tools">
+        <button type="button" class="ghost only-mobile" id="filtersToggle" aria-expanded="false"><i data-ic="sliders-horizontal"></i> Síur</button>
+        <label class="sort"><i data-ic="chevron-down"></i><select id="fSort" aria-label="Raða eftir">
+          <option value="deal">Besta verð miðað við mat</option>
+          <option value="priceAsc">Ódýrast fyrst</option>
+          <option value="priceDesc">Dýrast fyrst</option>
+          <option value="kmAsc">Minnst ekinn</option>
+          <option value="yearDesc">Nýjasta árgerð</option>
+          <option value="hpPerKr">Mest afl fyrir peninginn</option>
+          <option value="kmPerKr">Mest drægni fyrir peninginn</option>
+        </select></label>
+      </div>
+    </div>
+    <div class="views" id="views"><button type="button" class="on" data-view="">Allir bílar</button><button type="button" data-view="new"><i data-ic="sparkles"></i> Nýtt <b id="nNew"></b></button><button type="button" data-view="drop"><i data-ic="trending-down"></i> Lækkað í verði <b id="nDrop"></b></button><button type="button" id="locPill" class="loc-pill" hidden></button></div>
     <input type="hidden" id="fView" value="">
     <input type="hidden" id="fLoc" value="">
-    <div class="toolbar"><button type="button" id="openValue" class="ghost">💰 Hvað er bíllinn minn virði?</button><button type="button" id="openMarket" class="ghost">📊 Markaðurinn</button><button type="button" id="openMap" class="ghost">🗺️ Kort</button><button type="button" id="saveSearch" class="ghost">🔔 Vista leit og fá tilkynningar</button><a id="fbLink" class="ghost" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></div>
     <div id="modelChips" class="model-chips" hidden></div>
-    <div id="results" class="grid"></div>
+    <div id="results" class="grid"><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div><div class="skel"><div class="s-ph"></div><div class="s-b"><i></i><i></i><i></i></div></div></div>
     <button type="button" id="more" class="ghost more" hidden>Sýna fleiri</button>
     <footer class="foot">
+      <p><a id="fbLink" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></p>
       <p id="sources"></p>
-      <p>Verðmatið er tölfræðilíkan sem lærir af öllum auglýsingum: það ber hvern bíl saman við sömu gerð og leiðréttir fyrir árgerð, akstri og eldsneyti. Það er vísbending, ekki ástandsskoðun. Smelltu alltaf á upprunalegu auglýsinguna.</p>
+      <p>Verðmatið er tölfræðilíkan sem lærir af öllum auglýsingum: það ber hvern bíl saman við sömu gerð og leiðréttir fyrir árgerð, akstri, eldsneyti og útgáfu. Það er vísbending, ekki ástandsskoðun. Smelltu alltaf á upprunalegu auglýsinguna.</p>
     </footer>
   </section>
 </main>
@@ -96,8 +128,17 @@
   <button type="button" id="trayClear" class="ghost">Hreinsa</button>
 </div>
 
+<nav class="bnav" id="bnav" aria-label="Valmynd">
+  <button type="button" data-nav="search" class="on"><i data-ic="search"></i><span>Leit</span></button>
+  <button type="button" data-nav="saved"><i data-ic="heart"></i><span>Vistað</span></button>
+  <button type="button" data-nav="map"><i data-ic="map"></i><span>Kort</span></button>
+  <button type="button" data-nav="market"><i data-ic="chart-column"></i><span>Markaður</span></button>
+  <button type="button" data-nav="me"><i data-ic="user-round"></i><span>Ég</span><em id="bnavDot" hidden></em></button>
+</nav>
+
 <dialog id="modal"><div id="modalBody"></div></dialog>
 
+<script src="icons.js"></script>
 <script src="vendor/firebase-app-compat.js"></script>
 <script src="vendor/firebase-auth-compat.js"></script>
 <script src="vendor/firebase-firestore-compat.js"></script>

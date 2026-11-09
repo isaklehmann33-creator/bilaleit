@@ -30,14 +30,15 @@
   // ---------- haus ----------
   function unread() { return doc ? doc.notes.filter(function (n) { return !n.read; }).length : 0; }
   function renderHeader() {
-    var el = $('acct');
-    if (!user) { el.innerHTML = '<button type="button" class="pill-btn" data-acct="login">Innskrá</button>'; return; }
+    var el = $('acct'), dot = $('bnavDot');
+    if (!user) { el.innerHTML = '<button type="button" class="pill-btn" data-acct="login">' + ic('user-round') + '<span>Innskrá</span></button>'; if (dot) dot.hidden = true; return; }
     var n = unread(), saved = doc ? Object.keys(doc.saved).length : 0;
     el.innerHTML =
-      '<button type="button" class="pill-btn" data-acct="saved">♥ Vistað' + (saved ? ' (' + saved + ')' : '') + '</button>' +
-      '<button type="button" class="pill-btn bell" data-acct="notes" aria-label="Tilkynningar">🔔' + (n ? '<span class="dot">' + n + '</span>' : '') + '</button>' +
-      (isAdmin() ? '<button type="button" class="pill-btn" data-acct="admin">Stjórnandi</button>' : '') +
-      '<button type="button" class="pill-btn" data-acct="me" title="' + A.esc(user.email) + '">Aðgangur</button>';
+      '<button type="button" class="icon-btn" data-acct="saved" title="Vistað" aria-label="Vistað">' + ic('heart') + (saved ? '<em class="cnt">' + saved + '</em>' : '') + '</button>' +
+      '<button type="button" class="icon-btn bell" data-acct="notes" title="Tilkynningar" aria-label="Tilkynningar">' + ic('bell') + (n ? '<em class="dot">' + n + '</em>' : '') + '</button>' +
+      (isAdmin() ? '<button type="button" class="icon-btn" data-acct="admin" title="Stjórnandi" aria-label="Stjórnandi">' + ic('gauge') + '</button>' : '') +
+      '<button type="button" class="avatar" data-acct="me" title="' + A.esc(user.email) + '">' + A.esc((user.email || '?')[0].toUpperCase()) + '</button>';
+    if (dot) { dot.hidden = !n; dot.textContent = n; }
   }
 
   // ---------- innskráning ----------
@@ -239,9 +240,14 @@
     persist(); renderHeader();
   }
   function showMe() {
+    var n = unread();
     A.openModal('<div class="m narrow"><div class="m-head"><h2>Aðgangur</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
-      '<p>Skráður inn sem <b>' + A.esc(user.email) + '</b>' + (isAdmin() ? ' (stjórnandi)' : '') + '</p>' +
-      '<div class="actions"><button type="button" class="sec" data-acct="logout">Skrá út</button></div></div>');
+      '<div class="me-card"><span class="avatar big">' + A.esc((user.email || '?')[0].toUpperCase()) + '</span><div><b>' + A.esc(user.email) + '</b>' +
+      '<span class="note">' + (isAdmin() ? 'Stjórnandi' : 'Notandi') + '</span></div></div>' +
+      '<div class="me-list"><button type="button" data-acct="notes">' + ic('bell') + 'Tilkynningar' + (n ? '<em class="dot">' + n + '</em>' : '') + '</button>' +
+      '<button type="button" data-acct="saved">' + ic('heart') + 'Vistaðir bílar og leitir</button>' +
+      (isAdmin() ? '<button type="button" data-acct="admin">' + ic('gauge') + 'Stjórnborð</button>' : '') +
+      '<button type="button" data-acct="logout">' + ic('x') + 'Skrá út</button></div></div>');
   }
 
   // ---------- stjórnandi ----------
