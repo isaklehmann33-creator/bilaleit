@@ -292,10 +292,11 @@
     var q = encodeURIComponent(c ? A.cap(c.make) + ' ' + A.cap(c.base) : '');
     A.openModal('<div class="m"><div class="m-head"><h2>Innflutningsreiknir</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       '<p class="note">Hvað kostar að kaupa ' + (c ? 'svona bíl' : 'bíl') + ' í Evrópu og flytja hann heim? Sláðu inn verðið úti, eða límdu inn auglýsinguna.</p>' +
+      '<div id="iPhoto" class="imp-photo"></div>' +
       '<details class="paste-box"' + (c ? '' : ' open') + '><summary>' + ic('sparkles') + 'Fylla út sjálfkrafa úr erlendri auglýsingu</summary>' +
       '<p class="note">Opnaðu auglýsinguna (t.d. á mobile.de), ýttu á <b>⌘A</b> og <b>⌘C</b> (Ctrl+A, Ctrl+C á Windows) og límdu hér:</p>' +
       '<textarea id="iPaste" rows="3" placeholder="Límdu texta auglýsingarinnar hér…"></textarea><div id="iFound"></div>' +
-      '<p class="note">Eða notaðu <b>bókamerkjatakka</b>: dragðu takkann upp í bókamerkjastikuna. Þegar þú skoðar bíl á mobile.de eða AutoScout24 smellirðu á hann, og þá opnast reiknirinn hér með öllu útfylltu.</p>' +
+      '<p class="note">Eða notaðu <b>bókamerkjatakka</b>: dragðu takkann upp í bókamerkjastikuna. Þegar þú skoðar bíl á mobile.de eða AutoScout24 smellirðu á hann, og þá opnast reiknirinn hér með öllu útfylltu, ásamt mynd af bílnum. (Ef þú settir takkann inn áður: dragðu hann aftur til að fá myndina með.)</p>' +
       '<a class="bm-btn" id="bmLink" href="#" onclick="return false" title="Dragðu upp í bókamerkjastikuna">' + ic('car') + 'Bílaleit: reikna innflutning</a></details>' +
       '<div class="val-form"><label>Verð úti (EUR)<input id="iEur" type="text" inputmode="numeric" data-fmt value="' + fmtThousands(c ? Math.round(c.price / 137 * 0.75 / 500) * 500 : 20000) + '"><small class="hint" id="iEurKr"></small></label>' +
       '<label>Gengi EUR<input id="iRate" type="text" inputmode="decimal" value="' + String(store('eurRate') || 137).replace('.', ',') + '"><small class="hint" id="iRateNote">Sæki gengi dagsins…</small></label>' +
@@ -315,7 +316,7 @@
       var toll = eur * rate + ship, pct = vorugjald(co2, isEv), vg = toll * pct / 100, vsk = (toll + vg) * 0.24, total = toll + vg + vsk + fees;
       $('iEurKr').textContent = eur ? '≈ ' + A.kr(eur * rate) : '';
       var ref = c ? c.price : importHome;
-      var cmp = ref ? '<div class="imp-cmp ' + (total < ref ? 'good' : 'bad') + '">' + ic(total < c.price ? 'circle-check' : 'triangle-alert') + '<span>' +
+      var cmp = ref ? '<div class="imp-cmp ' + (total < ref ? 'good' : 'bad') + '">' + ic(total < ref ? 'circle-check' : 'triangle-alert') + '<span>' +
         (total < ref ? 'Um <b>' + A.kr(ref - total) + ' ódýrara</b> en ' : 'Um <b>' + A.kr(total - ref) + ' dýrara</b> en ') + (c ? 'þessi bíll hér heima' : 'sambærilegur bíll hér heima (mat)') +
         ' (' + A.kr(ref) + '). Mundu: engin ábyrgð frá umboði, áhætta í flutningi og tími.</span></div>' : '';
       $('iOut').innerHTML = '<div class="imp-rows"><span>Verð úti</span><b>' + A.kr(eur * rate) + '</b><span>Flutningur</span><b>' + A.kr(ship) + '</b>' +
@@ -323,11 +324,14 @@
         '<span>Skráning og fleira</span><b>' + A.kr(fees) + '</b><span class="tot">Samtals á götuna</span><b class="tot">' + A.kr(total) + '</b></div>' + cmp;
     }
     // bókamerkjatakkinn: sendir texta síðunnar í #flytja= (fer aldrei á netþjón, bara í vafranum)
-    var bm = "javascript:(function(){var t=document.body.innerText.slice(0,12000);window.open('" + location.origin + location.pathname +
-      "#flytja='+encodeURIComponent(location.href+'\\n'+t),'_blank');})();";
+    var bm = "javascript:(function(){var m=document.querySelector('meta[property=\"og:image\"]'),im=m?m.content:'';if(!im){var b=[].slice.call(document.images).filter(function(x){return x.naturalWidth>400})[0];im=b?b.src:'';}" +
+      "var t=document.body.innerText.slice(0,12000);window.open('" + location.origin + location.pathname +
+      "#flytja='+encodeURIComponent('MYND:'+im+'\\n'+location.href+'\\n'+t),'_blank');})();";
     $('bmLink').setAttribute('href', bm);
     function applyAd(txt) {
       var r = parseAd(txt), got = [];
+      var im = (String(txt).match(/^MYND:(\S+)/) || [])[1], src = (String(txt).match(/^(?:MYND:\S*\n)?(https?:\/\/\S+)/) || [])[1];
+      if (im && $('iPhoto')) $('iPhoto').innerHTML = '<a href="' + A.esc(src || im) + '" target="_blank" rel="noopener"><img src="' + A.esc(im) + '" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>';
       if (r.eur) { $('iEur').value = fmtThousands(r.eur); got.push(A.kr(r.eur).replace(' kr.', ' €')); }
       if (r.co2 != null) { $('iCo2').value = r.co2; got.push(r.co2 + ' g/km CO2'); }
       else if (r.ev) { $('iCo2').value = 0; }
@@ -343,8 +347,24 @@
         if (m.r.peers) { importHome = m.r.est; home = ' Sambærilegur ' + A.esc(A.cap(r.make) + ' ' + A.cap(r.base)) + ' hér heima: <b>~' + A.kr(Math.round(m.r.est / 1e4) * 1e4) + '</b> (gróft mat, líklegt bil ' + A.mkrShort(m.r.lo) + '–' + A.mkrShort(m.r.hi) + ' m.kr.).'; }
       }
       $('iFound').innerHTML = got.length ? '<p class="found">' + ic('circle-check') + '<span>Fann: ' + (name ? '<b>' + A.esc(name) + '</b> · ' : '') + A.esc(got.join(' · ')) + '.' + home +
-        (r.co2 == null && !r.ev ? ' <i>CO2 fannst ekki: athugaðu reitinn.</i>' : '') + '</span></p>' : '<p class="err">Fann engar upplýsingar í textanum. Afritaðu alla síðuna (⌘A).</p>';
+        '<span id="iCo2Note"></span></span></p>' : '<p class="err">Fann engar upplýsingar í textanum. Afritaðu alla síðuna (⌘A).</p>';
       calc();
+      // CO2 vantar: miðgildi skráðs útblásturs sömu gerðar á Íslandi (ökutækjaskrá Samgöngustofu)
+      if (r.co2 == null && !r.ev && got.length) {
+        var note = $('iCo2Note');
+        if (r.make && r.base && window.Registry) {
+          note.innerHTML = ' <i>CO2 vantar í auglýsinguna: leita í ökutækjaskrá…</i>';
+          Registry.co2For(r.make, r.base, r.fuel, r.hp, r.year).then(function (x) {
+            if (!$('iCo2Note')) return;
+            if (x) {
+              $('iCo2').value = x.co2;
+              $('iCo2Note').innerHTML = ' CO2 vantaði í auglýsinguna: notaði <b>' + x.co2 + ' g/km</b>, miðgildi ' + x.n.toLocaleString('de-DE') + ' sambærilegra ' +
+                A.esc(A.cap(r.make) + ' ' + A.cap(r.base)) + (r.fuel ? ' (' + r.fuel.toLowerCase() + ')' : '') + ' á Íslandi (ökutækjaskrá).';
+              calc();
+            } else $('iCo2Note').innerHTML = ' <i>CO2 fannst hvorki í auglýsingunni né ökutækjaskrá: athugaðu reitinn.</i>';
+          });
+        } else note.innerHTML = ' <i>CO2 fannst ekki: athugaðu reitinn.</i>';
+      }
     }
     $('iPaste').addEventListener('input', function () { if (this.value.length > 30) applyAd(this.value); });
     $('shipWhy').addEventListener('click', function () {
@@ -360,7 +380,7 @@
         '<a href="https://www.bmwkraftur.is/spjall/viewtopic.php?f=1&t=15417" target="_blank" rel="noopener">bmwkraftur.is</a>, <a href="https://spjall.vaktin.is/viewtopic.php?t=74053" target="_blank" rel="noopener">spjallid.is</a>.</p>';
       $('iOut').parentNode.insertBefore(box, $('iOut'));
     });
-    if (pasted) { $('iPaste').value = pasted.slice(0, 400) + '…'; applyAd(pasted); }
+    if (pasted) { $('iPaste').value = pasted.replace(/^MYND:\S*\n/, '').slice(0, 400) + '…'; applyAd(pasted); }
     eurRate().then(function (r) {
       if (!$('iRate')) return;
       $('iRate').value = r.rate.toFixed(2).replace('.', ',');

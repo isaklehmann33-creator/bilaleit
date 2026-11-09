@@ -752,3 +752,5 @@ dialog#consent::backdrop { background: rgba(3,6,5,.78); backdrop-filter: blur(10
 .ship-box { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; }
 .ship-box .imp-rows { margin-top: 8px; background: transparent; padding: 0; }
 .ship-box .note { margin: 8px 0 0; }
+.imp-photo img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 14px; margin: 10px 0 4px; display: block; background: var(--mid-soft); }
+.imp-photo:empty { display: none; }

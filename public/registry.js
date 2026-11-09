@@ -37,6 +37,8 @@
       .concat((measures || []).map(function (m) { return { Measure: { Expression: { SourceRef: { Source: 'k' } }, Property: m }, Name: 'k.' + m }; }));
     var q = { Version: 2, From: [{ Name: 'v', Entity: PBI.table, Type: 0 }, { Name: 'k', Entity: PBI.measures, Type: 0 }], Select: sel };
     if (conds && conds.length) q.Where = conds;
+    // raða eftir fyrstu mælingu (flestir fyrst), svo „top“ klippi burt fámennustu en ekki eftir stafrófi
+    if (measures && measures.length) q.OrderBy = [{ Direction: 2, Expression: { Measure: { Expression: { SourceRef: { Source: 'k' } }, Property: measures[0] } } }];
     return {
       version: '1.0.0',
       queries: [{ Query: { Commands: [{ SemanticQueryDataShapeCommand: { Query: q, Binding: {
@@ -201,6 +203,67 @@
   }
 
   load();
+  // ---------- CO2 fyrir gerð (þegar erlend auglýsing sýnir það ekki): miðgildi skráðs útblásturs á Íslandi ----------
+  var tegP = null;
+  function tegundir() {  // nöfn tegunda í skránni („VOLKSWAGEN, VW“ o.s.frv.), sótt einu sinni
+    if (!tegP) {
+      var hit = cacheGet('tegundir2');
+      tegP = hit ? Promise.resolve(hit) : query(['Tegund'], ['Talning fastanúmera'], [], 800).then(function (rows) {
+        var names = rows.map(function (r) { return r.Tegund; }).filter(Boolean); cacheSet('tegundir2', names); return names;
+      });
+    }
+    return tegP;
+  }
+  function normMake(x) { return String(x || '').split(',')[0].toUpperCase().replace(/MERCEDES BENZ/, 'MERCEDES-BENZ').replace(/[^A-Z0-9]/g, ''); }
+  function fuelFam(o) {
+    o = String(o || '').toLowerCase();
+    if (/raf\.tengill|tengil/.test(o)) return 'Tengiltvinn';
+    if (/rafmagn/.test(o) && !/bens|dís|dies/.test(o)) return 'Rafmagn';
+    if (/raf|hybrid/.test(o)) return 'Tvinn';
+    if (/dís|dies/.test(o)) return 'Dísel';
+    return 'Bensín';
+  }
+  function co2For(make, base, fuel, hp, year) {
+    var key = 'co2:' + make + '|' + base + '|' + fuel + '|' + (hp ? Math.round(hp / 25) : '') + '|' + (year || '');
+    var hit = cacheGet(key); if (hit) return Promise.resolve(hit);
+    return tegundir().then(function (names) {
+      var mine = names.filter(function (n) { return normMake(n) === normMake(make); });
+      if (!mine.length) return null;
+      // 1) gerðaheiti tegundarinnar sem passa við gerðina (E 220, E220 CDI … -> E); 2) útblástur bara fyrir þær (annars klippir Power BI svarið)
+      return query(['Undirtegund'], ['Talning fastanúmera'], [where.isin('Tegund', mine)], 3000).then(function (subs) {
+        var names = subs.map(function (r) { return r.Undirtegund; }).filter(function (u) { return u && A.baseModel(u, make) === base; });
+        if (!names.length) return [];
+        var base2 = [where.isin('Tegund', mine), where.isin('Undirtegund', names.slice(0, 200))];
+        var cols = ['Undirtegund', 'Orkugjafi', 'Útblástur g/km', 'Hestöfl'];
+        if (!year) return query(cols, ['Talning fastanúmera'], base2, 6000);
+        // helst bílar frá svipuðum tíma (skráðir frá árgerð−3); ef of fáir með útblástur: allar árgerðir
+        var since = { Condition: { Comparison: { ComparisonKind: 2, Left: { Column: { Expression: { SourceRef: { Source: 'v' } }, Property: 'Fyrsti skráningardagur' } },
+          Right: { Literal: { Value: "datetime'" + (year - 3) + "-01-01T00:00:00'" } } } } };
+        return query(cols, ['Talning fastanúmera'], base2.concat([since]), 6000).then(function (rows) {
+          var ok = rows.filter(function (r) { return r['Útblástur g/km'] > 0 && (!fuel || fuelFam(r.Orkugjafi) === fuel); })
+            .reduce(function (s, r) { return s + r['Talning fastanúmera']; }, 0);
+          return ok >= 5 ? rows : query(cols, ['Talning fastanúmera'], base2, 6000);
+        });
+      }).then(function (rows) {
+        var pick = rows.filter(function (r) {
+          return r['Útblástur g/km'] > 0 && A.baseModel(r.Undirtegund || '', make) === base && (!fuel || fuelFam(r.Orkugjafi) === fuel);
+        });
+        if (hp) {  // helst svipað afl (±25%), ef nógu margir
+          var near = pick.filter(function (r) { return r['Hestöfl'] && Math.abs(r['Hestöfl'] - hp) / hp <= 0.25; });
+          if (near.reduce(function (s, r) { return s + r['Talning fastanúmera']; }, 0) >= 5) pick = near;
+        }
+        var n = pick.reduce(function (s, r) { return s + r['Talning fastanúmera']; }, 0);
+        if (!n) return null;
+        pick.sort(function (a, b) { return a['Útblástur g/km'] - b['Útblástur g/km']; });
+        var acc = 0, med = null;
+        for (var i = 0; i < pick.length; i++) { acc += pick[i]['Talning fastanúmera']; if (acc >= n / 2) { med = pick[i]['Útblástur g/km']; break; } }
+        var out = { co2: Math.round(med), n: n };
+        cacheSet(key, out);
+        return out;
+      });
+    }).catch(function () { return null; });
+  }
+
   function plateInfo(c) { var p = plateOf(c); return p && REG && REG.plates ? REG.plates[p] || null : null; }
-  window.Registry = { plateInfo: plateInfo, query: query, build: build, decode: decode, where: where, plate: plate, stats: stats, load: load, renderCar: renderCar, openPlate: openPlate };
+  window.Registry = { plateInfo: plateInfo, co2For: co2For, query: query, build: build, decode: decode, where: where, plate: plate, stats: stats, load: load, renderCar: renderCar, openPlate: openPlate };
 })();
