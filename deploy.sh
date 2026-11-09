@@ -1,5 +1,5 @@
 #!/bin/sh
-# Setur síðuna í loftið og merkir nýja útgáfu, svo opnar síður sæki hana sjálfar.
+# Setur síðuna í loftið. Opnar síður fá hana við endurhleðslu, eða strax ef stjórnandi ýtir á „Uppfæra allar opnar síður“.
 set -e
 cd "$(dirname "$0")"
 V=$(date +%s)

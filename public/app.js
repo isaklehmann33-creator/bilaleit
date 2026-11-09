@@ -579,16 +579,6 @@
     query: function () { return $('q').value; }, setQuery: function (t) { $('q').value = t || ''; $('understood').hidden = true; },
     esc: esc, kr: kr, kmFmt: kmFmt, cap: cap, img: img
   };
-  // Sjálfvirk uppfærsla: þegar ný útgáfa fer í loftið endurhleðst síðan (þegar hún opnast aftur eða á 5 mín. fresti)
-  function checkVersion() {
-    if (!window.APP_VERSION || window.APP_VERSION === '0') return;
-    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (v) {
-      if (v && v.v && v.v !== window.APP_VERSION && !$('modal').open) location.reload();
-    }).catch(function () {});
-  }
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkVersion(); });
-  setInterval(checkVersion, 5 * 60 * 1000);
-
   bind();
   load();
 })();

@@ -227,6 +227,7 @@
       $('modalBody').innerHTML = '<div class="m"><div class="m-head"><h2>Stjórnandi</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
         '<div class="stats"><div><b>' + rows.length + '</b><span>notendur</span></div><div><b>' + tot.saved + '</b><span>vistaðir bílar</span></div>' +
         '<div><b>' + tot.searches + '</b><span>vistaðar leitir</span></div><div><b>' + cars.length.toLocaleString('de-DE') + '</b><span>bílar á skrá</span></div></div>' +
+        '<div class="actions" style="margin:0 0 10px"><button type="button" class="sec" data-acct="force-reload">🔄 Uppfæra allar opnar síður</button></div>' +
         '<p class="note">Heimildir: ' + Object.keys(bySrc).map(function (k) { return A.esc(k) + ' ' + bySrc[k]; }).join(' · ') + '</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Netfang</th><th>Stofnaður</th><th>Síðast</th><th class="num">Bílar</th><th class="num">Leitir</th><th></th></tr></thead><tbody>' +
         rows.map(function (r) {
@@ -270,6 +271,11 @@
     } else if (a === 'del-search') {
       doc.searches = doc.searches.filter(function (x) { return x.id !== sid; });
       persist(); renderHeader(); showSaved('searches');
+    } else if (a === 'force-reload') {
+      if (t.getAttribute('data-armed') !== '1') { t.setAttribute('data-armed', '1'); t.textContent = 'Smelltu aftur til að endurhlaða allar opnar síður'; return; }
+      db.collection('config').doc('app').set({ reloadAt: now() }).then(function () {
+        t.textContent = '✓ Sent – opnar síður endurhlaðast núna'; t.removeAttribute('data-armed');
+      }).catch(function (err) { toast('Mistókst: ' + err.message); });
     } else if (a === 'admin-del') {
       // tveggja þrepa staðfesting án vafraglugga
       if (t.getAttribute('data-armed') !== '1') { t.setAttribute('data-armed', '1'); t.textContent = 'Smelltu aftur til að staðfesta'; return; }
@@ -293,6 +299,17 @@
   if (!window.firebase || !window.FIREBASE_CONFIG) return;
   firebase.initializeApp(window.FIREBASE_CONFIG);
   auth = firebase.auth(); db = firebase.firestore();
+
+  // Stjórnandi getur látið allar opnar síður endurhlaðast (config/app.reloadAt); annars fær fólk nýja útgáfu við næstu endurhleðslu
+  var reloadSeen = null;
+  db.collection('config').doc('app').onSnapshot(function (d) {
+    var v = d.exists ? d.data().reloadAt : 0;
+    if (reloadSeen !== null && v && v !== reloadSeen) {
+      toast('Ný útgáfa af síðunni – endurhleð…');
+      setTimeout(function () { location.reload(); }, 1500);
+    }
+    reloadSeen = v || 0;
+  }, function () {});
   auth.onAuthStateChanged(function (u) {
     user = u; doc = null; checked = false;
     renderHeader(); A.refreshSaved();

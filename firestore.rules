@@ -4,6 +4,12 @@ service cloud.firestore {
     // Stjórnandi = eigandi síðunnar (sama auðkenni og window.ADMIN_UID í firebase-config.js)
     function isAdmin() { return request.auth != null && request.auth.uid == 'ADMIN_UID_HER'; }
 
+    // Stillingar síðunnar: allir lesa, bara stjórnandi skrifar (t.d. „uppfæra allar opnar síður“)
+    match /config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Hver notandi á eitt skjal með vistuðum bílum, leitum og tilkynningum
     match /users/{uid} {
       allow read, delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
