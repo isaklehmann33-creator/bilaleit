@@ -464,6 +464,33 @@
     $('fKmMax').value = f.kmMax || ''; $('fFuel').value = f.fuel || ''; $('fTrans').value = f.trans || '';
     $('fBody').value = f.body || ''; $('fDealer').value = f.dealer || ''; setSeller(f.seller || ''); $('fView').value = f.view || ''; $('fLoc').value = f.loc || ''; setFeatures(f.ft || ''); $('fRange').value = f.rangeMin || ''; $('fClean').checked = !!f.clean; $('fText').value = f.text || '';
     $('fAwd').checked = !!f.awd; $('fDeal').checked = !!f.deal; $('fSort').value = f.sort || 'deal';
+    syncPrice();
+  }
+  // verðsleði undir „Verð frá/til“: ferningskvarði (þéttara neðst), efsti endinn = ekkert hámark
+  var PR_MAX = 30;
+  function prVal(v) { var x = PR_MAX * Math.pow(v / 1000, 2); return x < 5 ? Math.round(x * 10) / 10 : x < 15 ? Math.round(x * 2) / 2 : Math.round(x); }
+  function prPos(m) { return Math.round(1000 * Math.sqrt(Math.min(Math.max(m, 0), PR_MAX) / PR_MAX)); }
+  function paintPrice() {
+    var lo = +$('prLo').value, hi = +$('prHi').value;
+    $('prFill').style.left = lo / 10 + '%'; $('prFill').style.right = (100 - hi / 10) + '%';
+  }
+  function syncPrice() {
+    var a = $('fPriceMin').value, b = $('fPriceMax').value;
+    $('prLo').value = a !== '' ? prPos(+a) : 0; $('prHi').value = b !== '' ? prPos(+b) : 1000;
+    paintPrice();
+  }
+  function bindPrice() {
+    ['prLo', 'prHi'].forEach(function (id) {
+      $(id).addEventListener('input', function () {
+        var lo = $('prLo'), hi = $('prHi');
+        if (+lo.value > +hi.value - 20) { if (id === 'prLo') lo.value = +hi.value - 20; else hi.value = +lo.value + 20; }
+        $('fPriceMin').value = +lo.value > 0 ? prVal(+lo.value) : '';
+        $('fPriceMax').value = +hi.value < 1000 ? prVal(+hi.value) : '';
+        paintPrice(); render();
+      });
+    });
+    ['fPriceMin', 'fPriceMax'].forEach(function (id) { $(id).addEventListener('input', syncPrice); });
+    syncPrice();
   }
   function filtered(f0) {
     var f = f0 || readFilters(), words = f.text ? f.text.split(/\s+/) : [], fts = f.ft ? f.ft.split(',') : [];
@@ -1259,6 +1286,7 @@
         render();
       });
     });
+    bindPrice();
     $('reset').addEventListener('click', function () { $('q').value = ''; $('understood').hidden = true; setFilters({}); render(); });
     $('filtersToggle').addEventListener('click', function () {
       var open = $('filters').classList.toggle('open');

@@ -72,6 +72,9 @@
         <label>Verð frá (m.kr.)<input id="fPriceMin" type="number" inputmode="decimal" step="0.1" min="0"></label>
         <label>Verð til (m.kr.)<input id="fPriceMax" type="number" inputmode="decimal" step="0.1" min="0"></label>
       </div>
+      <div class="rng" id="priceRange"><div class="rng-track"><i id="prFill"></i></div>
+        <input type="range" id="prLo" min="0" max="1000" value="0" aria-label="Verð frá">
+        <input type="range" id="prHi" min="0" max="1000" value="1000" aria-label="Verð til"></div>
       <div class="pair">
         <label>Árgerð frá<input id="fYearMin" type="number" inputmode="numeric" min="1990" max="2030"></label>
         <label>Árgerð til<input id="fYearMax" type="number" inputmode="numeric" min="1990" max="2030"></label>
