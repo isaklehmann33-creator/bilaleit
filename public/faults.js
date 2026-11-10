@@ -186,5 +186,70 @@
       '<p class="note">Þekktir veikleikar gerðarinnar og almenn atriði, ekki greining á þessum bíl. Ástandsskoðun á verkstæði fyrir kaup tekur af allan vafa.</p></div>';
   }
 
-  window.Faults = { forCar: forCar, html: html, list: LIST };
+  // ---------- skoðunarlisti fyrir tiltekinn bíl (til að hafa í símanum eða prenta) ----------
+  var FROM_AD = { tjon: 'Seljandi nefnir tjón: biddu um tjónaskýrslu og myndir af viðgerð', ryd: 'Ryð er nefnt í lýsingu: skoðaðu sílsa, hjólaskálar og undirvagn',
+    laga: 'Lýsingin nefnir að eitthvað þurfi að laga: fáðu skriflegt hvað og hvað það kostar', skodun: 'Endurskoðun eða athugasemd í skoðun: biddu um skoðunarvottorðið',
+    serut: 'Sérútbúinn eða verkefnabíll: athugaðu skráningu og hvort breytingar séu samþykktar' };
+  function checklist(c) {
+    var A = window.App, sec = [];
+    var own = forCar(c);
+    var ad = (c.fl || []).filter(function (f) { return FROM_AD[f]; }).map(function (f) { return FROM_AD[f]; })
+      .concat((c.rep || []).map(function (r) { return r[1] + ': nefnt í lýsingu – ~' + A.kr(r[2]) + '–' + A.kr(r[3]) + ' í viðgerð'; }));
+    if (c.kmBack) ad.push('Akstur lækkaði í auglýsingu: berðu kílómetrastöðu saman við skoðunarferil');
+    if (c.vis) ad.push('Myndgreining bendir til tjóns eða viðgerðar: skoðaðu yfirbyggingu vel');
+    if (ad.length) sec.push(['Úr auglýsingunni', ad]);
+    if (own.length) sec.push(['Þekkt á þessari gerð', own.map(function (x) { return x.t; })]);
+    var ev = c.fcat === 'Rafmagn';
+    var gen = (ev ? [] : ['Kaldræsing: hlustaðu eftir skrölti og sjáðu hvort reykur kemur úr pústi']).concat([
+      'Reynsluakstur: bremsur, stýri (togar til hliðar?), ' + (ev ? 'fjöðrun' : 'skipting') + ' og hljóð á 80–90 km/klst',
+      'Viðvörunarljós í mælaborði eftir ræsingu', ev ? 'Undir bílinn: skemmdir á rafhlöðuhlíf, ryð' : 'Undir bílinn: olíu- og vökvalekar, ryð',
+      'Dekk: mynstur og jafnt slit (ójafnt slit = hjólastilling eða fjöðrun)', 'Rafbúnaður: rúður, miðstöð, loftkæling, skjár, myndavél',
+      'Báðir lyklar fylgja?']);
+    if (c.fcat === 'Rafmagn' || c.fcat === 'Tengiltvinn') gen.unshift('Prófaðu hleðslu og athugaðu hleðslusnúru');
+    sec.push(['Við skoðun', gen]);
+    var q = ['Af hverju er bíllinn til sölu og hve lengi hefur þú átt hann?', 'Hefur hann lent í tjóni?', 'Er þjónustubók/smurbók og viðgerðareikningar?',
+      'Fékk hann athugasemd í síðustu skoðun?'];
+    if (c.fcat !== 'Rafmagn' && c.km >= 90000) q.splice(2, 0, 'Hvenær var skipt um tímareim/-keðju og vatnsdælu?');
+    if (c.auto && c.km >= 100000) q.push('Hefur verið skipt um olíu á sjálfskiptingu?');
+    if (c.fcat === 'Rafmagn') q.push('Er til skýrsla um rafhlöðuheilsu (SoH)?');
+    q.push('Má fara með hann í ástandsskoðun á verkstæði?');
+    sec.push(['Spurningar til seljanda', q]);
+    return sec;
+  }
+  function openChecklist(c) {
+    var A = window.App, key = 'chk:' + c.id, done = {};
+    try { done = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+    var sec = checklist(c), i = 0;
+    A.openModal('<div class="m chk"><div class="m-head"><button type="button" class="chk-back" id="chkBack" aria-label="Til baka í bílinn">' + ic('chevron-left') + '</button>' +
+      '<h2>Skoðunarlisti</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<p class="note">' + A.esc(A.cap(c.make) + ' ' + A.cap(c.model)) + ' · ' + [c.year, A.kmFmt(c.km), A.kr(c.price)].filter(Boolean).join(' · ') + '</p>' +
+      sec.map(function (s) {
+        return '<h4>' + A.esc(s[0]) + '</h4><ul>' + s[1].map(function (t) {
+          var id = 'k' + (i++);
+          return '<li><label><input type="checkbox" data-k="' + id + '"' + (done[id] ? ' checked' : '') + '><span>' + A.esc(t) + '</span></label></li>';
+        }).join('') + '</ul>';
+      }).join('') +
+      '<div class="actions"><button type="button" class="sec" id="chkPrint">' + ic('list-checks') + 'Prenta</button>' +
+      '<button type="button" class="sec" id="chkShare">' + ic('share-2') + 'Senda í símann</button></div>' +
+      '<p class="note">Hakið vistast í þessum vafra. Listinn er leiðbeinandi; ástandsskoðun á verkstæði er öruggust.</p></div>', 'chk-dlg');
+    document.querySelectorAll('.chk input[data-k]').forEach(function (x) {
+      x.addEventListener('change', function () { done[x.getAttribute('data-k')] = x.checked; try { localStorage.setItem(key, JSON.stringify(done)); } catch (e) {} });
+    });
+    document.getElementById('chkBack').addEventListener('click', function () { A.showCar(c); });
+    document.getElementById('chkPrint').addEventListener('click', function () { window.print(); });
+    document.getElementById('chkShare').addEventListener('click', function () {
+      var txt = 'Skoðunarlisti: ' + A.cap(c.make) + ' ' + A.cap(c.model) + ' (' + [c.year, A.kmFmt(c.km)].filter(Boolean).join(', ') + ')\n\n' +
+        sec.map(function (s) { return s[0].toUpperCase() + '\n' + s[1].map(function (t) { return '☐ ' + t; }).join('\n'); }).join('\n\n') + '\n\n' + location.origin + '/#bill=' + encodeURIComponent(c.id);
+      if (navigator.share) navigator.share({ title: 'Skoðunarlisti', text: txt }).catch(function () {});
+      else if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { document.getElementById('chkShare').lastChild.textContent = 'Afritað!'; });
+    });
+  }
+  if (typeof document !== 'undefined') document.addEventListener('click', function (e) {  // pages.js keyrir þetta líka í Node
+    var b = e.target.closest && e.target.closest('[data-check]');
+    if (!b) return;
+    var id = b.getAttribute('data-check'), c = window.App.cars().filter(function (x) { return x.id === id; })[0];
+    if (c) openChecklist(c);
+  });
+
+  window.Faults = { forCar: forCar, html: html, list: LIST, checklist: checklist, openChecklist: openChecklist };
 })();

@@ -823,6 +823,7 @@
       '<button type="button" class="sec' + (inCmp ? ' on' : '') + '" data-cmp="' + esc(c.id) + '">' + ic('git-compare-arrows') + (inCmp ? 'Í samanburði' : 'Bera saman') + '</button>' +
       '<button type="button" class="sec" data-watch="' + esc(c.id) + '">' + ic('bell') + 'Verðvakt</button>' +
       '<button type="button" class="sec" data-similar="' + esc(c.id) + '">' + ic('badge-percent') + 'Láttu mig vita af svipuðum ódýrari</button>' +
+      '<button type="button" class="sec" data-check="' + esc(c.id) + '">' + ic('list-checks') + 'Skoðunarlisti</button>' +
       '<button type="button" class="sec" data-share="' + esc(c.id) + '">' + ic('share-2') + 'Deila</button>' +
       '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">' + ic('message-circle') + 'Spyrja Claude</a></div>' +
       '</section>' +

@@ -138,7 +138,7 @@
   }
 
   // Sjálfgefnar forsendur: áætlanir sem notandinn getur breytt; þær vistast í vafranum
-  var DEF = { down: 30, rate: 10.5, years: 5, kmYear: 15000, petrol: 310, diesel: 315, kwh: 22, kmFee: 7, insurance: 180000, tax: 30000, upkeep: 120000 };
+  var DEF = { down: 30, rate: 10.5, years: 5, kmYear: 15000, petrol: 310, diesel: 315, kwh: 22, kmFee: 7, insurance: 180000, tax: 30000, upkeep: 120000, fast: 65 };
   var CONS = { 'Bensín': [7.0, 0], 'Dísel': [6.0, 0], 'Tvinn': [5.0, 0], 'Tengiltvinn': [3.5, 9], 'Rafmagn': [0, 18] }; // [l/100km, kWh/100km]
   function carExtras(c) {
     var el = $('carExtras'); if (!el) return;
@@ -157,10 +157,12 @@
       inp('cPetrol', 'Bensín', p.petrol, 1, 'kr/l') + inp('cDiesel', 'Dísel', p.diesel, 1, 'kr/l') + inp('cKwh', 'Rafmagn', p.kwh, 1, 'kr/kWh') +
       inp('cKmFee', 'Kílómetragjald', p.kmFee, 0.1, 'kr/km') + inp('cIns', 'Tryggingar', p.insurance, 5000, 'kr/ár') + inp('cTax', 'Bifreiðagjald', p.tax, 1000, 'kr/ár') +
       inp('cUp', 'Viðhald og dekk', p.upkeep, 5000, 'kr/ár') + '</div><p class="note">Bifreiðagjald reiknað út frá ' + bg.co2 + ' g/km CO2 (' + bg.src + ', ' + bg.std + ') samkvæmt <a href="https://www.skatturinn.is/einstaklingar/skattar-og-gjold/bifreidagjald/" target="_blank" rel="noopener">reglum Skattsins</a>. Kílómetragjald 6,95 kr/km frá 2026. Vextir, eldsneytisverð og tryggingar eru áætlanir.</p></details></div></div>' +
+      '<h4>Virði næstu ár</h4><div class="cost-box" id="cDep"></div>' +
+      (c.fcat === 'Rafmagn' ? '<h4>Vetur og hleðsla</h4><div class="cost-box"><div class="cost-inputs">' + inp('cFast', 'Hraðhleðsla', p.fast, 1, 'kr/kWh') + '</div><div class="cost-out" id="cEv"></div></div>' : '') +
       '<h4>Bílaskipti</h4><div class="cost-box" id="cTrade"></div>';
     function calc() {
       var q = { down: num('cDown'), rate: num('cRate'), years: num('cYears'), kmYear: num('cKm'), petrol: num('cPetrol'), diesel: num('cDiesel'), kwh: num('cKwh'),
-        kmFee: num('cKmFee'), insurance: num('cIns'), tax: num('cTax'), upkeep: num('cUp') };
+        kmFee: num('cKmFee'), insurance: num('cIns'), tax: num('cTax'), upkeep: num('cUp'), fast: $('cFast') ? num('cFast') : p.fast };
       var keep = Object.assign({}, q); delete keep.tax; store('costs', keep);
       var loan = c.price * (1 - q.down / 100), n = Math.max(1, q.years * 12), r = q.rate / 100 / 12;
       var pay = r ? loan * r / (1 - Math.pow(1 + r, -n)) : loan / n;
@@ -182,12 +184,43 @@
         '<span>🛡️ Tryggingar, bifreiðagjald, viðhald</span><b>' + A.kr(fixed / 12) + '</b>' +
         '<span>📉 Verðfall (~' + Math.round(lossPct * 100) + '%/ári)</span><b>' + A.kr(dep / 12) + '</b></div>' +
         '<span class="note">Með láni: ~' + A.kr(pay + year / 12 - dep / 12) + ' á mán. út úr veskinu (verðfall ekki talið með).</span>';
+      depHtml(c, q.kmYear);
+      if ($('cEv')) evHtml(c, q);
     }
     el.addEventListener('input', calc);
     calc();
     trade(c);
     alternatives(c);
     offer(c);
+  }
+
+  // ---------- virði næstu ár: verðlíkanið rekið áfram (aldur +1 ár og akstur á hverju ári) ----------
+  function depHtml(c, kmYear) {
+    var el = $('cDep'); if (!el) return;
+    var v = c.est || c.price, v0 = v, age = c.age, km = c.km || 0, pts = [];
+    for (var y = 1; y <= 5; y++) {
+      v *= Math.exp(Math.min(0, A.ageSlope(age, c.perf.t)) + Math.min(0, A.kmSlope(km)) * kmYear / 1e4);
+      age++; km += kmYear; pts.push([y, v]);
+    }
+    var v3 = pts[2][1], loss = c.price - v3;
+    el.innerHTML = '<div class="dep">' + [[0, v0]].concat(pts.filter(function (x) { return x[0] !== 4; })).map(function (x) {
+      return '<div><span>' + (x[0] ? 'Eftir ' + x[0] + ' ár' : 'Núna') + '</span><i><em style="width:' + Math.round(x[1] / v0 * 100) + '%"></em></i><b>' + A.kr(Math.round(x[1] / 1e4) * 1e4) + '</b></div>';
+    }).join('') + '</div>' +
+      '<p class="note">Á 3 árum tapar bíllinn líklega <b>' + A.kr(Math.round(loss / 1e4) * 1e4) + '</b> miðað við ásett verð (~' + A.kr(loss / 36) + ' á mán.), ' +
+      'með ' + kmYear.toLocaleString('de-DE') + ' km akstri á ári. Byggt á því hvernig sambærilegir bílar lækka með aldri og akstri; markaðurinn getur breyst.</p>';
+  }
+  // ---------- rafbílar: vetrardrægni og kostnaður á 100 km ----------
+  function evHtml(c, q) {
+    var sum = 18, win = 23.5;  // kWh/100 km: íslenskt sumar / vetur (−5 °C, miðstöð og forhitun)
+    var rows = '';
+    if (c.rng) rows += '<span>🔋 Uppgefin drægni</span><b>' + c.rng + ' km</b>' +
+      '<span>☀️ Raunhæft að sumri</span><b>~' + Math.round(c.rng * 0.88 / 10) * 10 + ' km</b>' +
+      '<span>❄️ Í frosti</span><b>~' + Math.round(c.rng * 0.65 / 10) * 10 + ' km</b>';
+    rows += '<span>🏠 Heimahleðsla, sumar / vetur</span><b>' + A.kr(sum * q.kwh) + ' / ' + A.kr(win * q.kwh) + '</b>' +
+      '<span>⚡ Hraðhleðsla, sumar / vetur</span><b>' + A.kr(sum * q.fast) + ' / ' + A.kr(win * q.fast) + '</b>';
+    $('cEv').innerHTML = '<div class="cost-rows">' + rows + '</div><span class="note">Kostnaður á hverja 100 km. ' +
+      (c.rng ? 'Drægnin er uppgefin (WLTP); í frosti fer orka í miðstöð og rafhlaðan er kaldari, svo hún styttist um ~35%. ' : '') +
+      'Hraðhleðsla kostar oft 2–3× heimahleðslu.</span>';
   }
 
   // ---------- tilboðsráðgjafi: hvað er sanngjarnt að bjóða ----------
