@@ -3,3 +3,6 @@ __pycache__/
 *.log
 public/verd/
 public/sitemap.xml
+.agents/
+.claude/
+skills-lock.json
