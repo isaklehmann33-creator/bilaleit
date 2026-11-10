@@ -512,21 +512,23 @@ def photos(c, h):
 
 
 # --- viðvaranir, plúsar og búnaður úr lýsingu og búnaðarlista -------------------
-NEG = r"(?:ekki|ekkert|engin|ekkert|aldrei|enginn|laus við|án)\W+(?:\w+\W+){0,2}"
+NEG = r"(?:ekki|ekkert|engin|ekkert|aldrei|enginn|laus við|án|no|not|never|without|free of|n['’]t)\W+(?:\w+\W+){0,3}"
 FLAGS = {   # kóði: (neikvætt?, mynstur)
-    "tjon": (True, r"tjón|árekstr|klesst|tjónabíl"),
-    "ryd": (True, r"\bryð"),
+    "tjon": (True, r"tjón|árekstr|klesst|tjónabíl|accident|collision|crash damage|salvage"),
+    "ryd": (True, r"\bryð|\brust(?!.?free|.?proof)"),
     "laga": (True, r"þarfnast|þarf að laga|þarf (?:smá |einhverja |aðeins )?athygli|þarf að kíkja á|þarf smá|þarf að skipta um|þarf nýj|bilaður|biluð|bilað|bilun|gallað|gallaður|gölluð|galli\b|gallar\b|ónýt|virkar ekki|"
-                   r"lekur|leki\b|olíuleki|vélarljós|check engine|vélarvandamál|gírkassavandamál|skiptingin slær|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar"),
-    "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun"),
+                   r"lekur|leki\b|olíuleki|vélarljós|check engine|vélarvandamál|gírkassavandamál|skiptingin slær|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar|"
+                   r"needs? (?:some )?(?:repair|work|attention|fixing)|nee+d(?:s)? to be (?:replaced|fixed|repaired|changed|done)|needs? (?:new|replac)|broken|faulty|not working|doesn['’]t work|"
+                   r"\bleak|engine light|exhaust light|warning light|for parts|project car|some things need"),
+    "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun|failed (?:the )?inspection|re-?inspection"),
     "serut": (True, r"rall[ýy]\w*|keppnisbíl|kvartmílu|driftbíl|sandspyrnu|torfærubíl|til niðurrifs|í varahluti|varahlutabíl|ógangfær|óökufær|verkefnabíll|verkefni fyrir"),
-    "timareim": (False, r"(?:ný|nýleg|skipt um|nýbúið að skipta um) (?:tímareim|keðju)|tímareim (?:ný|nýleg|skipt)"),
-    "skodadur": (False, r"nýskoðaður|ný skoðun|skoðaður (?:20\d\d|til)|nýlega skoðaður"),
-    "smurbok": (False, r"smurbók|þjónustubók|þjónustusaga|full þjónustusaga|alltaf þjónustaður"),
-    "eigandi": (False, r"einn eigandi|1 eigandi|eins eiganda"),
-    "reyklaus": (False, r"reyklaus"),
+    "timareim": (False, r"(?:ný|nýleg|skipt um|nýbúið að skipta um) (?:tímareim|keðju)|tímareim (?:ný|nýleg|skipt)|new timing belt|timing (?:belt|chain) (?:was |has been )?(?:replaced|changed)"),
+    "skodadur": (False, r"nýskoðaður|ný skoðun|skoðaður (?:20\d\d|til)|nýlega skoðaður|new inspection|passed (?:the )?inspection|freshly inspected"),
+    "smurbok": (False, r"smurbók|þjónustubók|þjónustusaga|full þjónustusaga|alltaf þjónustaður|service (?:book|history)|fully serviced"),
+    "eigandi": (False, r"einn eigandi|1 eigandi|eins eiganda|one owner|single owner|1 owner"),
+    "reyklaus": (False, r"reyklaus|non.?smok"),
     "abyrgd": (False, r"verksmiðjuábyrgð|í ábyrgð|ábyrgð til"),
-    "dekk": (False, r"vetrardekk fylgja|nagladekk fylgja|aukadekk|tveir dekkjagangar|2 dekkjagangar|ný dekk|heilsársdekk"),
+    "dekk": (False, r"vetrardekk fylgja|nagladekk fylgja|aukadekk|tveir dekkjagangar|2 dekkjagangar|ný dekk|heilsársdekk|new tires|tires (?:are )?included|winter tires"),
 }
 FEATURES = {
     "krokur": r"dráttarkr[óo]k|dráttarbeisli|dráttarbúnað",
@@ -547,41 +549,46 @@ FEATURES = {
 # --- áætlaður viðgerðarkostnaður: gallaður hlutur í lýsingu -> gróft verðbil (kr., varahlutir + vinna m. VSK) ---
 # Áætlanir fyrir dæmigerðan fólksbíl á íslensku verkstæði 2026. Fáar opinberar verðskrár eru til; uppfærið eftir þörfum.
 REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
-    ("timareim", "Tímareim + vatnsdæla", 90000, 220000, r"tímareim"),
-    ("timakedja", "Tímakeðja", 250000, 600000, r"tímakeðj"),
-    ("kupling", "Kúpling", 150000, 400000, r"kúpling|kupling"),
-    ("skipting", "Sjálfskipting / gírkassi", 400000, 1500000, r"sjálfskipting|skipting\w*|gírkass|gírkass|gírar"),
+    ("timareim", "Tímareim + vatnsdæla", 90000, 220000, r"tímareim|timing belt"),
+    ("timakedja", "Tímakeðja", 250000, 600000, r"tímakeðj|timing chain"),
+    ("kupling", "Kúpling", 150000, 400000, r"kúpling|kupling|clutch"),
+    ("skipting", "Sjálfskipting / gírkassi", 400000, 1500000, r"sjálfskipting|skipting\w*|gírkass|gírkass|gírar|gearbox|transmission"),
     ("turbina", "Túrbína", 250000, 600000, r"túrbín|turbo"),
-    ("dpf", "Sótagnasía (DPF)", 100000, 450000, r"sótagn|dpf|partikkel"),
+    ("dpf", "Sótagnasía (DPF)", 100000, 450000, r"sótagn|dpf|partikkel|particulate"),
     ("egr", "EGR-ventill", 80000, 250000, r"\begr"),
-    ("spissar", "Spíssar", 150000, 500000, r"spíss"),
-    ("rafgeymir", "Rafgeymir", 25000, 60000, r"rafgeym"),
-    ("bremsur", "Bremsur (klossar og diskar)", 50000, 140000, r"bremsu|bremsur|klossar|bremsudisk"),
-    ("dekk", "Dekk (sett)", 80000, 250000, r"\bdekk"),
-    ("ac", "Loftkæling", 25000, 200000, r"loftkæling|\bac\b|miðstöð"),
-    ("vatnsdaela", "Vatnsdæla", 60000, 150000, r"vatnsdæl"),
-    ("fjodrun", "Fjöðrun / demparar", 60000, 250000, r"dempar|fjöðrun|gormar|spyrn"),
-    ("drifskaft", "Drifskaft / upphengjulega", 60000, 200000, r"drifskaft|upphengj|drifskapt"),
-    ("legur", "Hjólalegur", 40000, 100000, r"hjólaleg|\blegur|\blega\b"),
-    ("startari", "Startari / alternator", 80000, 200000, r"startar|alternator|altenator|hleðslutæki vélar"),
-    ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð|sílsa|sílsum"),
-    ("rudan", "Framrúða", 80000, 250000, r"framrúð|rúðan|sprunga í rúðu"),
+    ("spissar", "Spíssar", 150000, 500000, r"spíss|injector"),
+    ("rafgeymir", "Rafgeymir", 25000, 60000, r"rafgeym|12v battery|\bbatter(?:y|ie)\b"),
+    ("bremsur", "Bremsur (klossar og diskar)", 50000, 140000, r"bremsu|bremsur|klossar|bremsudisk|brake"),
+    ("dekk", "Dekk (sett)", 80000, 250000, r"\bdekk|\btires?\b|\btyres?\b"),
+    ("ac", "Loftkæling", 25000, 200000, r"loftkæling|\bac\b|miðstöð|air ?con|a/c"),
+    ("vatnsdaela", "Vatnsdæla", 60000, 150000, r"vatnsdæl|water pump"),
+    ("fjodrun", "Fjöðrun / demparar", 60000, 250000, r"dempar|fjöðrun|gormar|spyrn|suspension|shock absorber|struts?\b"),
+    ("drifskaft", "Drifskaft / upphengjulega", 60000, 200000, r"drifskaft|upphengj|drifskapt|drive ?shaft|prop ?shaft"),
+    ("legur", "Hjólalegur", 40000, 100000, r"hjólaleg|\blegur|\blega\b|wheel bearing"),
+    ("startari", "Startari / alternator", 80000, 200000, r"startar|alternator|altenator|hleðslutæki vélar|starter motor"),
+    ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð|sílsa|sílsum|\brust"),
+    ("rudan", "Framrúða", 80000, 250000, r"framrúð|rúðan|sprunga í rúðu|windshield|windscreen"),
     ("hv", "Drifrafhlaða (tvinn/rafbíll)", 500000, 2500000, r"drifrafhl|rafhlaða|rafhlöðu|batterí"),
-    ("olia", "Olíuleki / pakkningar", 40000, 250000, r"olíulek|leki|lekur|pakkning"),
-    ("velarljos", "Vélarljós (óljóst, þarf greiningu)", 20000, 400000, r"vélarljós|check engine|ljós í mælaborði"),
-    ("vel", "Vél (mikil viðgerð eða skipti)", 600000, 2000000, r"\bvélin\b|\bvél\b|mótor"),
-    ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn"),
+    ("olia", "Olíuleki / pakkningar", 40000, 250000, r"olíulek|leki|lekur|pakkning|oil leak|\bleak|gasket"),
+    ("velarljos", "Vélarljós (óljóst, þarf greiningu)", 20000, 400000, r"vélarljós|check engine|ljós í mælaborði|engine light|exhaust light|warning light"),
+    ("vel", "Vél (mikil viðgerð eða skipti)", 600000, 2000000, r"\bvélin\b|\bvél\b|mótor|\bengine\b"),
+    ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn|\bdent|accident|body ?work"),
 ]
-DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma"
-DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b"
+DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma|nee+ds?\b|replac|broken|faulty|worn|leak|noise|issue|problem|not working|is on\b|cracked|\bdue\b"
+DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b|\bnew\b|(?<!be )(?<!be  )replaced\b|(?<!be )changed\b|renewed|recently|just got|fixed|repaired|serviced"
+
+
+NEG_NEAR = r"(engin|ekkert|ekki|aldrei|\bno\b|\bnot\b|without|n['’]t|never)\W+(\w+\W+){0,3}(gall|bilu|vandam|ryð|leki|problem|issue|fault|rust|leak)"
+NEEDS_NEW = r"(nee+d\w*|þarf\w*|þarfnast)\s+(?:a |an |\w+ )?(?:new|ný)"  # „needs new clutch“ / „þarf nýja kúplingu“ = galli
 
 
 def repairs(d, title=""):
-    """Gallaðir hlutir í lýsingu -> [[kóði, heiti, lægst, hæst], ...]. Setning þarf að nefna hlutinn OG galla, ekki að búið sé að laga."""
+    """Gallaðir hlutir í lýsingu -> [[kóði, heiti, lægst, hæst], ...]. Hluturinn þarf að vera nefndur nálægt galla, ekki að búið sé að laga."""
     text = (d.get("d", "") + ". " + title).lower()
     out, seen = [], set()
-    for sent in re.split(r"[.!?\n]+", text):
-        if not re.search(DEFECT, sent) or re.search(r"(engin|ekkert|ekki)\W+(\w+\W+){0,2}(gall|bilu|vandam|ryð|leki)", sent):
+    # setningar, líka upptalningar („ - bremsur … - EGR …“); punktur í tölu („2.000 km“) skiptir ekki
+    for sent in re.split(r"(?<!\d)[.!?](?!\d)|[\n;]+|\s[-•*]\s", text):
+        if not sent or not re.search(DEFECT, sent):
             continue
         for code, name, lo, hi, pat in REPAIRS:
             if code in seen:
@@ -589,8 +596,9 @@ def repairs(d, title=""):
             for m in re.finditer(pat, sent):
                 # gallaorðið þarf að vera nálægt hlutnum (löng lýsing án punkta er annars ein „setning“)
                 near = sent[max(0, m.start() - 45):m.end() + 30]
-                if (re.search(DEFECT, near) and not re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25])
-                        and not re.match(r"\s?(laus|frí|lítið)", sent[m.end():m.end() + 8])):
+                done = re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25]) and not re.search(NEEDS_NEW, near)
+                if (re.search(DEFECT, near) and not done and not re.search(NEG_NEAR, near)
+                        and not re.match(r"\s?(laus|frí|lítið|.?free)", sent[m.end():m.end() + 8])):
                     seen.add(code)
                     out.append([code, name, lo, hi])
                     break

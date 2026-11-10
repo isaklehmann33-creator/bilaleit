@@ -861,9 +861,11 @@
     loadDetails(c.id).then(function (d) {
       var el = $('carDetails'); if (!el) return;
       var html = '';
-      if (d && d.d) html += '<h4>Lýsing frá seljanda</h4><div class="desc">' + esc(d.d).replace(/\n+/g, '<br>') + '</div>';
+      if (d && d.d) html += '<h4>Lýsing frá seljanda</h4><div class="desc" id="descText">' + esc(d.d).replace(/\n+/g, '<br>') + '</div>' +
+        (foreign(d.d) ? '<button type="button" class="sec tr-btn" id="descTr">' + ic('message-circle') + 'Þýða á íslensku</button>' : '');
       if (d && d.e && d.e.length) html += '<h4>Búnaður</h4><div class="equip">' + d.e.map(function (x) { return '<span>' + ic('check') + esc(x) + '</span>'; }).join('') + '</div>';
       el.innerHTML = html;
+      if ($('descTr')) $('descTr').addEventListener('click', function () { translate(d.d, this); });
       if (d && d.i && d.i.length > 1) {
         var g = $('gallery'); if (!g) return;
         g.innerHTML = d.i.map(function (u, i) { return '<img src="' + esc(u) + '" alt="" loading="' + (i ? 'lazy' : 'eager') + '">'; }).join('');
@@ -893,6 +895,32 @@
       if (!html) html = '<p class="note">Saga auglýsinga byrjaði 9. nóv. Hér birtist verðsaga og sambærilegir seldir bílar þegar hún safnast upp.</p>';
       el.innerHTML = trendHtml(c) + html;
       var sl = $('carSale'); if (sl) sl.innerHTML = saleHtml(c, me);
+    });
+  }
+
+  // ---------- þýðing lýsinga á erlendu máli ----------
+  // erlend ef engir íslenskir stafir og algeng ensk/þýsk/pólsk orð
+  function foreign(t) {
+    if (!t || t.length < 40 || /[þðæÞÐÆ]/.test(t)) return false;
+    return (t.toLowerCase().match(/\b(the|and|with|is|for|car|new|und|mit|der|die|ist|nie|jest|oraz)\b/g) || []).length >= 3;
+  }
+  function translate(text, btn) {
+    var en = (text.toLowerCase().match(/\b(the|and|with|is)\b/g) || []).length >= 3;
+    function google() {
+      window.open('https://translate.google.com/?sl=auto&tl=is&op=translate&text=' + encodeURIComponent(text.slice(0, 4500)), '_blank', 'noopener');
+    }
+    // innbyggð þýðing í Chrome (keyrir í tækinu, ókeypis); annars Google Translate í nýjum flipa
+    if (!en || !window.Translator) return google();
+    btn.disabled = true; btn.lastChild.textContent = 'Þýði…';
+    Translator.availability({ sourceLanguage: 'en', targetLanguage: 'is' }).then(function (av) {
+      if (av === 'unavailable') throw 0;
+      return Translator.create({ sourceLanguage: 'en', targetLanguage: 'is' });
+    }).then(function (t) { return t.translate(text); }).then(function (out) {
+      $('descText').innerHTML = esc(out).replace(/\n+/g, '<br>') + '<p class="note">Vélþýtt úr ensku.</p>';
+      btn.hidden = true;
+    }).catch(function () {  // sprettigluggar eru bannaðir eftir bið, svo takkinn verður að tengli
+      btn.outerHTML = '<a class="sec tr-btn" target="_blank" rel="noopener" href="https://translate.google.com/?sl=auto&tl=is&op=translate&text=' +
+        encodeURIComponent(text.slice(0, 4500)) + '">' + ic('external-link') + 'Opna þýðingu í Google Translate</a>';
     });
   }
 

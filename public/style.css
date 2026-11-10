@@ -851,3 +851,4 @@ a.also-row:hover span { color: var(--accent); }
   .chk .actions, .chk .x, .chk-back { display: none !important; }
   .chk li label { border-color: #ccc; }
 }
+.tr-btn { margin-top: 10px; }
