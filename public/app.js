@@ -603,7 +603,7 @@
       '<div class="meta">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') +
         '<span>' + (c.year || '–') + '</span><span>' + kmFmt(c.km) + '</span><span>' + esc(c.fcat) + '</span>' +
         (c.auto === true ? '<span>Sjálfsk.</span>' : c.auto === false ? '<span>Beinsk.</span>' : '') + (c.hp ? '<span>' + c.hp + ' hö</span>' : '') + (c.rng ? '<span>' + c.rng + ' km</span>' : '') + '</div>' +
-      (c.fl || c.relist || c.also ? '<div class="flags">' + flagChips(c, 2) + '</div>' : '') +
+      (flagChips(c, 2) ? '<div class="flags">' + flagChips(c, 2) + '</div>' : '') +
       '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span></div>' +
       meter(c) + '<p class="why">' + esc(why(c)) + '</p></div></article>';
   }
@@ -817,7 +817,7 @@
       '<button type="button" data-ctab="cost">Kostnaður</button><button type="button" data-ctab="hist">Saga</button></div>' +
       '<div class="cbody">' +
       '<section data-cpanel="overview">' +
-      (c.fl || c.relist || c.also || c.perf.t ? '<div class="flags big">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') + flagChips(c) + '</div>' : '') +
+      (c.perf.t || flagChips(c) ? '<div class="flags big">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') + flagChips(c) + '</div>' : '') +
       '<div class="specs">' + spec('calendar', 'Árgerð', c.year) + spec('route', 'Ekinn', c.km != null ? kmFmt(c.km) + (c.age > 0 && c.km ? '<small>≈' + Math.round(c.km / c.age / 1000) + ' þ./ári</small>' : '') : '') +
       spec('fuel', 'Eldsneyti', esc(c.fcat)) + spec('cog', 'Skipting', c.auto === true ? 'Sjálfskipt' : c.auto === false ? 'Beinskipt' : '') +
       spec('zap', 'Afl', c.hp ? c.hp + ' hö' : '') + spec('gauge', c.rng ? 'Drægni' : 'Drægni (dæmigerð)', c.rng ? c.rng + ' km' : c.rngEst ? '~' + (c.rngEst[0] === c.rngEst[1] ? c.rngEst[0] : c.rngEst[0] + '–' + c.rngEst[1]) + ' km' : '') + spec('car', 'Drif', c.awd ? 'Fjórhjóladrif' : '') +
