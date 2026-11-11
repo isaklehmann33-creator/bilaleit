@@ -556,6 +556,7 @@
     if (c.relist) fl.unshift('relist');
     if (c.also) fl.unshift('also');
     if (c.kmBack) fl.unshift('kmback');
+    if (c.km && c.year && c.km / Math.max(1, NOW - c.year + 1) > 90000) fl.unshift('kmyear');  // leigubíll eða innsláttarvilla
     if (c.rep && c.rep.length) fl.unshift('rep');
     if (c.vis) fl.unshift('vis');
     if (c.fcat === 'Rafmagn') fl = fl.filter(function (f) { return f !== 'timareim'; });  // engin tímareim í rafbíl
@@ -563,6 +564,7 @@
       if (f === 'relist') return '<span class="flag relist">🔁 Endurskráður</span>';
       if (f === 'also') return '<span class="flag relist" title="Sami bíll er líka auglýstur annars staðar">📋 Á ' + (c.also.length + 1) + ' stöðum</span>';
       if (f === 'kmback') return '<span class="flag bad">⚠️ Akstur lækkaði</span>';
+      if (f === 'kmyear') return '<span class="flag bad" title="Yfir 90.000 km á ári miðað við árgerð: leigubíll, bílaleigubíll eða villa í árgerð/akstri">⚠️ Mikill akstur f. árgerð</span>';
       if (f === 'rep') { var rc = repairCost(c); return '<span class="flag bad" title="' + esc(rc.names.join(', ')) + '">🔧 Viðgerð ~' + kRange(rc.lo, rc.hi) + '</span>'; }
       if (f === 'vis') return '<span class="flag bad" title="Sjálfvirkt mat út frá fyrstu mynd (' + Math.round(c.vis[1] * 100) + '% líkur). Getur skjátlast.">📷 ' +
         ({ tjon: 'Mynd: tjón?', keppni: 'Mynd: keppnisbíll?', verkefni: 'Mynd: í viðgerð?', ryd: 'Mynd: ryð?' }[c.vis[0]] || c.vis[0]) + '</span>';

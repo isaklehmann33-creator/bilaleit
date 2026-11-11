@@ -291,6 +291,19 @@ def make_from_title(t):
     return None, None
 
 
+def fix_year(year, km, title):
+    """Árgerðarreitur á bland.is er stundum rangur („2026“, 174.000 km, en „Golf GTE 2016“ í titli).
+    Ef titillinn nefnir aðra árgerð og akstur á ári væri ótrúverðugur (> 50.000 km) miðað við reitinn, gildir titillinn."""
+    ys = {int(y) for y in re.findall(r"\b(19[5-9]\d|20[0-3]\d)\b", title or "")}
+    if not year or len(ys) != 1:
+        return year
+    ty = ys.pop()
+    now = datetime.now(timezone.utc).year
+    if ty != year and ty <= now and km and km / max(1, now - year + 1) > 50000 and km / max(1, now - ty + 1) <= 50000:
+        return ty
+    return year
+
+
 def parse_bland(h):
     out = []
     for e in h.split("classifiedentry")[1:]:
@@ -305,7 +318,7 @@ def parse_bland(h):
         town = re.search(r'classifiedAddress">\s*<a[^>]*>\s*([^<]+?)\s*</a>', e)
         out.append({"id": "bland-" + m.group(2), "dealer": "Bland.is (einstaklingur)", "url": BLAND + m.group(1),
                     "title": text(m.group(3)), "price": num(price), "oldPrice": None,
-                    "year": year_of(attrs.get("Ár", "")), "km": num(attrs.get("Akstur", "")),
+                    "year": fix_year(year_of(attrs.get("Ár", "")), num(attrs.get("Akstur", "")), text(m.group(3))), "km": num(attrs.get("Akstur", "")),
                     "fuel": attrs.get("Eldsneyti", ""), "trans": attrs.get("Skipting", ""),
                     "img": ("https:" + cover.group(1)) if cover else "",
                     "loc": re.sub(r"\s+", " ", town.group(1)).strip() if town else ""})
