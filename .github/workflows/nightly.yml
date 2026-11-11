@@ -67,6 +67,7 @@ jobs:
           echo "{\"v\":\"$V\"}" > public/version.json
           sed -i "s/window.APP_VERSION = '[0-9]*'/window.APP_VERSION = '$V'/" public/firebase-config.js
           node pages.js
+          python3 share.py || echo "Deilisíður: sleppt"
       - name: Birta á bilaleit.web.app
         if: env.FB_KEY != ''
         uses: FirebaseExtended/action-hosting-deploy@v0

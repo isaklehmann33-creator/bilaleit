@@ -1,0 +1,8 @@
+<!doctype html><html lang="is"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bílaleit</title><meta name="robots" content="noindex">
+<script>
+  // deilislóð á bíl sem bættist við eftir síðustu birtingu (/b/<id>.html): opna bílinn beint
+  var m = location.pathname.match(/^\/b\/([^/]+?)(?:\.html)?$/);
+  location.replace(m ? '/#bill=' + m[1] : '/');
+</script></head>
+<body style="font-family:system-ui,sans-serif;background:#111;color:#eee;padding:24px"><a style="color:#6ee7b7" href="/">Bílaleit</a></body></html>

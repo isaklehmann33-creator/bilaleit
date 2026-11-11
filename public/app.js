@@ -1319,10 +1319,8 @@
     });
     return any ? f : null;
   }
-  function shareLink(id) {
-    var url = location.origin + location.pathname + location.search + '#bill=' + encodeURIComponent(id);
-    return url;
-  }
+  // deilisíða með forskoðun (mynd, verð og mat) fyrir Messenger/Facebook; hún vísar svo á bílinn hér
+  function shareLink(id) { return location.origin + '/b/' + encodeURIComponent(id) + '.html'; }
 
   // ---------- atburðir ----------
   function runSearch(text) {
@@ -1507,6 +1505,12 @@
         return '<option>' + esc(m) + '</option>';
       }).join('');
       fillModels();
+      // share.py: Chrome án skjás les verðmatið héðan og býr til deilisíður (/b/<id>.html) með forskoðun
+      if (/[?&]dump=share\b/.test(location.search)) {
+        var pre = document.createElement('pre'); pre.id = 'shareDump';
+        pre.textContent = JSON.stringify(cars.map(function (c) { var v = verdict(c); return [c.id, v.txt, v.cls, c.est || 0, !!v.unsure]; }));
+        document.body.appendChild(pre);
+      }
       var u = new Date(d.updated);
       $('updated').textContent = 'Uppfært ' + dateIs(u) + ' kl. ' +
         ('0' + u.getHours()).slice(-2) + ':' + ('0' + u.getMinutes()).slice(-2);
