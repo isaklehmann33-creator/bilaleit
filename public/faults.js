@@ -207,7 +207,7 @@
       'Báðir lyklar fylgja?']);
     if (c.fcat === 'Rafmagn' || c.fcat === 'Tengiltvinn') gen.unshift('Prófaðu hleðslu og athugaðu hleðslusnúru');
     sec.push(['Við skoðun', gen]);
-    var q = ['Af hverju er bíllinn til sölu og hve lengi hefur þú átt hann?', 'Hefur hann lent í tjóni?', 'Er þjónustubók/smurbók og viðgerðareikningar?',
+    var q = ['Af hverju er bíllinn til sölu og hve lengi hefur þú átt hann?', 'Hefur hann lent í tjóni?', c.fcat === 'Rafmagn' ? 'Er þjónustubók og viðgerðareikningar?' : 'Er þjónustubók/smurbók og viðgerðareikningar?',
       'Fékk hann athugasemd í síðustu skoðun?'];
     if (c.fcat !== 'Rafmagn' && c.km >= 90000) q.splice(2, 0, 'Hvenær var skipt um tímareim/-keðju og vatnsdælu?');
     if (c.auto && c.km >= 100000) q.push('Hefur verið skipt um olíu á sjálfskiptingu?');

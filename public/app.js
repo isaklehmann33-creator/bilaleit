@@ -558,6 +558,7 @@
     if (c.kmBack) fl.unshift('kmback');
     if (c.rep && c.rep.length) fl.unshift('rep');
     if (c.vis) fl.unshift('vis');
+    if (c.fcat === 'Rafmagn') fl = fl.filter(function (f) { return f !== 'timareim'; });  // engin tímareim í rafbíl
     return fl.slice(0, max || 99).map(function (f) {
       if (f === 'relist') return '<span class="flag relist">🔁 Endurskráður</span>';
       if (f === 'also') return '<span class="flag relist" title="Sami bíll er líka auglýstur annars staðar">📋 Á ' + (c.also.length + 1) + ' stöðum</span>';
@@ -565,6 +566,7 @@
       if (f === 'rep') { var rc = repairCost(c); return '<span class="flag bad" title="' + esc(rc.names.join(', ')) + '">🔧 Viðgerð ~' + kRange(rc.lo, rc.hi) + '</span>'; }
       if (f === 'vis') return '<span class="flag bad" title="Sjálfvirkt mat út frá fyrstu mynd (' + Math.round(c.vis[1] * 100) + '% líkur). Getur skjátlast.">📷 ' +
         ({ tjon: 'Mynd: tjón?', keppni: 'Mynd: keppnisbíll?', verkefni: 'Mynd: í viðgerð?', ryd: 'Mynd: ryð?' }[c.vis[0]] || c.vis[0]) + '</span>';
+      if (c.fcat === 'Rafmagn' && f === 'smurbok') return '<span class="flag plus">✅ Þjónustubók</span>';  // rafbílar eru ekki smurðir
       return '<span class="flag ' + (BAD_FLAGS[f] ? 'bad' : 'plus') + '">' + esc(FLAG_TXT[f] || f) + '</span>';
     }).join('');
   }
