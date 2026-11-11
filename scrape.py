@@ -519,6 +519,7 @@ FLAGS = {   # kóði: (neikvætt?, mynstur)
     "laga": (True, r"þarfnast|þarf að laga|þarf (?:smá |einhverja |aðeins )?athygli|þarf að kíkja á|þarf smá|þarf að skipta um|þarf nýj|bilaður|biluð|bilað|bilun|gallað|gallaður|gölluð|galli\b|gallar\b|ónýt|virkar ekki|"
                    r"lekur|leki\b|olíuleki|vélarljós|check engine|vélarvandamál|gírkassavandamál|skiptingin slær|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar|"
                    r"needs? (?:some )?(?:repair|work|attention|fixing)|nee+d(?:s)? to be (?:replaced|fixed|repaired|changed|done)|needs? (?:new|replac)|broken|faulty|not working|doesn['’]t work|"
+                   r"drawback|does ?n(?:o|['’])t (?:open|close|start|work|function)|won['’]t (?:open|close|start|work)|opnast ekki|lokast ekki|fer ekki (?:upp|niður|í gang)|"
                    r"\bleak|engine light|exhaust light|warning light|for parts|project car|some things need"),
     "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun|failed (?:the )?inspection|re-?inspection"),
     "serut": (True, r"rall[ýy]\w*|keppnisbíl|kvartmílu|driftbíl|sandspyrnu|torfærubíl|til niðurrifs|í varahluti|varahlutabíl|ógangfær|óökufær|verkefnabíll|verkefni fyrir"),
@@ -567,14 +568,15 @@ REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
     ("legur", "Hjólalegur", 40000, 100000, r"hjólaleg|\blegur|\blega\b|wheel bearing"),
     ("startari", "Startari / alternator", 80000, 200000, r"startar|alternator|altenator|hleðslutæki vélar|starter motor"),
     ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð|sílsa|sílsum|\brust"),
-    ("rudan", "Framrúða", 80000, 250000, r"framrúð|rúðan|sprunga í rúðu|windshield|windscreen"),
+    ("upphalari", "Rúðuupphalari", 30000, 100000, r"rúðuupphal|upphalar|rúð\w* (?:\w+ )?(?:opnast|lokast|fer) ekki|\bwindows?\b(?! ?(?:shield|screen))|power window"),
+    ("rudan", "Framrúða", 80000, 250000, r"framrúð|rúðan(?! (?:\w+ )?(?:opnast|lokast|fer) ekki)|sprunga í rúðu|windshield|windscreen"),
     ("hv", "Drifrafhlaða (tvinn/rafbíll)", 500000, 2500000, r"drifrafhl|rafhlaða|rafhlöðu|batterí"),
     ("olia", "Olíuleki / pakkningar", 40000, 250000, r"olíulek|leki|lekur|pakkning|oil leak|\bleak|gasket"),
     ("velarljos", "Vélarljós (óljóst, þarf greiningu)", 20000, 400000, r"vélarljós|check engine|ljós í mælaborði|engine light|exhaust light|warning light"),
     ("vel", "Vél (mikil viðgerð eða skipti)", 600000, 2000000, r"\bvélin\b|\bvél\b|mótor|\bengine\b"),
     ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn|\bdent|accident|body ?work"),
 ]
-DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma|nee+ds?\b|replac|broken|faulty|worn|leak|noise|issue|problem|not working|is on\b|cracked|\bdue\b"
+DEFECT = r"drawback|does ?n(?:o|['’])t|won['’]t|opnast ekki|lokast ekki|fer ekki|gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma|nee+ds?\b|replac|broken|faulty|worn|leak|noise|issue|problem|not working|is on\b|cracked|\bdue\b"
 DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b|\bnew\b|(?<!be )(?<!be  )replaced\b|(?<!be )changed\b|renewed|recently|just got|fixed|repaired|serviced|\bgood\b|great|excellent"
 
 
