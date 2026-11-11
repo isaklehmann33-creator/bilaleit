@@ -761,6 +761,7 @@ dialog#consent::backdrop { background: rgba(3,6,5,.78); backdrop-filter: blur(10
 .surv-top .ic { color: var(--mid); }
 .surv.good .surv-top .ic, .surv.good .surv-top b { color: var(--good); }
 .surv.bad .surv-top .ic, .surv.bad .surv-top b { color: var(--bad); }
+.surv-lead { margin: 8px 0 0; font-size: 14px; line-height: 1.5; }
 .surv-bars { display: grid; gap: 6px; margin-top: 10px; }
 .surv-bars > div { display: grid; grid-template-columns: minmax(90px, 30%) 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
 .surv-bars span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
