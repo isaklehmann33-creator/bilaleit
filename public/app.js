@@ -69,7 +69,8 @@
     c.priv = c.src === 'bland.is';
     c.vis = VISION[c.id] || null;
     // sérútbúnir bílar og verkefni: ekki sambærilegir við venjulega bíla af sömu gerð
-    c.special = /rall[yi]|rallykross|rallycross|kvartm|drift|keppnis|sandspyrn|torfaer|track ?car|race ?car|project|verkefni|varahlut|nidurrif|\bparts\b|tjonabil|ogangfaer|ookufaer|uppgerdar|crash/
+    c.classic = !!c.year && c.year <= NOW - 40;  // fornbíll: verð fer eftir ástandi og sögu, ekki aldri
+    c.special = c.classic || /rall[yi]|rallykross|rallycross|kvartm|drift|keppnis|sandspyrn|torfaer|track ?car|race ?car|project|verkefni|varahlut|nidurrif|\bparts\b|tjonabil|ogangfaer|ookufaer|uppgerdar|crash/
       .test(fold(c.title + ' ' + c.model)) || (c.fl || []).indexOf('serut') >= 0 ||
       !!(c.vis && (c.vis[0] === 'keppni' || c.vis[0] === 'verkefni') && c.vis[1] >= 0.8);  // einkasala (bland.is); allt annað er bílasala
     return c;
@@ -246,6 +247,8 @@
       c.enginePeers = c.pwRaw == null ? null : groups[c.key].filter(function (o) {
         return o !== c && o.pwRaw != null && Math.abs(o.pwRaw - c.pwRaw) <= 0.35 && o.fcat === c.fcat;
       }).length;
+      // sambærilegir á svipuðum aldri: annars byggir matið á framreiknuðu verðfalli (2016 bíll „leiðréttur“ í 2023)
+      c.agePeers = groups[c.key].filter(function (o) { return o !== c && Math.abs(o.age - c.age) <= 4; }).length;
       c.dev = c.price / c.est - 1;
     });
     // mat fyrir bíl sem er ekki í gögnunum (t.d. „hvað er bíllinn minn virði?“), með líklegu bili
@@ -269,6 +272,7 @@
     return { beta: beta, lin: lin, groups: groups, estimate: estimate };
   }
   function verdict(c) {
+    if (c.classic) return { cls: 'mid', txt: 'Fornbíll', unsure: true };
     if (c.special) return { cls: 'warn', txt: 'Sérútbúinn / verkefni', unsure: true };
     if (c.peers < 2) return { cls: 'mid', txt: 'Fáir sambærilegir', unsure: true };
     // meira en helmingi undir mati: oftast innsláttarvilla, varahlutabíll, tjónabíll eða svindl
@@ -276,6 +280,7 @@
     // kraftútgáfa sem enginn annar sambærilegur er til af: matið byggir á almennu álagi, svo við fullyrðum ekki
     if (c.perf.t && !c.tierPeers) return { cls: 'mid', txt: 'Sjaldgæf útgáfa', unsure: true };
     if (c.enginePeers != null && c.enginePeers < 2 && Math.abs(c.dev) >= 0.12) return { cls: 'mid', txt: 'Fáir með sömu vél', unsure: true };
+    if (!c.agePeers && Math.abs(c.dev) >= 0.12) return { cls: 'mid', txt: 'Fáir á svipuðum aldri', unsure: true };
     if (c.km == null && c.age > 3) return { cls: 'mid', txt: 'Akstur óþekktur', unsure: true };
     // þekktur viðgerðarkostnaður: er bíllinn enn ódýr þegar viðgerðin er lögð við?
     var rc = repairCost(c);
@@ -296,7 +301,7 @@
   }
   function similar(c, n) {
     var g = model.groups[c.key] || [];
-    return g.filter(function (o) { return o !== c; }).sort(function (a, b) {
+    return g.filter(function (o) { return o !== c && Math.abs(o.age - c.age) <= 12; }).sort(function (a, b) {
       function d(o) { return Math.abs(o.age - c.age) + Math.abs((o.km || 0) - (c.km || 0)) / 30000 + (o.fcat === c.fcat ? 0 : 2) + 4 * Math.abs(o.perf.t - c.perf.t) + 3 * Math.abs(o.pw - c.pw); }
       return d(a) - d(b);
     }).slice(0, n || 8);
@@ -674,10 +679,16 @@
   function med(a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[a.length >> 1] : 0; }
   function why(c, long) {
     var v = verdict(c), name = cap(c.base);
+    if (c.classic) return 'Fornbíll: verðið fer eftir ástandi, uppgerð og sögu, ekki aldri og akstri, svo hann er ekki metinn út frá yngri ' + name + '.';
     if (c.special) return 'Sérútbúinn eða verkefni, ekki sambærilegur við venjulega ' + name + '.';
     if (c.peers < 2) return 'Fáir ' + name + ' á skrá, svo matið byggir á tegundinni í heild.';
     if (c.dev <= -0.5) return 'Meira en helmingi ódýrari en sambærilegir. Oft villa, tjón eða varahlutabíll.';
     if (c.perf.t && !c.tierPeers) return 'Enginn annar ' + name + ' ' + c.perf.label + ' á skrá til að bera saman við.';
+    if (!c.agePeers && Math.abs(c.dev) >= 0.12) {
+      var ys = similar(c, 8).map(function (o) { return o.year; }).filter(Boolean);
+      return 'Enginn ' + name + ' innan 4 ára frá árgerð ' + c.year + ' á skrá' + (ys.length ? ' (næstu eru ' + Math.min.apply(null, ys) + '–' + Math.max.apply(null, ys) + ')' : '') +
+        ', svo matið (' + pct(c.dev) + ') byggir á framreiknuðu verðfalli og er óvisst.';
+    }
     if (c.km == null && c.age > 3) return 'Akstur kemur ekki fram í auglýsingunni, svo ekki er hægt að meta verðið vel.';
     if (c.enginePeers != null && c.enginePeers < 2 && Math.abs(c.dev) >= 0.12) {
       var other = uniq(similar(c, 6).map(function (o) { return cap(o.model.split(' ').slice(0, 2).join(' ')); })).slice(0, 3).join(', ');
@@ -780,7 +791,7 @@
       '\n\nEr þetta gott verð miðað við akstur og aldur? Hvað ætti ég að skoða sérstaklega á þessari tegund/árgerð (algengir gallar, viðhald), ' +
       'og hvaða spurningar ætti ég að spyrja seljandann? Svaraðu á íslensku.';
     var saved = isSaved(c.id), inCmp = compare.indexOf(c.id) >= 0;
-    var estText = (c.peers >= 2 && c.dev <= -0.5 ? '<p class="warn-box">' + ic('triangle-alert') + '<span><b>Verðið er meira en helmingi undir sambærilegum bílum.</b> Það getur verið innsláttarvilla, tjónabíll, bíll til niðurrifs eða jafnvel svindl. Lestu auglýsinguna vel og borgaðu aldrei fyrirfram.</span></p>' : '') +
+    var estText = c.classic ? '' : (c.peers >= 2 && c.dev <= -0.5 ? '<p class="warn-box">' + ic('triangle-alert') + '<span><b>Verðið er meira en helmingi undir sambærilegum bílum.</b> Það getur verið innsláttarvilla, tjónabíll, bíll til niðurrifs eða jafnvel svindl. Lestu auglýsinguna vel og borgaðu aldrei fyrirfram.</span></p>' : '') +
       '<p class="note">' + (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
         'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ', útgáfu' : '') + (c.pwRaw != null ? ', vélarafli' : '') + '.') +
       (c.perf.t ? ' ' + esc(c.perf.label) + ' er ' + (c.perf.t === 2 ? 'toppútgáfa' : 'sportútgáfa') + ': slíkar útgáfur kosta að jafnaði ~' +
@@ -828,7 +839,7 @@
       '<a class="sec" href="' + claudeLink(prompt) + '" target="_blank" rel="noopener">' + ic('message-circle') + 'Spyrja Claude</a></div>' +
       '</section>' +
       '<section data-cpanel="price" hidden>' +
-      '<div class="est"><div class="est-top"><div><span class="note">Áætlað markaðsverð</span><div class="big">' + kr(c.est) + '</div></div>' +
+      '<div class="est"><div class="est-top"><div><span class="note">Áætlað markaðsverð</span><div class="big">' + (c.classic ? '–' : kr(c.est)) + '</div></div>' +
       '<div class="est-ask"><span class="note">Ásett verð</span><div class="big">' + kr(c.price) + '</div>' + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</div></div>' +
       meter(c, true) + '<p class="why big">' + esc(why(c, true)) + '</p>' + estText + '</div>' +
       '<div id="carSale"></div>' +
