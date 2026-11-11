@@ -76,15 +76,19 @@
   }
 
   // Sölutími og verðlækkanir. Bara auglýsingar sem birtust eftir að sagan hófst (start), annars er upphafið óþekkt.
+  // sd = skráð á söluskrá (bilasolur.is): þá er sölutíminn þekktur þótt auglýsingin sé eldri en sagan
   function saleStats(ads, start, today) {
-    var known = ads.filter(function (a) { return a.f > start && a.p && a.p.length; });
-    var gone = known.filter(function (a) { return a.g; });
+    // fyrstu vikurnar sjást bara bílar sem seldust hratt: án skráningardags þarf sagan að ná a.m.k. 3 vikum
+    var ripe = days(start, today) >= 21;
+    var known = ripe ? ads.filter(function (a) { return a.f > start && a.p && a.p.length; }) : [];
+    var gone = ads.filter(function (a) { return a.g && (a.sd || (ripe && a.f > start)); });
+    var live = ads.filter(function (a) { return !a.g && a.sd; }).map(function (a) { return days(a.sd, today); });
     var obs = known.filter(function (a) { return a.g || days(a.f, today) >= 14; });
     var dropped14 = obs.filter(function (a) { return a.p.some(function (x) { return x[1] < a.p[0][1] && days(a.f, x[0]) <= 14; }); });
     var cuts = known.filter(function (a) { return a.p.some(function (x) { return x[1] < a.p[0][1]; }); })
       .map(function (a) { return 1 - Math.min.apply(null, a.p.map(function (x) { return x[1]; })) / a.p[0][1]; });
     return {
-      n: gone.length, days: median(gone.map(function (a) { return Math.max(1, days(a.f, a.g)); })),
+      n: gone.length, days: median(gone.map(function (a) { return Math.max(1, days(a.sd || a.f, a.g)); })), live: live,
       obs: obs.length, drop14: obs.length ? dropped14.length / obs.length : null, cut: median(cuts)
     };
   }

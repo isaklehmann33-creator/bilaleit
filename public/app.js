@@ -845,7 +845,7 @@
       '<div class="est"><div class="est-top"><div><span class="note">Áætlað markaðsverð</span><div class="big">' + (c.classic ? '–' : kr(c.est)) + '</div></div>' +
       '<div class="est-ask"><span class="note">Ásett verð</span><div class="big">' + kr(c.price) + '</div>' + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</div></div>' +
       meter(c, true) + '<p class="why big">' + esc(why(c, true)) + '</p>' + estText + '</div>' +
-      '<div id="carSale"></div>' +
+      '<div id="carSale"></div><div id="carNew"></div>' +
       (sim.length ? '<h4>Sambærilegir bílar</h4><p class="note">„Leiðrétt verð“ = hvað hinn bíllinn myndi kosta ef hann væri jafn gamall og jafn mikið ekinn og þessi. ' +
         'Fyrir bíl á þessum aldri og akstri lækkar verð að jafnaði um ~' + Math.max(0, kmEff).toFixed(1) + '% fyrir hverja 10.000 km og ~' + Math.max(0, yrEff).toFixed(0) + '% á ári.</p>' +
         '<div class="tbl-wrap"><table><thead><tr><th>Gerð</th><th class="num">Árg.</th><th class="num">Ekinn</th><th>Eldsn.</th><th class="num">Verð</th><th class="num">Leiðrétt</th></tr></thead><tbody>' +
@@ -891,13 +891,14 @@
         });
       }
     });
+    loadNew().then(function () { var el = $('carNew'); if (el && openCarId === c.id) el.innerHTML = newHtml(c); });
     // saga: hve lengi bíllinn hefur verið á skrá, verðbreytingar og sambærilegir bílar sem hafa selst
     loadHistory().then(function () {
       var el = $('carHistory'); if (!el) return;
       var me = HIST.filter(function (a) { return a.id === c.id; })[0], html = '';
       if (me) {
-        var days = daysBetween(me.f, me.l);
-        html += '<div class="specs">' + spec('calendar', 'Á skrá síðan', dayFmt(me.f)) + spec('flame', 'Dagar á skrá', days) +
+        var since = c.listed || me.sd || me.f, days = daysBetween(since, me.l);
+        html += '<div class="specs">' + spec('calendar', 'Á skrá síðan', dayFmt(since)) + spec('flame', 'Dagar á skrá', days) +
           spec('trending-down', 'Verðbreytingar', me.p.length - 1 || 'Engar') + '</div>';
         if (me.p.length > 1) html += '<h4>Verðsaga</h4><div class="past">' + me.p.map(function (x) { return '<div class="past-row"><span>' + dayFmt(x[0]) + '</span><b>' + kr(x[1]) + '</b></div>'; }).join('') + '</div>';
       }
@@ -959,17 +960,50 @@
       { t: cap(c.make), ads: HIST.filter(function (a) { return a.m === c.make; }) },
       { t: 'bílar á svipuðu verði', ads: HIST.filter(function (a) { return a.price > c.price * 0.65 && a.price < c.price * 1.5; }) }];
     var g = null, st = null;
-    for (var i = 0; i < groups.length && !g; i++) { st = Models.saleStats(groups[i].ads, r.start, r.today); if (st.n >= 8) g = groups[i]; }
-    if (!g) return '<div class="sale-box">' + ic('clock') + '<span><b>Sölutími.</b> Spá um hve fljótt svona bílar seljast og hvort verð lækki birtist þegar nokkrar vikur af sögu eru komnar (hófst ' + dayFmt(r.start) + ').</span></div>';
-    var mine = me ? Models.days(me.f, r.today) : null, known = me && me.f > r.start;
-    var tip = mine != null && st.days ? (mine > st.days * 1.5 ? 'Hefur verið lengur á skrá en flestir: líklega svigrúm til að semja.' :
-      mine < st.days * 0.5 ? 'Nýlega kominn á skrá: seljandi gefur síður eftir strax.' : '') : '';
-    return '<div class="sale-box">' + ic('clock') + '<div><b>Sölutími</b> <span class="note">(' + esc(g.t) + ', ' + st.n + ' horfnar auglýsingar)</span>' +
-      '<div class="sale-stats"><div><b>~' + Math.round(st.days) + ' dagar</b><span>á skrá að jafnaði</span></div>' +
-      (st.drop14 != null && st.obs >= 8 ? '<div><b>' + Math.round(st.drop14 * 100) + '%</b><span>lækka verð innan 2 vikna</span></div>' : '') +
-      (st.cut ? '<div><b>−' + Math.round(st.cut * 100) + '%</b><span>dæmigerð lækkun</span></div>' : '') +
-      (mine != null ? '<div><b>' + (known ? '' : '≥ ') + mine + ' dagar</b><span>þessi á skrá</span></div>' : '') + '</div>' +
+    // nóg af seldum, eða af auglýsingum á skrá með þekktan skráningardag
+    for (var i = 0; i < groups.length && !g; i++) { st = Models.saleStats(groups[i].ads, r.start, r.today); if (st.n >= 8 || st.live.length >= 15) g = groups[i]; }
+    var since = c.listed || (me && me.sd), mine = since ? Models.days(since, r.today) : me ? Models.days(me.f, r.today) : null;
+    var known = !!since || (me && me.f > r.start);
+    if (!g && mine == null) return '<div class="sale-box">' + ic('clock') + '<span><b>Sölutími.</b> Spá um hve fljótt svona bílar seljast og hvort verð lækki birtist þegar nokkrar vikur af sögu eru komnar (hófst ' + dayFmt(r.start) + ').</span></div>';
+    var longer = g && known && st.live.length >= 15 ? st.live.filter(function (d) { return d < mine; }).length / st.live.length : null;
+    var typical = g ? (st.n >= 8 ? st.days : Models.median(st.live)) : null;
+    var long = known && typical && mine > typical * 1.5, fresh = known && mine <= 7, dev = c.peers >= 2 && !c.special ? c.dev : null;
+    // spá: verð yfir mati + lengi á skrá = líklegt að lækki; undir mati + nýr = fer líklega fljótt
+    var tip = dev != null && dev >= 0.05 && long ? '<b>Líklegt að verðið lækki:</b> dýrari en matið og búinn að vera lengur á skrá en flestir sambærilegir. Gott svigrúm til að bjóða lægra.' :
+      dev != null && dev >= 0.05 ? 'Yfir mati: seljist hann ekki fljótlega er líklegt að verðið lækki.' :
+      long ? 'Lengur á skrá en flestir sambærilegir: líklega svigrúm til að semja.' :
+      dev != null && dev <= -0.08 && !long ? 'Undir mati: svona bílar fara oft fljótt, svo það borgar sig ekki að bíða.' :
+      fresh ? 'Nýkominn á skrá: seljendur gefa síður eftir fyrstu dagana.' : '';
+    return '<div class="sale-box">' + ic('clock') + '<div><b>Sölutími</b>' + (g ? ' <span class="note">(' + esc(g.t) + (st.n >= 8 ? ', ' + st.n + ' seldir' : ', ' + st.live.length + ' á skrá') + ')</span>' : '') +
+      '<div class="sale-stats">' +
+      (mine != null ? '<div><b>' + (known ? '' : '≥ ') + mine + ' dagar</b><span>þessi á skrá' + (since ? ' (frá ' + dayFmt(since) + ')' : '') + '</span></div>' : '') +
+      (g && typical ? '<div><b>~' + Math.round(typical) + ' dagar</b><span>' + (st.n >= 8 ? 'að jafnaði þar til selst' : 'dæmigert á skrá núna') + '</span></div>' : '') +
+      (longer != null ? '<div><b>' + Math.round(longer * 100) + '%</b><span>sambærilegra eru skemur á skrá</span></div>' : '') +
+      (g && st.drop14 != null && st.obs >= 8 ? '<div><b>' + Math.round(st.drop14 * 100) + '%</b><span>lækka verð innan 2 vikna</span></div>' : '') +
+      (g && st.cut ? '<div><b>−' + Math.round(st.cut * 100) + '%</b><span>dæmigerð lækkun</span></div>' : '') + '</div>' +
       (tip ? '<p class="note">' + tip + '</p>' : '') + '</div></div>';
+  }
+
+  // ---------- nýr af sömu gerð hjá umboði (newcars.py) ----------
+  var NEWP = null, newP = null;
+  function loadNew() {
+    if (!newP) newP = fetch('data/newprices.json?t=' + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+      .then(function (d) { NEWP = ((d && d.rows) || []).map(function (r) { return { make: r[0], name: r[1], price: r[2], src: r[3], base: baseModel(r[1], r[0]) }; }); });
+    return newP;
+  }
+  function newHtml(c) {
+    if (!NEWP || !c.year || c.year < NOW - 8 || (c.km != null && c.km < 1000)) return '';
+    var rows = NEWP.filter(function (r) { return r.make === c.make && r.base === c.base; }).sort(function (a, b) { return a.price - b.price; });
+    if (!rows.length) return '';
+    var lo = rows[0], seen = {}, list = rows.filter(function (r) { var k = r.name; if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 4);
+    var save = lo.price - c.price, p = save / lo.price;
+    var verdict = p >= 0.08 ? '<b>' + kr(save) + ' (' + Math.round(p * 100) + '%)</b> ódýrari en ódýrasti nýi.' :
+      p > -0.05 ? '<b>Á svipuðu verði og nýr.</b> Nýr bíll kemur með fullri ábyrgð og engum akstri, svo það er vert að bera saman.' :
+      '<b>Dýrari en ódýrasti nýi</b> (' + kr(-save) + '), líklega vegna dýrari útgáfu eða aukabúnaðar.';
+    return '<div class="sale-box">' + ic('car') + '<div><b>Nýr ' + esc(cap(c.make) + ' ' + cap(c.base)) + '</b> <span class="note">kostar frá ' + kr(lo.price) + ' hjá ' + esc(lo.src) + '</span>' +
+      '<p class="note" style="margin:6px 0">' + verdict + '</p>' +
+      '<div class="past">' + list.map(function (r) { return '<div class="past-row"><span>' + esc(cap(r.name)) + ' <span class="note">' + esc(r.src) + '</span></span><b>' + kr(r.price) + '</b></div>'; }).join('') + '</div>' +
+      '<p class="note">Lægsta auglýsta verð nýrra bíla hjá umboðinu (á lager eða „verð frá“), án rafbílastyrks. Útgáfur og búnaður geta verið aðrar en á þessum bíl.</p></div></div>';
   }
 
   function showCompare() {

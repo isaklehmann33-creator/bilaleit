@@ -439,6 +439,12 @@ def clean_hp(hp):
     return hp if hp and 40 <= hp <= 1000 else None
 
 
+def listed_of(h):
+    """„Skráð á söluskrá 6.10.2026“ (bilasolur.is) -> "20261006" """
+    m = re.search(r"Skráð á söluskrá\D{0,40}?(\d{1,2})\.(\d{1,2})\.(20\d\d)", re.sub(r"<[^>]+>", " ", h))
+    return f"{m.group(3)}{int(m.group(2)):02d}{int(m.group(1)):02d}" if m else None
+
+
 def parse_details(c, h):
     parts, d = flat(h), {}
     src = c.get("src")
@@ -447,6 +453,9 @@ def parse_details(c, h):
         if m:
             d["d"] = text(m.group(1).replace("<br", "\n<br"))
         hp = re.search(r"(\d{2,4})\s*hestöfl", " ".join(parts))
+        sd = listed_of(h)
+        if sd:
+            d["sd"] = sd
     elif src == "Brimborg":
         d["d"] = after(parts, "Nánari lýsing á bíl")
         hp = re.search(r"Heildarafl \(hö\) (\d{2,4})", " ".join(parts))
@@ -682,6 +691,8 @@ def update_details(cars):
             continue
         if d.get("hp"):
             c["hp"] = clean_hp(d["hp"]); hp += 1
+        if d.get("sd"):
+            c["listed"] = d["sd"]  # skráð á söluskrá (bilasolur.is)
         r = d.get("r") or (c.get("fuel") == "Rafmagn" and range_of(d.get("d")))
         if r:
             c["rng"] = r
@@ -894,6 +905,8 @@ def update_history(cars):
             a.setdefault("kh", [[a.get("l") or a["f"], a["k"]]]).append([today, c["km"]])  # akstursferill (fyrir akstursvörn)
         a.update({"l": today, "k": c.get("km"), "g": None, "fu": c.get("fuel", ""), "t": c.get("title", ""), "s": c.get("src", ""),
                   "tr": c.get("trans", ""), "dr": c.get("drive", "")})
+        if c.get("listed"):
+            a["sd"] = c["listed"]
         if not a["p"] or a["p"][-1][1] != c["price"]:
             a["p"].append([today, c["price"]])
     cutoff = (datetime.now(timezone.utc).timestamp() - KEEP_GONE_DAYS * 86400)
