@@ -584,6 +584,22 @@ TIRE_BAD = r"slit|ónýt|þarf|worn|bald|need|replace"
 NEEDS_NEW = r"(nee+d\w*|þarf\w*|þarfnast)\s+(?:a |an |\w+ )?(?:new|ný)"  # „needs new clutch“ / „þarf nýja kúplingu“ = galli
 
 
+N3 = r"(?<![\d.,])(\d{3})(?![\d.,])"
+RANGE_TXT = [rf"drægn\w*\W+(?:\w+\W+){{0,4}}?{N3}\s?km", rf"{N3}\s?km\W+(?:\w+\W+){{0,2}}?drægn", rf"dregur\W+(?:\w+\W+){{0,3}}?{N3}\s?km",
+             rf"\brange\W+(?:\w+\W+){{0,3}}?{N3}\s?km", rf"{N3}\s?km\W+(?:\w+\W+){{0,2}}?(?:wltp|range)"]
+
+
+def range_of(text):
+    """Uppgefin drægni úr lýsingu („allt að 550 km drægni“, „dregur 438 km samkvæmt WLTP“) -> km eða None."""
+    t = (text or "").lower()
+    for pat in RANGE_TXT:
+        m = re.search(pat, t)
+        # „raundrægni 140 km“ er núverandi drægni, ekki uppgefin (WLTP): látum töfluna um hana
+        if m and 100 <= int(m.group(1)) <= 900 and "raun" not in t[max(0, m.start() - 12):m.end()]:
+            return int(m.group(1))
+    return None
+
+
 def repairs(d, title=""):
     """Gallaðir hlutir í lýsingu -> [[kóði, heiti, lægst, hæst], ...]. Hluturinn þarf að vera nefndur nálægt galla, ekki að búið sé að laga."""
     text = (d.get("d", "") + ". " + title).lower()
@@ -664,8 +680,9 @@ def update_details(cars):
             continue
         if d.get("hp"):
             c["hp"] = clean_hp(d["hp"]); hp += 1
-        if d.get("r"):
-            c["rng"] = d["r"]
+        r = d.get("r") or (c.get("fuel") == "Rafmagn" and range_of(d.get("d")))
+        if r:
+            c["rng"] = r
         fl, ft = tags(d)
         rp = repairs(d, c.get("title", ""))
         if rp:

@@ -65,7 +65,8 @@
     c.age = Math.max(0, NOW - (c.year || NOW));
     c.ftitle = fold(c.make + ' ' + c.model);
     c.perf = perfTier(c);
-    c.pwRaw = c.hp ? c.hp / 100 : powerHint(c);  // hestöfl af auglýsingunni ef til, annars giskað út frá heitinu
+    c.pwRaw = c.hp ? c.hp / 100 : powerHint(c);
+    c.rngEst = !c.rng && c.fcat === 'Rafmagn' && window.EV ? EV.range(c) : null;  // dæmigerð drægni gerðarinnar ef auglýsingin nefnir hana ekki  // hestöfl af auglýsingunni ef til, annars giskað út frá heitinu
     c.priv = c.src === 'bland.is';
     c.vis = VISION[c.id] || null;
     // sérútbúnir bílar og verkefni: ekki sambærilegir við venjulega bíla af sömu gerð
@@ -520,7 +521,7 @@
       for (var i = 0; i < words.length; i++) if (c.ftitle.indexOf(words[i]) < 0) return false;
       if (f.loc && c.loc !== f.loc) return false;
       if (fts.length && !fts.every(function (x) { return c.ft && c.ft.indexOf(x) >= 0; })) return false;
-      if (f.rangeMin != null && !(c.rng >= f.rangeMin)) return false;
+      if (f.rangeMin != null && !((c.rng || (c.rngEst && c.rngEst[0])) >= f.rangeMin)) return false;
       if (f.clean && c.fl && c.fl.some(function (x) { return BAD_FLAGS[x]; })) return false;
       if (f.view === 'new' && !c.isNew) return false;
       if (f.view === 'drop' && !c.drop) return false;
@@ -815,7 +816,7 @@
       (c.fl || c.relist || c.also || c.perf.t ? '<div class="flags big">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') + flagChips(c) + '</div>' : '') +
       '<div class="specs">' + spec('calendar', 'Árgerð', c.year) + spec('route', 'Ekinn', c.km != null ? kmFmt(c.km) + (c.age > 0 && c.km ? '<small>≈' + Math.round(c.km / c.age / 1000) + ' þ./ári</small>' : '') : '') +
       spec('fuel', 'Eldsneyti', esc(c.fcat)) + spec('cog', 'Skipting', c.auto === true ? 'Sjálfskipt' : c.auto === false ? 'Beinskipt' : '') +
-      spec('zap', 'Afl', c.hp ? c.hp + ' hö' : '') + spec('gauge', 'Drægni', c.rng ? c.rng + ' km' : '') + spec('car', 'Drif', c.awd ? 'Fjórhjóladrif' : '') +
+      spec('zap', 'Afl', c.hp ? c.hp + ' hö' : '') + spec('gauge', c.rng ? 'Drægni' : 'Drægni (dæmigerð)', c.rng ? c.rng + ' km' : c.rngEst ? '~' + (c.rngEst[0] === c.rngEst[1] ? c.rngEst[0] : c.rngEst[0] + '–' + c.rngEst[1]) + ' km' : '') + spec('car', 'Drif', c.awd ? 'Fjórhjóladrif' : '') +
       spec('store', 'Seljandi', esc(c.dealer)) + '</div>' +
       (c.also ? '<div class="also">' + ic('copy') + '<div><b>Sami bíll er auglýstur á ' + (c.also.length + 1) + ' stöðum</b>' +
         '<div class="also-row"><span>' + esc(c.dealer) + ' (þessi)</span><b>' + kr(c.price) + '</b></div>' +

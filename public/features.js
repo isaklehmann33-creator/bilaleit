@@ -213,13 +213,18 @@
   function evHtml(c, q) {
     var sum = 18, win = 23.5;  // kWh/100 km: íslenskt sumar / vetur (−5 °C, miðstöð og forhitun)
     var rows = '';
-    if (c.rng) rows += '<span>🔋 Uppgefin drægni</span><b>' + c.rng + ' km</b>' +
-      '<span>☀️ Raunhæft að sumri</span><b>~' + Math.round(c.rng * 0.88 / 10) * 10 + ' km</b>' +
-      '<span>❄️ Í frosti</span><b>~' + Math.round(c.rng * 0.65 / 10) * 10 + ' km</b>';
+    var r = c.rng ? [c.rng, c.rng] : c.rngEst;
+    function km(f) { var a = Math.round(r[0] * f / 10) * 10, b = Math.round(r[1] * f / 10) * 10; return '~' + (a === b ? a : a + '–' + b) + ' km'; }
+    if (r) rows += '<span>🔋 ' + (c.rng ? 'Uppgefin drægni' : 'Dæmigerð drægni gerðarinnar') + '</span><b>' + km(1).slice(c.rng ? 1 : 0) + '</b>' +
+      '<span>☀️ Raunhæft að sumri</span><b>' + km(0.88) + '</b>' +
+      '<span>❄️ Í frosti</span><b>' + km(0.65) + '</b>';
     rows += '<span>🏠 Heimahleðsla, sumar / vetur</span><b>' + A.kr(sum * q.kwh) + ' / ' + A.kr(win * q.kwh) + '</b>' +
       '<span>⚡ Hraðhleðsla, sumar / vetur</span><b>' + A.kr(sum * q.fast) + ' / ' + A.kr(win * q.fast) + '</b>';
     $('cEv').innerHTML = '<div class="cost-rows">' + rows + '</div><span class="note">Kostnaður á hverja 100 km. ' +
-      (c.rng ? 'Drægnin er uppgefin (WLTP); í frosti fer orka í miðstöð og rafhlaðan er kaldari, svo hún styttist um ~35%. ' : '') +
+      (c.rngEst ? 'Auglýsingin nefnir ekki drægni, svo hér er uppgefið bil gerðarinnar (WLTP) eftir rafhlöðu og útgáfu; spurðu seljandann um stærð rafhlöðunnar. ' : '') +
+      (c.rng ? 'Drægnin er uppgefin (WLTP). ' : '') +
+      (r ? 'Í frosti fer orka í miðstöð og rafhlaðan er kaldari, svo drægnin styttist um ~35%. ' : '') +
+      (r && (c.km > 100000 || c.age > 5) ? 'Rafhlaðan hefur líka elst: algengt er að hún hafi tapað 5–15% af upphaflegri getu, svo spurðu um rafhlöðuskýrslu (SoH). ' : '') +
       'Hraðhleðsla kostar oft 2–3× heimahleðslu.</span>';
   }
 
