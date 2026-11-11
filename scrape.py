@@ -575,10 +575,12 @@ REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
     ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn|\bdent|accident|body ?work"),
 ]
 DEFECT = r"gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma|nee+ds?\b|replac|broken|faulty|worn|leak|noise|issue|problem|not working|is on\b|cracked|\bdue\b"
-DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b|\bnew\b|(?<!be )(?<!be  )replaced\b|(?<!be )changed\b|renewed|recently|just got|fixed|repaired|serviced"
+DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b|\bnew\b|(?<!be )(?<!be  )replaced\b|(?<!be )changed\b|renewed|recently|just got|fixed|repaired|serviced|\bgood\b|great|excellent"
 
 
 NEG_NEAR = r"(engin|ekkert|ekki|aldrei|\bno\b|\bnot\b|without|n['’]t|never)\W+(\w+\W+){0,3}(gall|bilu|vandam|ryð|leki|problem|issue|fault|rust|leak)"
+TIRE_EXTRA = r"vetrar|sumar|nagla|heilsárs|negld|fylgj|fylgir|auka|winter|summer|spike|stud|all.?season|separate|extra|included|\bset\b"  # dekk sem fylgja, ekki galli
+TIRE_BAD = r"slit|ónýt|þarf|worn|bald|need|replace"
 NEEDS_NEW = r"(nee+d\w*|þarf\w*|þarfnast)\s+(?:a |an |\w+ )?(?:new|ný)"  # „needs new clutch“ / „þarf nýja kúplingu“ = galli
 
 
@@ -597,6 +599,8 @@ def repairs(d, title=""):
                 # gallaorðið þarf að vera nálægt hlutnum (löng lýsing án punkta er annars ein „setning“)
                 near = sent[max(0, m.start() - 45):m.end() + 30]
                 done = re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25]) and not re.search(NEEDS_NEW, near)
+                if code == "dekk" and re.search(TIRE_EXTRA, near) and not re.search(TIRE_BAD, sent[max(0, m.start() - 20):m.end() + 20]):
+                    continue
                 if (re.search(DEFECT, near) and not done and not re.search(NEG_NEAR, near)
                         and not re.match(r"\s?(laus|frí|lítið|.?free)", sent[m.end():m.end() + 8])):
                     seen.add(code)
