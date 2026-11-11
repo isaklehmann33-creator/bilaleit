@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Sami bíll auglýstur á fleiri en einum stað (t.d. hjá bílasölu og á bland.is), fundinn út frá fyrstu mynd.
+"""Sami bíll auglýstur á fleiri en einum stað (t.d. hjá bílasölu og á bland.is), fundinn út frá fyrstu mynd
+(eða sömu árgerð, akstri og verði hjá ólíkum seljendum).
 
 Hver mynd fær myndafingrafar (dHash, 64 bitar). Tvær auglýsingar teljast sami bíll þegar fingraförin eru nær eins
 OG tegund, árgerð (±1) og akstur (±3%) passa. Akstursskilyrðið útilokar nýja bíla með sömu kynningarmynd frá umboði.
@@ -103,6 +104,20 @@ def main():
                 if bin(ha ^ hb).count("1") <= MAX_DIST and same_car(a, b):
                     parent[find(a["id"])] = find(b["id"])
                     pairs += 1
+    # sama árgerð, akstur, verð og afl hjá ólíkum seljendum = sami bíll, þótt fyrsta myndin sé önnur
+    meta = {}
+    for c in cars:
+        if c.get("year") and c.get("price") and (c.get("km") or 0) >= 1000:
+            meta.setdefault((c["make"], model_key(c), c["year"], c["km"], c["price"]), []).append(c)
+    for same in meta.values():
+        if not 2 <= len(same) <= 4 or len({c.get("dealer") for c in same}) < 2:
+            continue
+        if len({c["hp"] for c in same if c.get("hp")}) > 1:
+            continue
+        for c in same[1:]:
+            if find(c["id"]) != find(same[0]["id"]):
+                parent[find(c["id"])] = find(same[0]["id"])
+                pairs += 1
     groups = {}
     for k in parent:
         groups.setdefault(find(k), set()).add(k)
