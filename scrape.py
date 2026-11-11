@@ -514,14 +514,14 @@ def photos(c, h):
 # --- viðvaranir, plúsar og búnaður úr lýsingu og búnaðarlista -------------------
 NEG = r"(?:ekki|ekkert|engin|ekkert|aldrei|enginn|laus við|án|no|not|never|without|free of|n['’]t)\W+(?:\w+\W+){0,3}"
 FLAGS = {   # kóði: (neikvætt?, mynstur)
-    "tjon": (True, r"tjón|árekstr|klesst|tjónabíl|accident|collision|crash damage|salvage"),
-    "ryd": (True, r"\bryð|\brust(?!.?free|.?proof)"),
+    "tjon": (True, r"tjón|árekstr(?!ar ?(?:vör|var|viðvör|hemil|skynj))|klesst|tjónabíl|accident|collision(?![ -]?(?:avoid|warn|mitig|assist|prevent|detect))|crash damage|salvage"),
+    "ryd": (True, r"\bryð(?!var|vör|verj|frí|laus)|\brust(?!.?free|.?proof)"),
     "laga": (True, r"þarfnast|þarf að laga|þarf (?:smá |einhverja |aðeins )?athygli|þarf að kíkja á|þarf smá|þarf að skipta um|þarf nýj|bilaður|biluð|bilað|bilun|gallað|gallaður|gölluð|galli\b|gallar\b|ónýt|virkar ekki|"
                    r"lekur|leki\b|olíuleki|vélarljós|check engine|vélarvandamál|gírkassavandamál|skiptingin slær|ekki gangfær|óökufær|í varahluti|til niðurrifs|uppgerðar|"
                    r"needs? (?:some )?(?:repair|work|attention|fixing)|nee+d(?:s)? to be (?:replaced|fixed|repaired|changed|done)|needs? (?:new|replac)|broken|faulty|not working|doesn['’]t work|"
                    r"drawback|does ?n(?:o|['’])t (?:open|close|start|work|function)|won['’]t (?:open|close|start|work)|opnast ekki|lokast ekki|fer ekki (?:upp|niður|í gang)|"
                    r"\bleak|engine light|exhaust light|warning light|for parts|project car|some things need"),
-    "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun|failed (?:the )?inspection|re-?inspection"),
+    "skodun": (True, r"endurskoðun|fær ekki skoðun|óskoðaður|athugasemd(?:ir)? (?:í|við) skoðun|failed (?:the )?inspection|re-?inspection|needs? (?:an? )?inspection|not inspected|ekki skoðaður"),
     "serut": (True, r"rall[ýy]\w*|keppnisbíl|kvartmílu|driftbíl|sandspyrnu|torfærubíl|til niðurrifs|í varahluti|varahlutabíl|ógangfær|óökufær|verkefnabíll|verkefni fyrir"),
     "timareim": (False, r"(?:ný|nýleg|skipt um|nýbúið að skipta um) (?:tímareim|keðju)|tímareim (?:ný|nýleg|skipt)|new timing belt|timing (?:belt|chain) (?:was |has been )?(?:replaced|changed)"),
     "skodadur": (False, r"nýskoðaður|ný skoðun|skoðaður (?:20\d\d|til)|nýlega skoðaður|new inspection|passed (?:the )?inspection|freshly inspected"),
@@ -550,7 +550,7 @@ FEATURES = {
 # --- áætlaður viðgerðarkostnaður: gallaður hlutur í lýsingu -> gróft verðbil (kr., varahlutir + vinna m. VSK) ---
 # Áætlanir fyrir dæmigerðan fólksbíl á íslensku verkstæði 2026. Fáar opinberar verðskrár eru til; uppfærið eftir þörfum.
 REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
-    ("timareim", "Tímareim + vatnsdæla", 90000, 220000, r"tímareim|timing belt"),
+    ("timareim", "Tímareim + vatnsdæla", 90000, 220000, r"tímarei[mn]|tímareym|timing belt"),
     ("timakedja", "Tímakeðja", 250000, 600000, r"tímakeðj|timing chain"),
     ("kupling", "Kúpling", 150000, 400000, r"kúpling|kupling|clutch"),
     ("skipting", "Sjálfskipting / gírkassi", 400000, 1500000, r"sjálfskipting|skipting\w*|gírkass|gírkass|gírar|gearbox|transmission"),
@@ -567,7 +567,7 @@ REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
     ("drifskaft", "Drifskaft / upphengjulega", 60000, 200000, r"drifskaft|upphengj|drifskapt|drive ?shaft|prop ?shaft"),
     ("legur", "Hjólalegur", 40000, 100000, r"hjólaleg|\blegur|\blega\b|wheel bearing"),
     ("startari", "Startari / alternator", 80000, 200000, r"startar|alternator|altenator|hleðslutæki vélar|starter motor"),
-    ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð|sílsa|sílsum|\brust"),
+    ("ryd", "Ryðviðgerð", 100000, 500000, r"\bryð(?!var|vör|verj|frí|laus)|sílsa|sílsum|\brust"),
     ("upphalari", "Rúðuupphalari", 30000, 100000, r"rúðuupphal|upphalar|rúð\w* (?:\w+ )?(?:opnast|lokast|fer) ekki|\bwindows?\b(?! ?(?:shield|screen))|power window"),
     ("rudan", "Framrúða", 80000, 250000, r"framrúð|rúðan(?! (?:\w+ )?(?:opnast|lokast|fer) ekki)|sprunga í rúðu|windshield|windscreen"),
     ("hv", "Drifrafhlaða (tvinn/rafbíll)", 500000, 2500000, r"drifrafhl|rafhlaða|rafhlöðu|batterí"),
@@ -576,7 +576,7 @@ REPAIRS = [  # (kóði, heiti, lægst, hæst, mynstur fyrir hlutinn)
     ("vel", "Vél (mikil viðgerð eða skipti)", 600000, 2000000, r"\bvélin\b|\bvél\b|mótor|\bengine\b"),
     ("plotur", "Plötu- og tjónaviðgerð", 100000, 1000000, r"tjón|beygl|árekst|klesst|plötuvinn|\bdent|accident|body ?work"),
 ]
-DEFECT = r"drawback|does ?n(?:o|['’])t|won['’]t|opnast ekki|lokast ekki|fer ekki|gall|bilu|bila[ðn]|ónýt|slít|farin|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|hljóð|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma|nee+ds?\b|replac|broken|faulty|worn|leak|noise|issue|problem|not working|is on\b|cracked|\bdue\b"
+DEFECT = r"(?<!með )farin|drawback|does ?n(?:o|['’])t|won['’]t|opnast ekki|lokast ekki|fer ekki|gall|bilu|bila[ðn]|ónýt|slít|farið að|byrju?ð að|athygli|kíkja á|þarf\w* |þarfnast|laga|lek|slit|slæ|skipta um|vandam|virkar ekki|óhljóð|(?<!gott )(?<!flott )(?<!fínt )hljóð (?:í|frá|þegar|kemur)|bank|titr|ryð|sprung|logar|kominn tími á|komin(n)? á tíma|nee+ds?\b|replac|broken|faulty|worn|leak|noise|issue|problem|not working|is on\b|cracked|\bdue\b"
 DONE = r"\bný\w*\b|nýleg|nýbúið|búið að|skipt var|skipt um .{0,20}(20\d\d|nýlega)|var skipt|endurnýj|yfirfar|í lagi|góð\w*\b|\bnew\b|(?<!be )(?<!be  )replaced\b|(?<!be )changed\b|renewed|recently|just got|fixed|repaired|serviced|\bgood\b|great|excellent"
 
 
@@ -607,7 +607,7 @@ def repairs(d, title=""):
     text = (d.get("d", "") + ". " + title).lower()
     out, seen = [], set()
     # setningar, líka upptalningar („ - bremsur … - EGR …“); punktur í tölu („2.000 km“) skiptir ekki
-    for sent in re.split(r"(?<!\d)[.!?](?!\d)|[\n;]+|\s[-•*]\s", text):
+    for sent in re.split(r"(?<!\d)[.!?](?!\d)|[\n;]+|\s[-•*]\s|[✅✔☑▪•➡🔹]", text):
         if not sent or not re.search(DEFECT, sent):
             continue
         for code, name, lo, hi, pat in REPAIRS:
@@ -616,7 +616,7 @@ def repairs(d, title=""):
             for m in re.finditer(pat, sent):
                 # gallaorðið þarf að vera nálægt hlutnum (löng lýsing án punkta er annars ein „setning“)
                 near = sent[max(0, m.start() - 45):m.end() + 30]
-                done = re.search(DONE, sent[max(0, m.start() - 25):m.end() + 25]) and not re.search(NEEDS_NEW, near)
+                done = re.search(DONE, sent[max(0, m.start() - 40):m.end() + 25]) and not re.search(NEEDS_NEW, near)
                 if code == "dekk" and re.search(TIRE_EXTRA, near) and not re.search(TIRE_BAD, sent[max(0, m.start() - 20):m.end() + 20]):
                     continue
                 if (re.search(DEFECT, near) and not done and not re.search(NEG_NEAR, near)
