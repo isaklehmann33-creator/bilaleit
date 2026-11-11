@@ -140,7 +140,7 @@
       nm = A.esc(A.cap(c.make) + ' ' + A.cap(c.base)), alive = Math.round(s.p * s.n);
     return '<div class="surv ' + s.cls + '"><div class="surv-top">' + ic('shield-check') + '<b>' + s.label + '</b><span class="note">ending á Íslandi</span></div>' +
       '<p class="surv-lead">Af <b>' + s.n.toLocaleString('de-DE') + '</b> ' + nm + ' sem komu nýir til landsins ' + span + ' eru <b>' + alive.toLocaleString('de-DE') +
-      ' (' + pc(s.p) + ')</b> enn í umferð. Hinum hefur verið fargað. Hjá öllum fólksbílum frá sömu árum eru ' + pc(s.avg) + ' enn í umferð.</p>' +
+      ' (' + pc(s.p) + ')</b> enn á skrá (ekki fargað). Hjá öllum fólksbílum frá sömu árum eru ' + pc(s.avg) + ' enn á skrá.</p>' +
       '<div class="surv-bars"><div><span>' + A.esc(A.cap(c.base)) + ' ' + span + '</span><i><em style="width:' + pc(s.p) + '"></em></i><b>' + pc(s.p) + '</b></div>' +
       '<div class="avg"><span>Allir fólksbílar ' + span + '</span><i><em style="width:' + pc(s.avg) + '"></em></i><b>' + pc(s.avg) + '</b></div></div>' +
       '<p class="note">' + (s.own ? '' : 'Þessi bíll er árg. ' + c.year + ', en of fáum af hans árgerð hefur verið fargað til að segja eitthvað, svo hér er miðað við eldri árgerðir af sömu gerð. ') +
