@@ -197,10 +197,10 @@ function dayIs(s) { return s ? `${+s.slice(6, 8)}. ${MON[+s.slice(4, 6) - 1]} ${
     pages.push(url);
   });
   const body = `<section class="hero"><h1>Verð á notuðum bílum <span>eftir gerð</span></h1>
-<p class="lead">Hvað kostar notaður bíll á Íslandi? Veldu tegund og gerð til að sjá verð eftir árgerð, verðþróun, endingu og algenga veikleika.</p></section>
+<p class="lead">Hvað kostar notaður bíll á Íslandi? Veldu framleiðanda og gerð til að sjá verð eftir árgerð, verðþróun, endingu og algenga veikleika.</p></section>
 ${makes.map((mk) => `<section class="mk"><h2><a href="/verd/${M.slug(mk)}/">${esc(M.cap(mk))}</a></h2><div class="chips">${byMake[mk].slice(0, 30).map((x) => `<a href="${x.url}">${esc(M.cap(x.b))} <span>${x.n}</span></a>`).join('')}</div></section>`).join('\n')}`;
   fs.writeFileSync(path.join(OUT, 'index.html'), page({ title: 'Verð á notuðum bílum á Íslandi eftir gerð | Bílaleit',
-    desc: 'Verð á notuðum bílum á Íslandi eftir tegund og gerð: miðgildi verðs, verð eftir árgerð, verðþróun og ending.', canon: '/verd/',
+    desc: 'Verð á notuðum bílum á Íslandi eftir framleiðanda og gerð: miðgildi verðs, verð eftir árgerð, verðþróun og ending.', canon: '/verd/',
     crumbs: [['Bílaleit', '/'], ['Verð', '/verd/']], body }));
   pages.unshift('/verd/');
 

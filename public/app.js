@@ -686,7 +686,7 @@
     var v = verdict(c), name = cap(c.base);
     if (c.classic) return 'Fornbíll: verðið fer eftir ástandi, uppgerð og sögu, ekki aldri og akstri, svo hann er ekki metinn út frá yngri ' + name + '.';
     if (c.special) return 'Sérútbúinn eða verkefni, ekki sambærilegur við venjulega ' + name + '.';
-    if (c.peers < 2) return 'Fáir ' + name + ' á skrá, svo matið byggir á tegundinni í heild.';
+    if (c.peers < 2) return 'Fáir ' + name + ' á skrá, svo matið byggir á framleiðandanum í heild.';
     if (c.dev <= -0.5) return 'Meira en helmingi ódýrari en sambærilegir. Oft villa, tjón eða varahlutabíll.';
     if (c.perf.t && !c.tierPeers) return 'Enginn annar ' + name + ' ' + c.perf.label + ' á skrá til að bera saman við.';
     if (!c.agePeers && Math.abs(c.dev) >= 0.12) {
@@ -774,7 +774,7 @@
     }).join('') + '</ul>' +
       '<div class="rp-sum"><div><span>Verð + viðgerð</span><b>' + mkrShort(lo) + '–' + mkrShort(hi) + ' m.kr.</b></div><div><span>Mat (gallalaus)</span><b>' + mkrShort(c.est) + ' m.kr.</b></div>' +
       '<div class="' + (hi < c.est ? 'g' : lo > c.est ? 'b' : '') + '"><span>Niðurstaða</span><b>' + (hi < c.est ? 'Borgar sig líklega' : lo > c.est ? 'Borgar sig ekki' : 'Tæpt') + '</b></div></div>' +
-      '<p class="note">Greint úr lýsingu seljanda. Gróf verðbil fyrir dæmigerðan fólksbíl á íslensku verkstæði (varahlutir + vinna); raunverð fer eftir tegund og ástandi. Fáðu tilboð frá verkstæði áður en þú kaupir.</p></div>';
+      '<p class="note">Greint úr lýsingu seljanda. Gróf verðbil fyrir dæmigerðan fólksbíl á íslensku verkstæði (varahlutir + vinna); raunverð fer eftir gerð og ástandi. Fáðu tilboð frá verkstæði áður en þú kaupir.</p></div>';
   }
   function spec(icon, label, val) { return val ? '<div class="spec">' + ic(icon) + '<span>' + label + '</span><b>' + val + '</b></div>' : ''; }
 
@@ -793,11 +793,11 @@
     var prompt = 'Ég er að íhuga að kaupa notaðan bíl á Íslandi:\n' + describe(c) +
       '\n\nVerðmat út frá sambærilegum auglýsingum: ' + kr(c.est) + ' (' + pct(c.dev) + ' frá mati, ' + c.peers + ' sambærilegir).' +
       (sim.length ? '\n\nSambærilegir bílar til sölu núna:\n' + sim.map(function (o) { return '- ' + describe(o); }).join('\n') : '') +
-      '\n\nEr þetta gott verð miðað við akstur og aldur? Hvað ætti ég að skoða sérstaklega á þessari tegund/árgerð (algengir gallar, viðhald), ' +
+      '\n\nEr þetta gott verð miðað við akstur og aldur? Hvað ætti ég að skoða sérstaklega á þessari gerð/árgerð (algengir gallar, viðhald), ' +
       'og hvaða spurningar ætti ég að spyrja seljandann? Svaraðu á íslensku.';
     var saved = isSaved(c.id), inCmp = compare.indexOf(c.id) >= 0;
     var estText = c.classic ? '' : (c.peers >= 2 && c.dev <= -0.5 ? '<p class="warn-box">' + ic('triangle-alert') + '<span><b>Verðið er meira en helmingi undir sambærilegum bílum.</b> Það getur verið innsláttarvilla, tjónabíll, bíll til niðurrifs eða jafnvel svindl. Lestu auglýsinguna vel og borgaðu aldrei fyrirfram.</span></p>' : '') +
-      '<p class="note">' + (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á tegundinni í heild.' :
+      '<p class="note">' + (c.peers < 2 ? 'Fáar sambærilegar auglýsingar, svo matið byggir að hluta á framleiðandanum í heild.' :
         'Byggt á ' + c.peers + ' öðrum ' + esc(cap(c.make) + ' ' + cap(c.base)) + ', leiðrétt fyrir aldri, akstri, eldsneyti' + (c.perf.t ? ', útgáfu' : '') + (c.pwRaw != null ? ', vélarafli' : '') + '.') +
       (c.perf.t ? ' ' + esc(c.perf.label) + ' er ' + (c.perf.t === 2 ? 'toppútgáfa' : 'sportútgáfa') + ': slíkar útgáfur kosta að jafnaði ~' +
         Math.round((Math.exp(model.beta[c.perf.t === 2 ? FI.perf2 : FI.perf1]) - 1) * 100) + '% meira. ' +
@@ -1024,7 +1024,7 @@
     }
     var prompt = 'Ég er að velja á milli þessara notuðu bíla á Íslandi:\n' + list.map(function (c, i) {
       return (i + 1) + '. ' + describe(c) + ' – áætlað markaðsverð ' + kr(c.est) + ' (' + pct(c.dev) + ')';
-    }).join('\n') + '\n\nBerðu þá saman: verð miðað við akstur og aldur, áreiðanleika tegundanna, rekstrarkostnað, endursöluverð og algenga galla. ' +
+    }).join('\n') + '\n\nBerðu þá saman: verð miðað við akstur og aldur, áreiðanleika framleiðendanna, rekstrarkostnað, endursöluverð og algenga galla. ' +
       'Hvern myndirðu velja og af hverju? Svaraðu á íslensku.';
     openModal('<div class="m"><div class="m-head"><h2>Samanburður</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       '<div class="tbl-wrap" style="margin-top:12px"><table class="cmp-table"><tbody>' +
@@ -1197,9 +1197,9 @@
   }
   function renderPickers() {
     var mk = $('fMake').value, md = $('fModel').value;
-    $('pickMakeText').textContent = mk ? cap(mk) : 'Allar tegundir';
+    $('pickMakeText').textContent = mk ? cap(mk) : 'Allir framleiðendur';
     $('pickMakeMono').outerHTML = mk ? monoHtml(mk).replace(/^<span class="(mono|logo)/, '<span id="pickMakeMono" class="pb-mono $1') : '<span class="pb-mono" id="pickMakeMono">∗</span>';
-    $('pickModelText').textContent = md ? baseName(md) : (mk ? 'Allar gerðir' : 'Veldu tegund fyrst');
+    $('pickModelText').textContent = md ? baseName(md) : (mk ? 'Allar gerðir' : 'Veldu framleiðanda fyrst');
     $('pickMake').classList.toggle('set', !!mk);
     $('pickModel').classList.toggle('set', !!md);
     var chips = $('modelChips');
@@ -1246,12 +1246,12 @@
         monoHtml(x.key, true) + '<span class="pk-name">' + esc(cap(x.key)) + '</span>' +
         '<span class="pk-meta">' + x.n.toLocaleString('de-DE') + ' bílar · miðgildi ' + mkrShort(x.med) + ' m.kr.</span></button>';
     }
-    openModal('<div class="m picker"><div class="m-head"><h2>Veldu tegund</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
-      '<input id="pickSearch" class="pk-search" type="search" placeholder="Leita að tegund…" autocomplete="off">' +
-      '<button type="button" class="pk-all' + (cur ? '' : ' on') + '" data-pick-make=""' + ' data-name="allar">Allar tegundir <b>' + makes.reduce(function (s, x) { return s + x.n; }, 0).toLocaleString('de-DE') + '</b></button>' +
+    openModal('<div class="m picker"><div class="m-head"><h2>Veldu framleiðanda</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<input id="pickSearch" class="pk-search" type="search" placeholder="Leita að framleiðanda…" autocomplete="off">' +
+      '<button type="button" class="pk-all' + (cur ? '' : ' on') + '" data-pick-make=""' + ' data-name="allar">Allir framleiðendur <b>' + makes.reduce(function (s, x) { return s + x.n; }, 0).toLocaleString('de-DE') + '</b></button>' +
       '<div class="pk-section"><h4>Vinsælastar</h4><div class="pk-grid">' + popular.map(tile).join('') + '</div></div>' +
-      '<div class="pk-section"><h4>Allar tegundir A–Ö</h4><div class="pk-list">' + all.filter(major).map(row).join('') + '</div>' +
-      (minor.length ? '<details class="pk-more"><summary>Aðrar tegundir og tæki (' + minor.length + ')</summary><div class="pk-list">' + minor.map(row).join('') + '</div></details>' : '') +
+      '<div class="pk-section"><h4>Allir framleiðendur A–Ö</h4><div class="pk-list">' + all.filter(major).map(row).join('') + '</div>' +
+      (minor.length ? '<details class="pk-more"><summary>Aðrir framleiðendur og tæki (' + minor.length + ')</summary><div class="pk-list">' + minor.map(row).join('') + '</div></details>' : '') +
       '</div></div>', 'sheet');
   }
 
@@ -1268,7 +1268,7 @@
       '<span class="note">' + models.length + ' gerðir · ' + models.reduce(function (s, x) { return s + x.n; }, 0) + ' bílar</span></div></div>' +
       '<button class="x" data-close aria-label="Loka">×</button></div>' +
       '<div class="pk-bar"><input id="pickSearch" class="pk-search" type="search" placeholder="Leita að gerð…" autocomplete="off">' +
-      '<button type="button" class="link" id="pkChangeMake">Skipta um tegund</button></div>' +
+      '<button type="button" class="link" id="pkChangeMake">Skipta um framleiðanda</button></div>' +
       '<div class="tabs pk-tabs"><button type="button" class="on" data-pk-tab="now">Á sölu núna (' + models.length + ')</button>' +
       '<button type="button" data-pk-tab="other">Aðrar gerðir (' + others.length + ')</button></div>' +
       '<div data-pk-pane="now"><button type="button" class="pk-all' + (cur ? '' : ' on') + '" data-pick-model="" data-name="allar">Allar gerðir</button>' +

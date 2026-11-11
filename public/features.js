@@ -56,7 +56,7 @@
     A.openModal('<div class="m"><div class="m-head"><h2>💰 Hvað er bíllinn minn virði?</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       '<p class="note">Sláðu inn bílinn þinn. Matið byggir á öllum auglýsingum á skrá núna, leiðrétt fyrir aldri, akstri, eldsneyti og útgáfu.</p>' +
       '<form id="valForm" class="val-form">' +
-      '<label>Tegund<select id="vMake">' + A.makes().map(function (m) { return '<option value="' + esc(m) + '"' + (m === mk ? ' selected' : '') + '>' + esc(A.cap(m)) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Framleiðandi<select id="vMake">' + A.makes().map(function (m) { return '<option value="' + esc(m) + '"' + (m === mk ? ' selected' : '') + '>' + esc(A.cap(m)) + '</option>'; }).join('') + '</select></label>' +
       '<label>Gerð<select id="vModel"></select></label>' +
       '<label>Árgerð<input id="vYear" type="number" inputmode="numeric" min="1970" max="' + (NOW + 1) + '" value="' + (last.year || NOW - 6) + '" required></label>' +
       '<label>Ekinn (km)<input id="vKm" type="text" inputmode="numeric" data-fmt value="' + fmtThousands(last.km != null ? last.km : 90000) + '" required></label>' +
@@ -94,7 +94,7 @@
     var html = '<div class="val-result"><div class="val-main"><span class="note">Áætlað markaðsverð</span><div class="val-big">' + A.kr(Math.round(r.est / 1e4) * 1e4) + '</div>' +
       '<div class="val-range"><span>' + mkr(r.lo) + '</span><div class="vr-bar"><i></i></div><span>' + mkr(r.hi) + '</span></div>' +
       '<p class="note">Líklegt bil fyrir ásett verð. ' + (r.peers >= 5 ? 'Byggt á ' + r.peers + ' ' + esc(A.cap(c.make) + ' ' + A.cap(c.base)) + ' á skrá.' :
-        r.peers ? 'Aðeins ' + r.peers + ' sambærilegir á skrá, svo bilið er breitt.' : 'Enginn ' + esc(A.cap(c.base)) + ' á skrá núna, svo matið byggir á tegundinni í heild og er óvissara.') +
+        r.peers ? 'Aðeins ' + r.peers + ' sambærilegir á skrá, svo bilið er breitt.' : 'Enginn ' + esc(A.cap(c.base)) + ' á skrá núna, svo matið byggir á framleiðandanum í heild og er óvissara.') +
       (c.perf.t ? ' Útgáfan „' + esc(c.perf.label) + '“ er tekin með í reikninginn.' : '') + '</p></div>' +
       '<div class="val-side"><div class="val-tile"><span class="note">Ef þú selur sjálf/ur</span><b>' + mkr(r.est * 0.95) + ' – ' + mkr(r.est) + '</b><span class="note">t.d. á bland.is, oft aðeins undir ásettu verði bílasala</span></div>' +
       '<div class="val-tile"><span class="note">Uppítaka hjá bílasölu</span><b>~' + mkr(trade) + '</b><span class="note">bílasölur greiða oft 10–20% undir söluverði</span></div></div></div>';
@@ -576,7 +576,7 @@
         '<details class="cost-more"><summary>Sýna sem töflu</summary><div class="tbl-wrap"><table><thead><tr><th>Árgerð</th><th class="num">Miðgildi</th><th class="num">Fjöldi</th></tr></thead><tbody>' +
         rows.map(function (r) { return '<tr><td>' + r.x + '</td><td class="num">' + mkr(r.y) + '</td><td class="num">' + r.n + '</td></tr>'; }).join('') + '</tbody></table></div></details>' : '') +
       (list.length >= 5 ? '<h4>Verð á móti akstri</h4><p class="note">Hver punktur er bíll. Smelltu til að opna hann. Bílar langt undir hinum eru oft bestu kaupin (eða með galla).</p><div class="chart-wrap">' + scatter(list) + '</div>' : '') +
-      (sub.length > 1 ? '<h4>' + (f.make ? 'Gerðir' : 'Tegundir') + '</h4><div class="tbl-wrap"><table><thead><tr><th>' + (f.make ? 'Gerð' : 'Tegund') + '</th><th class="num">Fjöldi</th><th class="num">Miðgildisverð</th><th class="num">Miðgildi akstur</th><th class="num">Raf/tengiltvinn</th></tr></thead><tbody>' +
+      (sub.length > 1 ? '<h4>' + (f.make ? 'Gerðir' : 'Framleiðendur') + '</h4><div class="tbl-wrap"><table><thead><tr><th>' + (f.make ? 'Gerð' : 'Framleiðandi') + '</th><th class="num">Fjöldi</th><th class="num">Miðgildisverð</th><th class="num">Miðgildi akstur</th><th class="num">Raf/tengiltvinn</th></tr></thead><tbody>' +
         sub.map(function (x) {
           return '<tr><td>' + esc(A.cap(x.k)) + '</td><td class="num">' + x.n + '</td><td class="num">' + mkr(x.med) + '</td><td class="num">' + Math.round(x.km / 1000) + ' þ.</td><td class="num">' + Math.round(x.ev / x.n * 100) + '%</td></tr>';
         }).join('') + '</tbody></table></div>' : '') + '</div>', 'sheet');
@@ -595,7 +595,7 @@
         var fast = {};
         gone.forEach(function (a) { var k = f.make ? a.base : a.m; (fast[k] = fast[k] || []).push(A.daysBetween(a.f, a.g)); });
         var top = Object.keys(fast).filter(function (k) { return fast[k].length >= 3; }).map(function (k) { return { k: k, d: median(fast[k]), n: fast[k].length }; }).sort(function (a, b) { return a.d - b.d; }).slice(0, 8);
-        if (top.length) html += '<h4>Seljast hraðast</h4><div class="tbl-wrap"><table><thead><tr><th>' + (f.make ? 'Gerð' : 'Tegund') + '</th><th class="num">Dagar á skrá (miðgildi)</th><th class="num">Seldir</th></tr></thead><tbody>' +
+        if (top.length) html += '<h4>Seljast hraðast</h4><div class="tbl-wrap"><table><thead><tr><th>' + (f.make ? 'Gerð' : 'Framleiðandi') + '</th><th class="num">Dagar á skrá (miðgildi)</th><th class="num">Seldir</th></tr></thead><tbody>' +
           top.map(function (x) { return '<tr><td>' + esc(A.cap(x.k)) + '</td><td class="num">' + x.d + '</td><td class="num">' + x.n + '</td></tr>'; }).join('') + '</tbody></table></div>';
       } else {
         html += '<p class="hist-line">📅 Saga auglýsinga byrjaði ' + A.dayFmt(HSTART || today()) + '. Eftir nokkra daga birtist hér hve hratt bílar seljast og hvernig verð þróast.</p>';
