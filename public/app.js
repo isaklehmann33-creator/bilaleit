@@ -662,6 +662,46 @@
     if (d.showModal) { if (!d.open) d.showModal(); } else d.setAttribute('open', '');
     d.scrollTop = 0;
   }
+  // myndaskoðari: mynd í fullri stærð yfir bílaglugganum, fletta með örvum/strokum, ýta eða tvísmella til að stækka
+  function lightbox(urls, start) {
+    var lb = $('lightbox');
+    if (!lb) {
+      lb = document.createElement('dialog'); lb.id = 'lightbox';
+      lb.innerHTML = '<div class="lb-track" id="lbTrack"></div><span class="gal-pos" id="lbPos"></span>' +
+        '<button type="button" class="x float" id="lbClose" aria-label="Loka">' + ic('x') + '</button>' +
+        '<button type="button" class="gal-btn prev" data-lb="-1" aria-label="Fyrri mynd">' + ic('chevron-left') + '</button>' +
+        '<button type="button" class="gal-btn next" data-lb="1" aria-label="Næsta mynd">' + ic('chevron-right') + '</button>';
+      document.body.appendChild(lb);
+      var tr = lb.querySelector('#lbTrack');
+      var cur = function () { return Math.round(tr.scrollLeft / tr.clientWidth); };
+      var go = function (k) { tr.scrollTo({ left: (cur() + k) * tr.clientWidth, behavior: 'smooth' }); };
+      tr.addEventListener('scroll', function () {
+        var n = tr.children.length; $('lbPos').textContent = (cur() + 1) + ' / ' + n;
+        [].forEach.call(tr.querySelectorAll('.zoom'), function (f) { if (f !== tr.children[cur()]) { f.classList.remove('zoom'); f.firstChild.style.transformOrigin = ''; } });
+      });
+      lb.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-lb]');
+        if (b) return go(+b.getAttribute('data-lb'));
+        if (e.target.closest('#lbClose')) return lb.close();
+        var im = e.target.closest('.lb-track img');
+        if (!im) return lb.close();  // ýtt á svarta svæðið utan myndar
+        var f = im.parentNode, r = im.getBoundingClientRect();
+        if (!f.classList.contains('zoom')) im.style.transformOrigin = ((e.clientX - r.left) / r.width * 100) + '% ' + ((e.clientY - r.top) / r.height * 100) + '%';
+        f.classList.toggle('zoom');
+      });
+      lb.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+      });
+    }
+    var t = lb.querySelector('#lbTrack');
+    t.innerHTML = urls.map(function (u) { return '<div class="lb-frame"><img src="' + esc(u) + '" alt=""></div>'; }).join('');
+    [].forEach.call(lb.querySelectorAll('.gal-btn'), function (b) { b.hidden = urls.length < 2; });
+    $('lbPos').hidden = urls.length < 2;
+    if (lb.showModal) lb.showModal(); else lb.setAttribute('open', '');
+    t.scrollLeft = Math.max(0, start) * t.clientWidth;
+    $('lbPos').textContent = (Math.max(0, start) + 1) + ' / ' + urls.length;
+  }
   function closeModal() { var d = $('modal'); if (d.close) d.close(); else d.removeAttribute('open'); openCarId = ''; syncUrl(); }
 
   function describe(c) {
@@ -1379,6 +1419,8 @@
         else if (window.Acct) Acct.saveSimilar(ti.getAttribute('data-similar'), ti);
         return;
       }
+      var gi = e.target.closest && e.target.closest('#gallery img');
+      if (gi) { var all = [].slice.call($('gallery').querySelectorAll('img')); lightbox(all.map(function (x) { return x.currentSrc || x.src; }), all.indexOf(gi)); return; }
       var t = e.target.closest ? e.target.closest('[data-legend],[data-share],[data-watch],[data-save],[data-cmp],[data-open],[data-close],.car') : null;
       if (!t) return;
       if (t.hasAttribute('data-legend')) { e.stopPropagation(); showLegend(); return; }
