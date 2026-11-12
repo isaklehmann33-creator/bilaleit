@@ -3,10 +3,9 @@
 (function (root) {
   'use strict';
 
+  var FOLD = { á: 'a', à: 'a', é: 'e', í: 'i', ó: 'o', ö: 'o', ú: 'u', ý: 'y', þ: 'th', ð: 'd', æ: 'ae' };
   function fold(s) {
-    return String(s || '').toLowerCase()
-      .replace(/[áà]/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/[óö]/g, 'o')
-      .replace(/ú/g, 'u').replace(/ý/g, 'y').replace(/þ/g, 'th').replace(/ð/g, 'd').replace(/æ/g, 'ae');
+    return String(s || '').toLowerCase().replace(/[áàéíóöúýþðæ]/g, function (ch) { return FOLD[ch]; });
   }
 
   // Hástafir eins og bílaframleiðendur skrifa: skammstafanir og gerðir með tölum (GLE, EQC, X5, ID.4) haldast, annars Sprinter, Kia
@@ -24,7 +23,12 @@
   var MB_CLASSES = /^(A|B|C|E|S|G|V|T|X|CL|CLA|CLK|CLS|GL|GLA|GLB|GLC|GLE|GLK|GLS|ML|SL|SLC|SLK|R|EQA|EQB|EQC|EQE|EQS|EQV|EQT)$/;
   var TYPO = { SPORTAG: 'SPORTAGE', OPTIMALUXURI: 'OPTIMA', 'E-NIRO': 'NIRO', 'E-GOLF': 'GOLF', 'QASHQAI+2': 'QASHQAI', 'C-HR+': 'C-HR',
     'KA+': 'KA', 'TRANSIT/TOURNEO': 'TRANSIT', IONIQ5: 'IONIQ 5', IONIQ6: 'IONIQ 6', IONIQ9: 'IONIQ 9', 'SPRINTER-E': 'SPRINTER', ECITAN: 'CITAN' };
+  var BASE = Object.create(null);  // sama heiti kemur oft fyrir: reiknað einu sinni
   function baseModel(m, make) {
+    var k = String(make || '') + '\u0001' + String(m || '');
+    return k in BASE ? BASE[k] : (BASE[k] = baseModel0(m, make));
+  }
+  function baseModel0(m, make) {
     var w = String(m || '').toUpperCase().replace(/\b(KLASSE|KLASSI|CLASS)\b/g, ' ').replace(/-\s/g, ' ').split(/\s+/)
       .map(function (x) { return x.replace(/-$/, ''); }).filter(Boolean);
     var mk = String(make || '').toUpperCase();

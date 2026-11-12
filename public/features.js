@@ -621,12 +621,7 @@
   }
   function loadPlaces() {
     if (places) return Promise.resolve(places);
-    function get(u) { return fetch(u).then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return null; }); }
-    var gh = 'https://raw.githubusercontent.com/isaklehmann33-creator/bilaleit/main/public/data/places.json';
-    return Promise.all([get(gh), get('data/places.json?t=' + Date.now())]).then(function (r) {
-      places = r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];  // nýrra afritið
-      return places;
-    });
+    return A.newest('places').then(function (r) { places = r; return places; });  // nýrra afritið
   }
   function dist(a, b) {
     var R = 6371, dLat = (b[0] - a[0]) * Math.PI / 180, dLon = (b[1] - a[1]) * Math.PI / 180;

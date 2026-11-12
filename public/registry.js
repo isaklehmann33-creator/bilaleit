@@ -114,9 +114,7 @@
   var REG = null, regP = null;
   function load() {
     if (regP) return regP;
-    function get(u) { return fetch(u).then(function (r) { if (!r.ok) throw 0; return r.json(); }).catch(function () { return null; }); }
-    regP = Promise.all([get('https://raw.githubusercontent.com/isaklehmann33-creator/bilaleit/main/public/data/registry.json'), get('data/registry.json?t=' + Date.now())])
-      .then(function (r) { REG = r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1]; return REG; });
+    regP = A.newest('registry').then(function (r) { REG = r; return REG; });  // sama skrá og app.js sækir: bara sótt einu sinni
     return regP;
   }
   // gerðir skrárinnar („E 220“, „E220 CDI“) sameinaðar með sömu reglum og leitin (A.baseModel)

@@ -198,20 +198,24 @@
       var mean = known.length ? known.reduce(function (s, c) { return s + c.pwRaw; }, 0) / known.length : 0;
       groups[k].forEach(function (c) { c.pw = c.pwRaw != null ? c.pwRaw : mean; });
     });
-    var d = feats(list[0]).length, XtX = [], Xty = [], i, j;
+    var X = new Map();  // feats() einu sinni á bíl (c.pw er komið og breytist ekki í fit)
+    list.forEach(function (c) { X.set(c, feats(c)); });
+    var d = X.get(list[0]).length, XtX = [], Xty = [], i, j;
     for (i = 0; i < d; i++) { XtX.push(new Array(d).fill(0)); Xty.push(0); }
     Object.keys(groups).forEach(function (k) {
       var g = groups[k];
       if (g.length < 2) return;
       var mx = new Array(d).fill(0), my = 0, W = 0;
       g.forEach(function (c) { W += c.w; });
-      g.forEach(function (c) { var x = feats(c); for (i = 0; i < d; i++) mx[i] += c.w * x[i] / W; my += c.w * Math.log(c.price) / W; });
+      g.forEach(function (c) { var x = X.get(c); for (i = 0; i < d; i++) mx[i] += c.w * x[i] / W; my += c.w * Math.log(c.price) / W; });
+      var dx = new Array(d);
       g.forEach(function (c) {
-        var x = feats(c), y = Math.log(c.price) - my;
+        var x = X.get(c), y = Math.log(c.price) - my;
+        for (j = 0; j < d; j++) dx[j] = x[j] - mx[j];
         for (i = 0; i < d; i++) {
-          var xi = x[i] - mx[i];
-          Xty[i] += c.w * xi * y;
-          for (j = 0; j < d; j++) XtX[i][j] += c.w * xi * (x[j] - mx[j]);
+          var xi = dx[i], wxi = c.w * xi, row = XtX[i];
+          Xty[i] += wxi * y;
+          for (j = 0; j < d; j++) row[j] += wxi * dx[j];
         }
       });
     });
@@ -222,11 +226,12 @@
     XtX[FI.pw][FI.pw] += PW_STRENGTH; Xty[FI.pw] += PW_STRENGTH * PW_PRIOR;
     var beta = solve(XtX, Xty);
     if (beta[FI.pw] < 0.03) beta[FI.pw] = 0.03;  // stærri vél lækkar aldrei verð
-    function lin(c) { var x = feats(c), s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
+    function linX(x) { var s = 0; for (var i = 0; i < d; i++) s += beta[i] * x[i]; return s; }
+    function lin(c) { return linX(feats(c)); }
 
     var tot = 0, totW = 0, makes = {}, grp = {}, grpT = {};
     list.forEach(function (c) {
-      c._r = Math.log(c.price) - lin(c);
+      c._lin = linX(X.get(c)); c._r = Math.log(c.price) - c._lin;
       var w = c.w; tot += w * c._r; totW += w;
       var m = makes[c.make] = makes[c.make] || { s: 0, n: 0 }; m.s += w * c._r; m.n += w;
       var g = grp[c.key] = grp[c.key] || { s: 0, n: 0, ss: 0, cnt: 0 }; g.s += w * c._r; g.n += w; g.ss += w * c._r * c._r; g.cnt++;
@@ -241,15 +246,20 @@
       var gi = (g.s - w * c._r + 1.5 * mk) / (g.n - w + 1.5);
       // kraftútgáfur: miðum fyrst við aðra í sömu útgáfu (Golf R við Golf R); almenna álagið gildir bara ef enginn er til
       if (c.perf.t) { var gt = grpT[c.key + '|' + c.perf.label]; gi = (gt.s - w * c._r + 1 * gi) / (gt.n - w + 1); }
-      c.est = Math.round(Math.exp(gi + lin(c)) / 1e4) * 1e4;
+      c.est = Math.round(Math.exp(gi + c._lin) / 1e4) * 1e4;
       c.peers = g.cnt - 1;
-      c.tierPeers = groups[c.key].filter(function (o) { return o !== c && o.perf.label === c.perf.label; }).length;
-      // sambærilegir með sömu vél og eldsneyti (t.d. 520i ber sig ekki saman við 530e/545e)
-      c.enginePeers = c.pwRaw == null ? null : groups[c.key].filter(function (o) {
-        return o !== c && o.pwRaw != null && Math.abs(o.pwRaw - c.pwRaw) <= 0.35 && o.fcat === c.fcat;
-      }).length;
-      // sambærilegir á svipuðum aldri: annars byggir matið á framreiknuðu verðfalli (2016 bíll „leiðréttur“ í 2023)
-      c.agePeers = groups[c.key].filter(function (o) { return o !== c && Math.abs(o.age - c.age) <= 4; }).length;
+      // í einni umferð: sama útgáfa; sama vél og eldsneyti (520i ber sig ekki saman við 530e/545e);
+      // svipaður aldur (annars byggir matið á framreiknuðu verðfalli: 2016 bíll „leiðréttur“ í 2023)
+      var tier = 0, eng = 0, ageN = 0, gc = groups[c.key];
+      for (var k = 0; k < gc.length; k++) {
+        var o = gc[k]; if (o === c) continue;
+        if (o.perf.label === c.perf.label) tier++;
+        if (c.pwRaw != null && o.pwRaw != null && Math.abs(o.pwRaw - c.pwRaw) <= 0.35 && o.fcat === c.fcat) eng++;
+        if (Math.abs(o.age - c.age) <= 4) ageN++;
+      }
+      c.tierPeers = tier;
+      c.enginePeers = c.pwRaw == null ? null : eng;
+      c.agePeers = ageN;
       c.dev = c.price / c.est - 1;
     });
     // mat fyrir bíl sem er ekki í gögnunum (t.d. „hvað er bíllinn minn virði?“), með líklegu bili
@@ -527,8 +537,10 @@
       if (f.view === 'drop' && !c.drop) return false;
       return true;
     });
+    var uns = new Map();
+    function unsure(c) { var u = uns.get(c); if (u === undefined) uns.set(c, u = verdict(c).unsure ? 1 : 0); return u; }
     var by = {
-      deal: function (a, b) { return (verdict(a).unsure ? 1 : 0) - (verdict(b).unsure ? 1 : 0) || a.dev - b.dev; },
+      deal: function (a, b) { return unsure(a) - unsure(b) || a.dev - b.dev; },
       priceAsc: function (a, b) { return a.price - b.price; },
       priceDesc: function (a, b) { return b.price - a.price; },
       kmAsc: function (a, b) { return (a.km || 0) - (b.km || 0); },
@@ -590,7 +602,7 @@
     return u.replace('_thumb.jpg', '_full.jpg').replace(/(CarImage\/\d+\/\d+\/\d+\/)\d+/, '$1784').replace('w=400', 'w=800');
   }
   function card(c, i) {
-    var on = compare.indexOf(c.id) >= 0;
+    var on = compare.indexOf(c.id) >= 0, chips = flagChips(c, 2);
     return '<article class="car" data-id="' + esc(c.id) + '"' + (i < 0 ? ' data-still' : ' style="--i:' + Math.min(i || 0, 15) + '"') + '>' +
       '<div class="ph" style="' + (img(c) ? "background-image:url('" + esc(img(c)) + "')" : '') + '">' +
       '<span class="dealer">' + (c.priv ? ic('user') : ic('store')) + esc(c.dealer.replace(' (einstaklingur)', '')) + '</span>' +
@@ -603,7 +615,7 @@
       '<div class="meta">' + (c.perf.t ? '<span class="perf">' + ic(c.perf.t === 2 ? 'flag' : 'zap') + esc(c.perf.label) + '</span>' : '') +
         '<span>' + (c.year || '–') + '</span><span>' + kmFmt(c.km) + '</span><span>' + esc(c.fcat) + '</span>' +
         (c.auto === true ? '<span>Sjálfsk.</span>' : c.auto === false ? '<span>Beinsk.</span>' : '') + (c.hp ? '<span>' + c.hp + ' hö</span>' : '') + (c.rng ? '<span>' + c.rng + ' km</span>' : '') + '</div>' +
-      (flagChips(c, 2) ? '<div class="flags">' + flagChips(c, 2) + '</div>' : '') +
+      (chips ? '<div class="flags">' + chips + '</div>' : '') +
       '<div class="row"><span class="price">' + kr(c.price) + (c.oldPrice && c.oldPrice > c.price ? '<span class="old">' + kr(c.oldPrice) + '</span>' : '') + '</span></div>' +
       meter(c) + '<p class="why">' + esc(why(c)) + '</p></div></article>';
   }
@@ -1151,12 +1163,30 @@
     if (c.fl && c.fl.some(function (f) { return f === 'tjon' || f === 'laga' || f === 'ryd'; })) c.w *= 0.25;  // gallaðir draga matið síður niður
   }
   var VISION = {};  // ástandsmat út frá mynd (vision.py): id -> [flokkur, líkur]
+  // Gagnaskrá af GitHub (uppfærð á hverri nóttu) eða af síðunni sjálfri, hvor sem er nýrri. meta.json segir hvenær hvor var
+  // uppfærð, svo stóra skráin er bara sótt einu sinni; vanti yfirlitið er hvort tveggja sótt og það nýrra notað, eins og áður.
+  function getJSON(u) { return fetch(u).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).catch(function () { return null; }); }
+  var metaP = null, newestP = {};
+  function newest(name) {
+    if (newestP[name]) return newestP[name];
+    var gh = GITHUB_DATA.replace('cars.json', name + '.json'), loc = 'data/' + name + '.json?t=' + Date.now();
+    function both() {
+      return Promise.all([getJSON(gh), getJSON(loc)]).then(function (r) { return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1]; });
+    }
+    if (!metaP) metaP = Promise.all([getJSON(GITHUB_DATA.replace('cars.json', 'meta.json')), getJSON('data/meta.json?t=' + Date.now())]);
+    return (newestP[name] = metaP.then(function (m) {
+      var g = m[0] && m[0][name], l = m[1] && m[1][name];
+      if (!g || !l) return both();
+      return getJSON(g > l ? gh : loc).then(function (d) {
+        // sama og yfirlitið segir (eða nýrra): nota; annars (t.d. gamalt afrit í skyndiminni GitHub) bera bæði saman
+        return d && (d.updated || '') >= (g > l ? g : l) ? d : both();
+      });
+    }));
+  }
   var HIST = null, histP = null;  // saga: allar auglýsingar sem við höfum séð (data/history.json), sótt þegar þarf
   function loadHistory() {
     if (histP) return histP;
-    function get(u) { return fetch(u).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).catch(function () { return null; }); }
-    histP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'history.json')), get('data/history.json?t=' + Date.now())]).then(function (r) {
-      var h = r[0] && (!r[1] || r[0].updated >= r[1].updated) ? r[0] : r[1];
+    histP = newest('history').then(function (h) {
       HIST = [];
       if (h) Object.keys(h.ads).forEach(function (id) {
         var a = h.ads[id];
@@ -1489,24 +1519,12 @@
     function get(url) { return fetch(url).then(function (r) { if (!r.ok) throw r.status; return r.json(); }).catch(function () { return null; }); }
     get('logos/index.json').then(function (l) { if (l) { LOGOS = l; if (cars.length) render(true); } });
     var catP = get(GITHUB_DATA.replace('cars.json', 'catalog.json')).then(function (c) { return c || get('data/catalog.json'); });
-    var visP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'vision.json')), get('data/vision.json?t=' + Date.now())]).then(function (r) {
-      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
-    });
-    var regP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'registry.json')), get('data/registry.json?t=' + Date.now())]).then(function (r) {
-      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
-    });
-    var dupP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'dupes.json')), get('data/dupes.json?t=' + Date.now())]).then(function (r) {
-      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
-    });
-    var soldP = Promise.all([get(GITHUB_DATA.replace('cars.json', 'sold.json')), get('data/sold.json?t=' + Date.now())]).then(function (r) {
-      return r[0] && (!r[1] || (r[0].updated || '') >= (r[1].updated || '')) ? r[0] : r[1];
-    });
     var CAT = null, REGD = null, SOLDD = null, DUPD = null;
-    Promise.all([get(GITHUB_DATA), get('data/cars.json?t=' + Date.now()), visP, catP, regP, soldP, dupP]).then(function (res) {
-      SOLDD = res[5]; DUPD = res[6];
-      VISION = (res[2] && res[2].flags) || {};
-      CAT = res[3]; REGD = res[4];
-      var d = res[0] && (!res[1] || res[0].updated >= res[1].updated) ? res[0] : res[1];
+    Promise.all([newest('cars'), newest('vision'), catP, newest('registry'), newest('sold'), newest('dupes')]).then(function (res) {
+      SOLDD = res[4]; DUPD = res[5];
+      VISION = (res[1] && res[1].flags) || {};
+      CAT = res[2]; REGD = res[3];
+      var d = res[0];
       if (!d) throw new Error('engin gögn');
       return d;
     }).then(function (d) {
@@ -1630,7 +1648,7 @@
     query: function () { return $('q').value; }, setQuery: function (t) { $('q').value = t || ''; $('understood').hidden = true; },
     esc: esc, kr: kr, kmFmt: kmFmt, cap: cap, img: img, fold: fold, pct: pct, mkrShort: mkrShort, monoHtml: monoHtml,
     prep: prep, baseModel: baseModel, model: function () { return model; }, ageSlope: ageSlope, kmSlope: kmSlope, similar: similar, adjusted: adjusted, verdict: verdict,
-    catalogBases: catalogBases, loadHistory: loadHistory, hist: function () { return HIST; }, dayFmt: dayFmt, daysBetween: daysBetween,
+    catalogBases: catalogBases, loadHistory: loadHistory, newest: newest, hist: function () { return HIST; }, dayFmt: dayFmt, daysBetween: daysBetween,
     pastRow: pastRow, dateIs: dateIs, details: loadDetails, repairCost: repairCost, makes: function () { return uniq(cars.map(function (c) { return c.make; })).sort(); },
     setView: function (v) { $('fView').value = v; render(); }
   };

@@ -5,6 +5,7 @@ cd "$(dirname "$0")"
 V=$(date +%s)
 echo "{\"v\":\"$V\"}" > public/version.json
 sed -i '' "s/window.APP_VERSION = '[0-9]*'/window.APP_VERSION = '$V'/" public/firebase-config.js
+python3 meta.py
 node pages.js
 python3 share.py || echo "Deilisíður: sleppt"
 npx -y firebase-tools@13.29.1 deploy --only hosting,firestore:rules --non-interactive
