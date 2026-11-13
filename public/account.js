@@ -57,6 +57,8 @@
   function showLogin(msg) {
     A.openModal('<div class="m narrow"><div class="m-head"><h2>Innskráning</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
       (msg ? '<p class="note">' + A.esc(msg) + '</p>' : '<p class="note">Með aðgangi geturðu vistað bíla og leitir og fengið tilkynningu þegar nýr bíll bætist við.</p>') +
+      '<p class="note">Við geymum netfangið þitt og það sem þú vistar, og ekkert annað. Þú getur eytt aðganginum hvenær sem er. ' +
+      '<a href="/personuvernd.html" target="_blank" rel="noopener">Persónuverndarstefna</a></p>' +
       '<form id="loginForm" class="form"><label>Netfang<input id="lEmail" type="email" autocomplete="email" required></label>' +
       '<label>Lykilorð<input id="lPass" type="password" autocomplete="current-password" minlength="6" required></label>' +
       '<p id="lErr" class="err" hidden></p>' +
@@ -298,7 +300,43 @@
       '<div class="me-list"><button type="button" data-acct="notes">' + ic('bell') + 'Tilkynningar' + (n ? '<em class="dot">' + n + '</em>' : '') + '</button>' +
       '<button type="button" data-acct="saved">' + ic('heart') + 'Vistaðir bílar og leitir</button>' +
       (isAdmin() ? '<button type="button" data-acct="admin">' + ic('gauge') + 'Stjórnborð</button>' : '') +
-      '<button type="button" data-acct="logout">' + ic('x') + 'Skrá út</button></div></div>');
+      '<button type="button" data-acct="logout">' + ic('x') + 'Skrá út</button></div>' +
+      '<div class="me-legal"><button type="button" class="link" data-acct="export">Sækja gögnin mín</button>' +
+      '<a class="link" href="/personuvernd.html" target="_blank" rel="noopener">Persónuvernd</a>' +
+      (isAdmin() ? '' : '<button type="button" class="link danger" data-acct="delete-ask">Eyða aðgangi</button>') + '</div></div>');
+  }
+  // GDPR: notandi getur sótt öll gögn sín og eytt aðganginum sjálfur
+  function exportData() {
+    var out = { netfang: user.email, stofnad: user.metadata && user.metadata.creationTime, gogn: doc };
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
+    a.download = 'bilaleit-gognin-min.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  function askDelete() {
+    A.openModal('<div class="m narrow"><div class="m-head"><h2>Eyða aðgangi</h2><button class="x" data-close aria-label="Loka">×</button></div>' +
+      '<p>Aðgangurinn þinn (' + A.esc(user.email) + ') og öll gögn sem honum fylgja (vistaðir bílar, leitir, verðvaktir og tilkynningar) verða <b>eydd varanlega</b>. Það er ekki hægt að afturkalla.</p>' +
+      '<form id="delForm" class="form"><label>Lykilorð (til staðfestingar)<input id="dPass" type="password" autocomplete="current-password" required></label>' +
+      '<p id="dErr" class="err" hidden></p>' +
+      '<div class="actions"><button type="submit" class="primary danger">Eyða aðgangi varanlega</button>' +
+      '<button type="button" class="sec" data-acct="me">Hætta við</button></div></form></div>');
+    $('delForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var err = $('dErr'), btn = this.querySelector('[type=submit]'), u = user;
+      err.hidden = true; btn.disabled = true;
+      var cred = firebase.auth.EmailAuthProvider.credential(u.email, $('dPass').value);
+      u.reauthenticateWithCredential(cred)
+        .then(function () { clearTimeout(saveTimer); doc = null; return db.collection('users').doc(u.uid).delete(); })  // engin bið-vistun eftir eyðingu
+        .then(function () { return u.delete(); })
+        .then(function () { A.closeModal(); toast('Aðganginum og öllum gögnum hans hefur verið eytt.'); })
+        .catch(function (e2) {
+          btn.disabled = false;
+          err.textContent = e2.code === 'auth/wrong-password' || e2.code === 'auth/invalid-credential' || e2.code === 'auth/invalid-login-credentials'
+            ? 'Rangt lykilorð.' : (ERR[e2.code] || ('Villa: ' + (e2.message || e2.code)));
+          err.hidden = false;
+        });
+    });
   }
 
   // ---------- stjórnandi ----------
@@ -348,28 +386,28 @@
       var today = days[59], last7 = days.slice(53), prev7 = days.slice(46, 53), last30 = days.slice(30);
       var u7 = sum(last7, 'u'), up7 = sum(prev7, 'u'), trend = up7 ? Math.round((u7 / up7 - 1) * 100) : null;
       var mob = sum(last30, 'm'), desk = sum(last30, 'd'), share = mob + desk ? Math.round(mob / (mob + desk) * 100) : 0;
-      // línurit: einstakir gestir á dag síðustu 30 daga (ein röð, sveimtexti á hverjum degi)
+      // línurit: heimsóknir á dag síðustu 30 daga (ein röð, sveimtexti á hverjum degi)
       var W = 640, H = 200, L = 34, B = 22, T = 10, max = Math.max(4, Math.max.apply(null, last30.map(function (x) { return x.u; }))) * 1.15;
       var X = function (i) { return L + (W - L - 8) * i / 29; }, Y = function (v) { return T + (H - T - B) * (1 - v / max); };
       var line = last30.map(function (x, i) { return (i ? 'L' : 'M') + X(i).toFixed(1) + ',' + Y(x.u).toFixed(1); }).join('');
       var area = line + 'L' + X(29) + ',' + (H - B) + 'L' + X(0) + ',' + (H - B) + 'Z';
-      var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Einstakir gestir á dag">' +
+      var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Heimsóknir á dag">' +
         [0, max / 2, max].map(function (t) { return '<line class="grid" x1="' + L + '" x2="' + W + '" y1="' + Y(t) + '" y2="' + Y(t) + '"/><text class="ax" x="' + (L - 6) + '" y="' + (Y(t) + 4) + '" text-anchor="end">' + Math.round(t) + '</text>'; }).join('') +
         '<path d="' + area + '" fill="var(--accent)" opacity=".12"/><path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>' +
         last30.map(function (x, i) {
           var lab = A.dateIs(new Date(x.k));
-          return '<g data-tip="<b>' + lab + '</b><br>' + x.u + ' gestir · ' + x.v + ' flettingar"><rect class="hit" x="' + (X(i) - 11) + '" y="' + T + '" width="22" height="' + (H - T - B) + '"/>' +
+          return '<g data-tip="<b>' + lab + '</b><br>' + x.u + ' heimsóknir · ' + x.v + ' flettingar"><rect class="hit" x="' + (X(i) - 11) + '" y="' + T + '" width="22" height="' + (H - T - B) + '"/>' +
             '<circle class="pt" cx="' + X(i) + '" cy="' + Y(x.u) + '" r="' + (i === 29 ? 4 : 2.5) + '"/></g>' +
             (i % 7 === 2 || i === 29 ? '<text class="ax" x="' + X(i) + '" y="' + (H - 6) + '" text-anchor="middle">' + lab + '</text>' : '');
         }).join('') + '<line class="base" x1="' + L + '" x2="' + W + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/></svg>';
       var el = $('visitDash'); if (!el) return;
       el.innerHTML = '<h4>Heimsóknir</h4><div class="stats">' +
-        '<div><b>' + today.u + '</b><span>gestir í dag (' + today.v + ' flettingar)</span></div>' +
-        '<div><b>' + u7 + '</b><span>gestir síðustu 7 daga' + (trend != null ? ' <em class="' + (trend >= 0 ? 'up' : 'down') + '">' + (trend >= 0 ? '+' : '') + trend + '%</em>' : '') + '</span></div>' +
-        '<div><b>' + sum(last30, 'u') + '</b><span>gestir síðustu 30 daga</span></div>' +
+        '<div><b>' + today.u + '</b><span>heimsóknir í dag (' + today.v + ' flettingar)</span></div>' +
+        '<div><b>' + u7 + '</b><span>heimsóknir síðustu 7 daga' + (trend != null ? ' <em class="' + (trend >= 0 ? 'up' : 'down') + '">' + (trend >= 0 ? '+' : '') + trend + '%</em>' : '') + '</span></div>' +
+        '<div><b>' + sum(last30, 'u') + '</b><span>heimsóknir síðustu 30 daga</span></div>' +
         '<div><b>' + share + '%</b><span>í síma (30 dagar)</span></div></div>' +
         '<div class="chart-wrap">' + svg + '</div>' +
-        '<p class="note">Einstakur gestur = einn vafri á dag (nafnlaust, engar persónuupplýsingar). Þínar eigin heimsóknir eru ekki taldar. Talning hófst ' +
+        '<p class="note">Heimsókn = síðan opnuð utan frá, ekki endurhleðsla (nafnlaust, ekkert vistað í vafra gesta). Fyrir 13. nóv. 2026 var talið einn vafri á dag. Þínar eigin heimsóknir eru ekki taldar. Talning hófst ' +
         A.dateIs(new Date((days.filter(function (x) { return x.v; })[0] || today).k), true) + '.</p>';
     }).catch(function (e) { var el = $('visitDash'); if (el) el.innerHTML = '<p class="err">Gat ekki sótt heimsóknir: ' + A.esc(e.message) + '</p>'; });
   }
@@ -392,6 +430,8 @@
     else if (a === 'register' || a === 'reset') doAuth(a);
     else if (a === 'logout') { auth.signOut(); A.closeModal(); }
     else if (a === 'me') showMe();
+    else if (a === 'export') exportData();
+    else if (a === 'delete-ask') askDelete();
     else if (a === 'saved') showSaved('cars');
     else if (a === 'tab-cars') showSaved('cars');
     else if (a === 'tab-searches') showSaved('searches');
@@ -443,13 +483,17 @@
     }
     reloadSeen = v || 0;
   }, function () {});
-  // ---------- heimsóknatalning (nafnlaus): stats/ÁÁÁÁ-MM-DD {v: flettingar, u: einstakir gestir, m: sími, d: tölva} ----------
+  // ---------- heimsóknatalning (nafnlaus): stats/ÁÁÁÁ-MM-DD {v: flettingar, u: heimsóknir, m: sími, d: tölva} ----------
+  // Ekkert er vistað í vafra gesta (engar vafrakökur/localStorage), svo ekki þarf samþykki: heimsókn = síðan opnuð
+  // utan frá (ekki endurhleðsla eða flakk innan síðunnar).
   var tracked = false;
   function trackVisit() {
     if (tracked || isAdmin() || /^(localhost|127\.)/.test(location.hostname)) return;
     tracked = true;
-    var day = new Date().toISOString().slice(0, 10), first = false;
-    try { first = localStorage.getItem('vday') !== day; localStorage.setItem('vday', day); } catch (e) {}
+    var day = new Date().toISOString().slice(0, 10), nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    var internal = false; try { internal = !!document.referrer && new URL(document.referrer).host === location.host; } catch (e) {}
+    var first = !(nav && nav.type === 'reload') && !internal;
+    try { localStorage.removeItem('vday'); } catch (e) {}  // eldri útgáfa vistaði dagsetningu: hreinsa
     var inc = firebase.firestore.FieldValue.increment, mobile = matchMedia('(max-width: 760px)').matches || /iphone|android/i.test(navigator.userAgent);
     var data = { v: inc(1) };
     if (first) { data.u = inc(1); data[mobile ? 'm' : 'd'] = inc(1); }

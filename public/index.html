@@ -11,9 +11,8 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="style.css">
 <script>try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
 </head>
@@ -124,6 +123,7 @@
       <p><a id="fbLink" href="https://www.facebook.com/marketplace/reykjavik/vehicles" target="_blank" rel="noopener">Leita líka á Facebook Marketplace ↗</a></p>
       <p id="sources"></p>
       <p><button type="button" class="link-btn" id="showConsent">Fyrirvari um verðmat og áætlanir</button></p>
+      <p class="legal"><a href="/personuvernd.html">Persónuvernd og skilmálar</a> · <a href="/personuvernd.html#um">Um Bílaleit</a> · Rekið af Ísak Lehmann · <a href="mailto:isaklehmann33@gmail.com">isaklehmann33@gmail.com</a></p>
       <p>Verðmatið er tölfræðilíkan sem lærir af öllum auglýsingum: það ber hvern bíl saman við sömu gerð og leiðréttir fyrir árgerð, akstri, eldsneyti og útgáfu. Það er vísbending, ekki ástandsskoðun. Smelltu alltaf á upprunalegu auglýsinguna.</p>
     </footer>
   </section>
@@ -155,7 +155,7 @@
       <li><i data-ic="wallet"></i><span><b>Lán, rekstrarkostnaður, gjöld, tilboðsráðgjöf og innflutningsverð</b> eru áætlanir sem geta verið rangar eða úreltar.</span></li>
       <li><i data-ic="triangle-alert"></i><span><b>Myndgreining og viðvaranir</b> eru sjálfvirkar og geta skjátlast í báðar áttir.</span></li>
     </ul>
-    <p class="note">Bílaleit ber ekki ábyrgð á ákvörðunum sem teknar eru út frá þessum upplýsingum. Lestu alltaf upprunalegu auglýsinguna, fáðu ástandsskoðun og tilboð frá verkstæði áður en þú kaupir.</p>
+    <p class="note">Bílaleit ber ekki ábyrgð á ákvörðunum sem teknar eru út frá þessum upplýsingum. Lestu alltaf upprunalegu auglýsinguna, fáðu ástandsskoðun og tilboð frá verkstæði áður en þú kaupir. <a href="/personuvernd.html" target="_blank" rel="noopener">Persónuvernd og skilmálar</a></p>
     <label class="check cs-check"><input type="checkbox" id="consentCheck"><span>Ég skil að verð og kostnaður á síðunni eru ágiskanir</span></label>
     <button type="button" class="btn-cta wide" id="consentOk" disabled>Samþykkja og halda áfram</button>
   </div>

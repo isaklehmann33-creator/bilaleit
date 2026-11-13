@@ -35,6 +35,30 @@ def text(s):
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<!--.*?-->|<[^>]+>", " ", s or ""))).strip()
 
 
+# Persónuvernd: símanúmer og netföng seljenda (oft einstaklinga á bland.is) eru ekki birt eða geymd hér;
+# kaupandi hefur samband í gegnum upprunalegu auglýsinguna.
+PHONE = re.compile(r"(?<![\d.,])(?:\+?354[ -]?)?[4-8]\d{2}[ -]?\d{4}(?![\d.,])")
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+PHONE_CTX = re.compile(r"(?:s[ií]m\w*|gsm|tel\w*|phone\w*|number|uppl\w*|hringi\w*|call)\W{0,4}$", re.I)
+PRICE_BEFORE = re.compile(r"(?:verð\w*|ásett\w*|price|isk|stgr\.?|(?<!\d)(?<!\d )kr\.?)\W{0,3}$", re.I)  # „1.350.000 kr 823-2083“: síðara er sími
+PRICE_AFTER = re.compile(r"^\s?(?:kr|km|isk|þús|,-|\.-|m\.?kr)", re.I)
+
+
+def scrub(t):
+    """Fjarlægir símanúmer og netföng úr texta („Uppl. í síma 899-2635“ -> „Uppl. í síma [sími falinn]“). Verð (4990000 kr.) haldast."""
+    if not t:
+        return t
+    t = EMAIL.sub("[netfang falið]", t)
+    def phone(m):
+        before, after = t[max(0, m.start() - 20):m.start()], t[m.end():m.end() + 6]
+        if PHONE_CTX.search(before):
+            return "[sími falinn]"
+        if PRICE_AFTER.search(after) or PRICE_BEFORE.search(before[-12:]):
+            return m.group(0)
+        return "[sími falinn]"
+    return PHONE.sub(phone, t)
+
+
 def num(s):
     d = re.sub(r"[^\d]", "", s or "")
     return int(d) if d else None
@@ -393,6 +417,8 @@ def main():
         report[name] = len(got)
         cars += got
     cars = [c for c in cars if c.get("price") and c["price"] > 100000]
+    for c in cars:
+        c["title"] = scrub(c.get("title"))
     try:
         update_details(cars)
     except Exception as e:
@@ -422,6 +448,7 @@ def main():
 # ~13.000 síður: sóttar smám saman (nýjar fyrst) innan tímamarka, geymdar í public/data/details/NN.json
 DETAILS_DIR = Path(__file__).parent / "public" / "data" / "details"
 DETAILS_SHARDS = 64
+CRAWL_DELAY5 = ("Hekla", "Brimborg")  # Crawl-delay: 5 í robots.txt þeirra
 DETAILS_BUDGET_MIN = float(os.environ.get("DETAILS_BUDGET_MIN", "35"))
 
 
@@ -492,7 +519,7 @@ def parse_details(c, h):
     if hp:
         d["hp"] = clean_hp(int(hp.group(1)))
     if d.get("d"):
-        d["d"] = d["d"][:2500]
+        d["d"] = scrub(d["d"][:2500])
     rng = re.search(r"[Dd]rægni(?: allt að)?(?: \(km\))? (\d{2,3})(?: km)?", " ".join(parts))
     if rng and 10 <= int(rng.group(1)) <= 900:
         d["r"] = int(rng.group(1))
@@ -676,6 +703,10 @@ def update_details(cars):
     for i in range(DETAILS_SHARDS):
         f = DETAILS_DIR / f"{i:02d}.json"
         shards[i] = json.loads(f.read_text("utf-8")) if f.exists() else {}
+    for s in shards.values():  # eldri lýsingar líka (sótt áður en hreinsun kom til)
+        for v in s.values():
+            if v.get("d"):
+                v["d"] = scrub(v["d"])
     have = {k for s in shards.values() for k in s}
     live = {c["id"] for c in cars}
     todo = [c for c in cars if c["id"] not in have and c.get("url")]
@@ -691,7 +722,7 @@ def update_details(cars):
         except Exception as e:
             shards[shard_of(c["id"])][c["id"]] = {}
             print(f"  lýsing {c['url']}: {e}", file=sys.stderr)
-        time.sleep(1)
+        time.sleep(5 if c.get("src") in CRAWL_DELAY5 else 1)
     for i, s in shards.items():  # henda lýsingum auglýsinga sem eru horfnar
         s = {k: v for k, v in s.items() if k in live}
         (DETAILS_DIR / f"{i:02d}.json").write_text(json.dumps(s, ensure_ascii=False, separators=(",", ":")), "utf-8")
@@ -908,6 +939,9 @@ def update_history(cars):
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
     h = json.loads(HISTORY.read_text("utf-8")) if HISTORY.exists() else {"ads": {}}
     ads, live = h["ads"], set()
+    for a in ads.values():  # eldri titlar líka
+        if a.get("t"):
+            a["t"] = scrub(a["t"])
     for c in cars:
         live.add(c["id"])
         a = ads.get(c["id"])

@@ -9,6 +9,7 @@ import html as H
 import json
 import re
 import sys
+import time
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,6 +63,7 @@ def toyota():
 def askja():
     out = []
     for page, make in (("kia", "KIA"), ("mercedes-benz", "MERCEDES-BENZ"), ("honda", "HONDA")):
+        time.sleep(1)
         h = get("https://www.askja.is/" + page)
         for m in re.finditer(r"Verð frá ([\d.]+) kr", h):
             segs = [x.strip() for x in re.split(r"<[^>]+>", h[max(0, m.start() - 1500):m.start()]) if x.strip()]
@@ -75,6 +77,8 @@ def askja():
 def hekla():
     out, seen = [], set()
     for p in range(1, 30):
+        if p > 1:
+            time.sleep(5)  # Crawl-delay: 5 í robots.txt
         h = get(f"https://www.hekla.is/is/bilar/nyir-bilar-syningasalur?page={p}")
         new = 0
         for block in h.split('<h2 class="title">')[1:]:
@@ -95,6 +99,8 @@ def hekla():
 def brimborg():
     out, seen = [], set()
     for p in range(1, 30):
+        if p > 1:
+            time.sleep(5)  # Crawl-delay: 5 í robots.txt
         h = get(f"https://nyirbilar.brimborg.is/is/nyir-bilar?page={p}")
         new = 0
         for block in h.split('<div class="device ')[1:]:

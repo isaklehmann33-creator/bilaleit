@@ -863,3 +863,9 @@ dialog#lightbox::backdrop { background: #000; }
 .lb-frame img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; transition: transform .25s ease; }
 .lb-frame.zoom img { transform: scale(2.2); cursor: zoom-out; }
 #gallery img { cursor: zoom-in; }
+
+/* aðgangur: gögnin mín, persónuvernd, eyða */
+.me-legal { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; font-size: 13px; }
+.me-legal .link, .me-legal a { padding: 0; font-size: 13px; }
+.primary.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+.foot .legal { font-size: 13px; }

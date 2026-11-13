@@ -49,9 +49,7 @@ function page({ title, desc, canon, crumbs, body, ld }) {
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0b0f0e">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="/page.css">
 <script>try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
 ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : ''}
@@ -64,7 +62,7 @@ ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\
 ${body}
 </main>
 <footer class="wrap foot"><p>Gögn frá bílasölum landsins og bland.is, uppfærð daglega. Ending og fjöldi úr ökutækjaskrá Samgöngustofu.
-Verðmat og ending eru áætlanir, ekki ráðgjöf. <a href="/verd/">Allar gerðir</a></p></footer>
+Verðmat og ending eru áætlanir, ekki ráðgjöf. <a href="/verd/">Allar gerðir</a> · <a href="/personuvernd.html">Persónuvernd og skilmálar</a></p></footer>
 </body>
 </html>
 `;
